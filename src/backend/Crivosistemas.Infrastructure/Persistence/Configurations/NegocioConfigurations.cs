@@ -96,6 +96,7 @@ internal sealed class ReconciliacaoConfig : IEntityTypeConfiguration<Reconciliac
         b.Property(x => x.Tipo).HasConversion<string>().HasMaxLength(15);
         b.Property(x => x.Estado).HasConversion<string>().HasMaxLength(15);
         b.Property(x => x.Erro).HasMaxLength(2000);
+        b.Property(x => x.Aviso).HasMaxLength(500);
         b.HasIndex(x => new { x.Estado, x.CriadoEm });
         b.HasIndex(x => new { x.Tipo, x.CriadoEm });
     }

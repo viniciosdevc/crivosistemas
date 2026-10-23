@@ -176,7 +176,17 @@ public sealed class IngestaoService(AppDbContext db, ILogger<IngestaoService> lo
         if (venda is not null)
         {
             if (venda.Removida) return ResultadoVenda.IgnoradaRemovida;
-            if (!RegraUpsert.Aplicar(venda.AtualizadoEmOrigem, p.AtualizadoEm)) return ResultadoVenda.IgnoradaMaisAntiga;
+            if (!RegraUpsert.Aplicar(venda.AtualizadoEmOrigem, p.AtualizadoEm))
+            {
+                // Dado mais antigo não sobrescreve nada, mas uma venda ainda sem cliente ganha o vínculo (corrige o que já foi gravado sem ele).
+                if (venda.ClienteId is null && p.Cliente is not null)
+                {
+                    var achado = await AplicarClienteAsync(p.Cliente, sobrescrever: false, ct);
+                    venda.Cliente = achado;
+                    venda.ClienteId = achado.Id;
+                }
+                return ResultadoVenda.IgnoradaMaisAntiga;
+            }
         }
 
         var cliente = p.Cliente is null ? null : await AplicarClienteAsync(p.Cliente, sobrescrever: true, ct);

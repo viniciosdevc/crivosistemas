@@ -341,6 +341,10 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("Ate")
                         .HasColumnType("date");
 
+                    b.Property<string>("Aviso")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
                     b.Property<int>("ClientesCriados")
                         .HasColumnType("int");
 

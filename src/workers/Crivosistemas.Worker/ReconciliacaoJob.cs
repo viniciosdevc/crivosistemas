@@ -12,7 +12,7 @@ public sealed class ReconciliacaoJob(IServiceScopeFactory scopes, ICrivonftClien
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(segundos));
         do
         {
-            if (!crivonft.ExportConfigurado) continue;
+            if (!crivonft.ExportConfigurado && !crivonft.EnvioConfigurado) continue;
             try
             {
                 await using var scope = scopes.CreateAsyncScope();

@@ -16,6 +16,12 @@ public sealed record EnvioResposta(int StatusHttp, bool Aplicada, int? Versao, s
     public bool Sucesso => StatusHttp is >= 200 and < 300;
 }
 
+/// <summary>Resposta de <c>POST /api/integracoes/gestao/reenviar</c>: quantas vendas de cada origem foram reenfileiradas no crivonft.</summary>
+public sealed record ReenvioResposta(int Nft, int Cambios, int Site, bool Truncado)
+{
+    public int Total => Nft + Cambios + Site;
+}
+
 public sealed class CrivonftException(string message, int? statusHttp = null, Exception? inner = null) : Exception(message, inner)
 {
     public int? StatusHttp { get; } = statusHttp;
@@ -30,6 +36,7 @@ public interface ICrivonftClient
     Task<ExportPagina> ExportarClientesAsync(int limit, int offset, CancellationToken ct);
     /// <summary>Lotes do estoque do crivonft: <paramref name="tipo"/> "usd" ou "esmeralda".</summary>
     Task<ExportPagina> ExportarEstoqueAsync(string tipo, int limit, int offset, CancellationToken ct);
+    Task<ReenvioResposta> ReenviarPeriodoAsync(DateOnly de, DateOnly ate, CancellationToken ct);
     Task<PrecificacaoContrato.PayloadDto> LerPrecificacaoAsync(CancellationToken ct);
     Task<EnvioResposta> EnviarPrecificacaoAsync(string corpoJson, CancellationToken ct);
 }
@@ -74,6 +81,28 @@ public sealed class CrivonftClient(HttpClient http, IOptions<CrivonftOptions> op
         catch (JsonException e)
         {
             throw new CrivonftException("Resposta de exportação do crivonft não é um JSON válido.", status, e);
+        }
+    }
+
+    /// <summary>Pede ao crivonft que reenfileire as vendas (as 3 origens) e os clientes do período pela outbox dele, com payload completo.
+    /// Os eventos chegam depois, pelo endpoint de eventos. 404 = crivonft sem a rota (desatualizado).</summary>
+    public async Task<ReenvioResposta> ReenviarPeriodoAsync(DateOnly de, DateOnly ate, CancellationToken ct)
+    {
+        ExigirEnvio();
+        var corpo = JsonSerializer.SerializeToUtf8Bytes(new { de = de.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), ate = ate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) });
+        using var req = Assinada(HttpMethod.Post, "/api/integracoes/gestao/reenviar", corpo);
+        var (status, resp) = await EnviarAsync(req, ct);
+        if (status is < 200 or >= 300) throw new CrivonftException($"O crivonft respondeu {status} em /api/integracoes/gestao/reenviar: {Resumo(resp)}", status);
+        try
+        {
+            using var doc = JsonDocument.Parse(resp);
+            var r = doc.RootElement;
+            int Int(string n) => r.TryGetProperty(n, out var v) && v.TryGetInt32(out var i) ? i : 0;
+            return new ReenvioResposta(Int("nft"), Int("cambios"), Int("site"), r.TryGetProperty("truncado", out var t) && t.ValueKind == JsonValueKind.True);
+        }
+        catch (JsonException e)
+        {
+            throw new CrivonftException("Resposta de reenvio do crivonft não é um JSON válido.", status, e);
         }
     }
 
@@ -144,4 +173,14 @@ public sealed class CrivonftClient(HttpClient http, IOptions<CrivonftOptions> op
     }
 
     private static string Resumo(string corpo) => corpo.Length <= 300 ? corpo : corpo[..300] + "…";
+
+    /// <summary>Texto claro, em português, para o que deu errado ao falar com o crivonft (vai no detalhe do problema 502 e na reconciliação).</summary>
+    public static string Explicar(CrivonftException e) => e.StatusHttp switch
+    {
+        404 => "O crivonft ainda não tem a rota de integração; publique a atualização da loja.",
+        401 or 403 => "Token ou segredo diferentes nos dois sistemas.",
+        null => "Não foi possível falar com o crivonft (sem resposta ou tempo esgotado). " + e.Message,
+        { } s when s >= 500 => $"O crivonft respondeu com erro {s}. Tente de novo em instantes.",
+        { } s => $"O crivonft recusou a chamada ({s}). {e.Message}",
+    };
 }

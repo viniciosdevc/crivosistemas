@@ -95,6 +95,30 @@ async function requestReconciliation() {
     requesting.value = false
   }
 }
+
+// Carga inicial do histórico: pede ao crivonft que reenvie tudo desde a data.
+const histSince = ref(addDays(todayIso(), -365))
+const importingHistory = ref(false)
+async function importHistory() {
+  if (!histSince.value) return
+  if (!(await confirm({
+    title: 'Importar o histórico?',
+    description: `O Worker vai pedir ao crivonft o reenvio de todas as vendas e clientes desde ${formatDay(histSince.value)}, mês a mês. Pode demorar bastante; repetir é seguro (nada é duplicado).`,
+    confirmLabel: 'Importar histórico',
+  }))) return
+  importingHistory.value = true
+  try {
+    await api.post('/api/integracoes/crivonft/importar-historico', { desde: histSince.value })
+    toast.success('Importação na fila', 'Acompanhe o andamento na lista abaixo.')
+    recPage.value = 1
+    await recs.run()
+    void status.run()
+  } catch (e) {
+    toast.error('Não foi possível importar', e instanceof ApiError ? e.message : undefined)
+  } finally {
+    importingHistory.value = false
+  }
+}
 const recColumns: Column[] = [
   { key: 'criadoEm', label: 'Pedida em' },
   { key: 'periodo', label: 'Período', hideBelow: 'sm' },
@@ -266,6 +290,17 @@ const s = computed(() => status.data.value)
           </form>
         </section>
 
+        <section class="mb-5 rounded-2xl border border-line p-5" aria-labelledby="hist-title">
+          <h2 id="hist-title" class="text-lg font-semibold text-ink">Importar histórico</h2>
+          <p class="mt-1 mb-4 text-sm text-muted">Carga inicial: pede ao crivonft todas as vendas (NFT, câmbios e site) e clientes desde a data, com os dados completos.</p>
+          <form class="grid items-start gap-3 sm:grid-cols-3" @submit.prevent="importHistory">
+            <UiDatePicker v-model="histSince" label="Desde" :max="recTo" />
+            <div class="flex flex-col gap-2 sm:pt-[26px]">
+              <UiButton type="submit" size="lg" variant="secondary" :loading="importingHistory" :disabled="!histSince"><CalendarSync class="size-4" /> Importar histórico</UiButton>
+            </div>
+          </form>
+        </section>
+
         <UiEmptyState v-if="recs.error.value && !recs.data.value" :icon="TriangleAlert" title="Não foi possível carregar as reconciliações" :description="recs.error.value.message">
           <UiButton variant="secondary" @click="recs.run"><RefreshCw class="size-4" /> Tentar de novo</UiButton>
         </UiEmptyState>
@@ -279,8 +314,9 @@ const s = computed(() => status.data.value)
             <StatusBadge :map="estadoReconciliacao" :value="row.estado" />
             <p v-if="row.erro" class="mt-1 max-w-xs text-sm break-words text-danger">{{ row.erro }}</p>
             <p v-else-if="row.concluidoEm" class="mt-1 text-sm text-muted">Concluída em {{ formatDateTime(row.concluidoEm) }}</p>
+            <p v-if="row.aviso" class="mt-1 max-w-xs text-sm break-words text-warning">{{ row.aviso }}</p>
           </template>
-          <template #cell-vendas="{ row }"><span class="tabular">{{ formatInt(row.vendasAplicadas) }} de {{ formatInt(row.vendasLidas) }}</span></template>
+          <template #cell-vendas="{ row }"><span class="tabular">{{ row.aviso || row.vendasAplicadas > 0 || row.vendasLidas === 0 ? `${formatInt(row.vendasAplicadas)} de ${formatInt(row.vendasLidas)}` : `${formatInt(row.vendasLidas)} pedidas ao crivonft` }}</span></template>
           <template #cell-clientes="{ row }"><span class="tabular">{{ pluralize(row.clientesCriados, 'novo', 'novos') }} de {{ formatInt(row.clientesLidos) }}</span></template>
           <template #empty>
             <UiEmptyState :icon="CalendarSync" title="Nenhuma reconciliação ainda" description="A rodada noturna e os pedidos feitos aqui aparecem nesta lista." />
