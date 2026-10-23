@@ -1,4 +1,6 @@
 using Crivosistemas.Domain.Identity;
+using Crivosistemas.Domain.Integracoes;
+using Crivosistemas.Infrastructure.Integracoes;
 using Crivosistemas.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -64,5 +66,23 @@ public static class DatabaseTasks
         await db.SaveChangesAsync();
         Console.WriteLine($"Administrador {normalized} criado.");
         return 0;
+    }
+
+    /// <summary>Comando de operação: <c>--importar-crivonft [AAAA-MM-DD]</c> faz a carga completa inicial (vendas desde a data, e todos os clientes)
+    /// puxando <c>/api/export/*</c> do crivonft. Pode rodar de novo: o upsert por data evita duplicar.</summary>
+    public static async Task<int> ImportarCrivonftAsync(IServiceProvider services, DateOnly? desde)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var crivonft = scope.ServiceProvider.GetRequiredService<ICrivonftClient>();
+        if (!crivonft.ExportConfigurado)
+        {
+            Console.Error.WriteLine("Configure Integrations:Crivonft:BaseUrl e ExportToken antes de importar.");
+            return 1;
+        }
+        var servico = scope.ServiceProvider.GetRequiredService<ReconciliacaoService>();
+        var e = await servico.CargaInicialAsync(desde, CancellationToken.None);
+        Console.WriteLine($"Importação {(e.Estado == EstadoReconciliacao.Concluida ? "concluída" : "falhou")}: {e.VendasLidas} vendas lidas, {e.VendasAplicadas} aplicadas, {e.ClientesLidos} clientes lidos, {e.ClientesCriados} criados.");
+        if (e.Erro is not null) Console.Error.WriteLine(e.Erro);
+        return e.Estado == EstadoReconciliacao.Concluida ? 0 : 1;
     }
 }

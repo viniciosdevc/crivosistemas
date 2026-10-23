@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Crivosistemas.Worker;
 
 /// <summary>Manutenção: apaga tokens de redefinição de senha vencidos ou já usados. É também o esqueleto dos próximos jobs
-/// (a sincronização com o crivonft entra aqui, em outra etapa).</summary>
+/// (a integração com o crivonft roda em ReconciliacaoJob e PrecificacaoEnvioJob).</summary>
 public sealed class TokenCleanupJob(IServiceScopeFactory scopes, IConfiguration config, ILogger<TokenCleanupJob> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

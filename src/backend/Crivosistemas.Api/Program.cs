@@ -3,6 +3,10 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Crivosistemas.Api.Common;
 using Crivosistemas.Api.Modules.Auth;
+using Crivosistemas.Api.Modules.Clientes;
+using Crivosistemas.Api.Modules.Integracoes;
+using Crivosistemas.Api.Modules.Precificacao;
+using Crivosistemas.Api.Modules.Vendas;
 using Crivosistemas.Api.Modules.Users;
 using Crivosistemas.Domain.Identity;
 using Crivosistemas.Infrastructure;
@@ -117,6 +121,21 @@ if (Array.IndexOf(args, "--seed-admin") is var sa and >= 0)
     await DatabaseTasks.MigrateAsync(app.Services);
     return await DatabaseTasks.SeedAdminAsync(app.Services, args[sa + 1], args[sa + 2], sa + 3 < args.Length ? args[sa + 3] : null);
 }
+if (Array.IndexOf(args, "--importar-crivonft") is var ic and >= 0)
+{
+    DateOnly? desde = null;
+    if (ic + 1 < args.Length)
+    {
+        if (!DateOnly.TryParseExact(args[ic + 1], "yyyy-MM-dd", out var d))
+        {
+            Console.Error.WriteLine("Uso: --importar-crivonft [AAAA-MM-DD]");
+            return 1;
+        }
+        desde = d;
+    }
+    await DatabaseTasks.MigrateAsync(app.Services);
+    return await DatabaseTasks.ImportarCrivonftAsync(app.Services, desde);
+}
 if (args.Contains("--migrate"))
 {
     await DatabaseTasks.MigrateAsync(app.Services);
@@ -140,6 +159,10 @@ app.MapHealthChecks("/health/ready", new() { Predicate = c => c.Tags.Contains("r
 
 app.MapAuthEndpoints();
 app.MapUserEndpoints();
+app.MapIntegracoesEndpoints();
+app.MapVendasEndpoints();
+app.MapClientesEndpoints();
+app.MapPrecificacaoEndpoints();
 
 await app.RunAsync();
 return 0;

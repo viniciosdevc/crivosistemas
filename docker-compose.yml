@@ -15,6 +15,10 @@ x-backend-env: &backend-env
   Smtp__UseSsl: ${SMTP_USE_SSL:-false}
   Smtp__FromAddress: ${SMTP_FROM_ADDRESS:-}
   Smtp__FromName: ${SMTP_FROM_NAME:-Crivo Gestão}
+  Integrations__Crivonft__BaseUrl: ${Integrations__Crivonft__BaseUrl:-}
+  Integrations__Crivonft__Token: ${Integrations__Crivonft__Token:-}
+  Integrations__Crivonft__HmacSecret: ${Integrations__Crivonft__HmacSecret:-}
+  Integrations__Crivonft__ExportToken: ${Integrations__Crivonft__ExportToken:-}
 
 services:
   mysql:

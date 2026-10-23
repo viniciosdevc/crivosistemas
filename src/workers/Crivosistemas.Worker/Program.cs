@@ -11,5 +11,7 @@ if (builder.Configuration.GetConnectionString("Redis") is { Length: > 0 } redisC
     dataProtection.PersistKeysToStackExchangeRedis(StackExchange.Redis.ConnectionMultiplexer.Connect(redisConnection + ",abortConnect=false"), DependencyInjection.RedisPrefix + "dataprotection-keys");
 builder.Services.AddHostedService<TokenCleanupJob>();
 builder.Services.AddEmailDispatcher();
+builder.Services.AddHostedService<ReconciliacaoJob>();
+builder.Services.AddHostedService<PrecificacaoEnvioJob>();
 
 builder.Build().Run();

@@ -10,7 +10,9 @@ public sealed class CsrfHeaderMiddleware(RequestDelegate next)
     {
         var method = http.Request.Method;
         var safe = HttpMethods.IsGet(method) || HttpMethods.IsHead(method) || HttpMethods.IsOptions(method);
-        if (!safe && http.Request.Path.StartsWithSegments("/api") && !http.Request.Headers.ContainsKey(HeaderName))
+        // O endpoint de eventos do crivonft não usa cookie: autentica por Bearer + HMAC, então não precisa do cabeçalho anti-CSRF.
+        var maquina = http.Request.Path.Equals("/api/integracoes/crivonft/eventos", StringComparison.OrdinalIgnoreCase) && HttpMethods.IsPost(method);
+        if (!safe && !maquina && http.Request.Path.StartsWithSegments("/api") && !http.Request.Headers.ContainsKey(HeaderName))
         {
             http.Response.StatusCode = StatusCodes.Status400BadRequest;
             return http.Response.WriteAsJsonAsync(new { title = "Cabeçalho de segurança ausente.", code = "csrf" });

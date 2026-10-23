@@ -3,6 +3,7 @@
 # O Redis pode ser a mesma instância do crivonft: todas as chaves usam o prefixo `crivosistemas:`.
 # Uso: docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 # Primeiro administrador: docker compose -f docker-compose.prod.yml run --rm migrate --seed-admin <email> <senha> [nome]
+# Integração com o crivonft: Integrations__Crivonft__* no .env (api e worker leem). Carga inicial: ... run --rm migrate --importar-crivonft [AAAA-MM-DD]
 name: crivosistemas
 
 x-backend: &backend
