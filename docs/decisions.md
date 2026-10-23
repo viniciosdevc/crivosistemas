@@ -23,8 +23,16 @@ O Redis de produção pode ser o do crivonft. Toda chave do cache e do DataProte
 ## 7. Uma migration inicial limpa
 As migrations do chamaezap foram descartadas; `Inicial` cria só `Users`, `UserTokens` e `AuditEntries`.
 
-## 8. Integração com o crivonft fica para a próxima etapa
-O contrato (v1) está em [`integracao-crivonft.md`](integracao-crivonft.md): vendas e clientes vêm do crivonft (fonte da verdade) e as regras de preço vão daqui para lá. As telas Vendas, Clientes, Preços e regras e Integrações existem na navegação como "Em construção" para a próxima etapa encaixar o conteúdo.
+## 8. Integração com o crivonft
+O contrato está em [`integracao-crivonft.md`](integracao-crivonft.md): vendas e clientes vêm do crivonft (fonte da verdade) e as regras de preço vão daqui para lá. Implementado na fase 2 (backend); as telas Vue entram em outra etapa.
+
+- **Evento bruto primeiro.** O corpo é gravado em `EventosRecebidos` (id único) antes de processar. Repetição responde `{"duplicado":true}`; payload inválido é 400 e fica "rejeitado"; erro inesperado é 500 e fica "falhou" (o crivonft repete e o admin pode reprocessar).
+- **Upsert por data.** Chave `(origem, origem_id)`; evento com `atualizado_em` menor que o gravado é ignorado. `venda.removida` marca a venda; se chegar antes do upsert, cria um marcador para que um upsert atrasado não a reviva.
+- **Cliente opcional.** `venda.upsert` pode vir com `cliente: null`; a venda fica sem cliente.
+- **Reconciliação por fila.** O pedido manual vira uma linha "pendente" que o Worker executa, porque a API não faz chamadas longas ao crivonft.
+- **Limitação do export.** As linhas de `/api/export/vendas` não trazem os itens do site, nem desconto/taxa/cupom, e não trazem `pedido_id` quando o crivonft não o expõe. A reconciliação ignora linhas com `pedido_id` (espelho de pedido do site, que já chega por evento) para não contar a venda duas vezes. Se o crivonft passar a omitir `pedido_id` no export, as vendas do site podem ser contadas em dobro: pedir ao crivonft que o inclua ou que filtre `vendas_nft` espelhadas.
+- **Preços: este sistema manda.** Salvar sobe `Versao`, grava histórico e auditoria e escreve no outbox na mesma transação; um envio novo substitui os pendentes. O PUT otimista usa a versão carregada (409 se mudou). Ao importar do crivonft a versão local nunca regride.
+- **Cálculo em `double`.** `CalculoPreco` usa ponto flutuante e `Math.round` do JS (metade sobe) para bater centavo a centavo com o crivonft; a persistência usa `decimal`.
 
 ## 9. Marca
 "Crivo Gestão", com ícone próprio (peneira de pontos sobre o verde-limão do tema). Os tokens de cor e o tema claro/escuro do chamaezap foram mantidos.

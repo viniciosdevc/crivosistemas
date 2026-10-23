@@ -1,8 +1,8 @@
 # Crivo Gestão (crivosistemas)
 
-Sistema de gestão **de uma empresa só** (single-tenant) para acompanhar vendas, clientes, regras de preço e integrações do crivonft. Esta é a **fase 1: a base**. Login, painel e usuários funcionam; Vendas, Clientes, Preços e regras e Integrações são telas "Em construção".
+Sistema de gestão **de uma empresa só** (single-tenant) para acompanhar vendas, clientes, regras de preço e integrações do crivonft. Fase 1 (base): login, painel e usuários. Fase 2 (backend): integração com o crivonft, vendas, clientes e precificação na API e no Worker; as telas Vue de Vendas, Clientes, Preços e regras e Integrações ainda são "Em construção".
 
-A fonte da verdade das **vendas e clientes** é o crivonft; a das **regras de preço** é este sistema. O contrato entre os dois está em [`docs/integracao-crivonft.md`](docs/integracao-crivonft.md) e **ainda não foi implementado**.
+A fonte da verdade das **vendas e clientes** é o crivonft; a das **regras de preço** é este sistema. O contrato entre os dois está em [`docs/integracao-crivonft.md`](docs/integracao-crivonft.md) e **já está implementado no backend** (veja a seção de configuração no próprio documento).
 
 ## Stack
 
@@ -49,5 +49,5 @@ cd src/frontend && npm run typecheck && npm run lint && npm test && npm run buil
 
 - [`docs/architecture.md`](docs/architecture.md): visão geral, módulos, autenticação e papéis.
 - [`docs/decisions.md`](docs/decisions.md): decisões e o que ficou de fora.
-- [`docs/integracao-crivonft.md`](docs/integracao-crivonft.md): contrato de integração (a implementar).
+- [`docs/integracao-crivonft.md`](docs/integracao-crivonft.md): contrato de integração com o crivonft, configuração e operação.
 - [`AGENTS.md`](AGENTS.md): regras para trabalhar no código.

@@ -1,4 +1,6 @@
-# Contrato de integração crivonft ⇄ crivosistemas (v1)
+# Contrato de integração crivonft ⇄ crivosistemas (v1.1)
+
+**Mudanças da v1.1:** em `venda.upsert`, `cliente` pode ser `null` (venda sem comprador identificado); o crivonft repete as respostas `401`, `403`, `408` e `429` (todo o resto de `4xx` é permanente). Implementado no crivosistemas na fase 2 (backend); veja "Implementação" no fim.
 
 Fonte da verdade das **vendas e clientes**: crivonft (PostgreSQL).
 Fonte da verdade das **regras de preço** (configuração de cálculo, faixas PIX, cupons): crivosistemas (MySQL), com cópia local no crivonft.
@@ -75,3 +77,38 @@ Worker do crivosistemas roda 1x por noite para os últimos 3 dias e sob demanda 
 O crivonft aplica numa transação (substitui `loja_faixas_pix`, atualiza o singleton `loja_configuracoes_calculo`), ignora `versao` menor ou igual à última aplicada, e responde `{ "aplicada": true, "versao": 12 }`.
 `GET {crivonft}/api/integracoes/gestao/precificacao` devolve o estado atual no mesmo formato (para importar na primeira vez).
 Cupons ficam para a v2 do contrato.
+
+---
+
+## Implementação no crivosistemas
+
+### Configuração
+| Variável (`.env`) | Para quê |
+| --- | --- |
+| `Integrations__Crivonft__BaseUrl` | endereço do crivonft, sem barra no fim (necessário para enviar preços e puxar exportações) |
+| `Integrations__Crivonft__Token` | Bearer dos dois sentidos (= `GESTAO_TOKEN`) |
+| `Integrations__Crivonft__HmacSecret` | segredo do HMAC (= `GESTAO_HMAC_SECRET`) |
+| `Integrations__Crivonft__ExportToken` | Bearer das rotas `/api/export/*` (= `IMPORT_SECRET`) |
+
+Sem `Token` e `HmacSecret`, `POST /api/integracoes/crivonft/eventos` responde `503` e o worker não envia preços. Sem `BaseUrl` e `ExportToken`, a reconciliação não roda (o pedido manual responde `503`). No `docker-compose.prod.yml` as variáveis vêm do `.env` (`env_file`).
+
+### Recepção de eventos
+`POST /api/integracoes/crivonft/eventos`, sem cookie e sem o cabeçalho `X-Requested-With`. Ordem das verificações: configuração (`503`), tamanho do corpo (`400`, máximo 2 MB), Bearer + HMAC + janela de 300 s em tempo constante (`401`, com `code` `nao_autorizado` ou `timestamp_invalido`), payload.
+
+| Resposta | Quando |
+| --- | --- |
+| `200 {"ok":true,"duplicado":false,"resultado":"aplicado"}` | processado (`resultado` também pode ser `ignorado: ...` quando o `atualizado_em` é mais antigo que o gravado ou a venda já foi removida) |
+| `200 {"duplicado":true}` | o `id` do evento já foi processado |
+| `400 {"code":"payload_invalido","erros":[...]}` | JSON ou campos inválidos (permanente) |
+| `401` | credenciais ou timestamp inválidos |
+| `500` | erro inesperado ao processar; o evento fica `falhou` e o crivonft deve repetir |
+
+O corpo bruto é guardado em `EventosRecebidos` (único por `id`) antes de processar. Estados: `recebido`, `processado`, `falhou`, `rejeitado`. A tela Integrações usa os endpoints `/api/integracoes/crivonft/*` (veja `docs/architecture.md`).
+
+### Carga inicial e reconciliação
+- Carga inicial: `--importar-crivonft [AAAA-MM-DD]` (por exemplo `docker compose -f docker-compose.prod.yml run --rm migrate --importar-crivonft 2024-01-01`). Puxa todos os clientes e as vendas desde a data, 1000 por página, e aplica com a regra de upsert. Pode rodar de novo.
+- Noturna: uma vez por dia depois das 03:00 (São Paulo), últimos 3 dias. Sob demanda: `POST /api/integracoes/crivonft/reconciliacoes` com `{ "de": "AAAA-MM-DD", "ate": "AAAA-MM-DD" }`; a execução fica pendente até o Worker pegá-la.
+- Só `vendas_nft` sai por `/api/export/vendas`. Linhas com `pedido_id` são ignoradas (espelho de pedido do site, que chega por evento). Cliente exportado só é criado se não existir (os eventos são mais completos).
+
+### Regras de preço
+Salvar em `PUT /api/precificacao` grava a nova versão, o histórico e uma linha no outbox. O Worker envia o corpo da seção 3 assinado, com backoff de 5 s dobrando até 1 h (máximo de 20 tentativas); `401/403/408/429`, `5xx` e falha de rede repetem, os demais `4xx` encerram o envio como `falhou` (use `POST /api/precificacao/reenviar` depois de corrigir). Um envio novo substitui os pendentes. `POST /api/precificacao/importar-crivonft` lê `GET /api/integracoes/gestao/precificacao` na primeira vez.
