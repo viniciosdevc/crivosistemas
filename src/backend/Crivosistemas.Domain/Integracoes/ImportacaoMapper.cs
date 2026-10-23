@@ -53,6 +53,7 @@ public static class ImportacaoMapper
         var e = new List<string>();
         var nick = PayloadParser.Texto(r, "nickname", e, "nickname", max: 120);
         var primeira = PayloadParser.Data(r, "primeira_compra", e, "primeira_compra", obrigatorio: false);
-        return e.Count > 0 ? new(null, e) : new(new ClientePayload(nick!, nick!, null, null, primeira), []);
+        var carteira = PayloadParser.NormalizarCarteira(PayloadParser.Texto(r, "carteira", e, "carteira", obrigatorio: false, max: 120));
+        return e.Count > 0 ? new(null, e) : new(new ClientePayload(nick!, nick!, null, null, primeira, carteira), []);
     }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDateTime, formatDay, formatDecimal, formatInt, formatMoney, formatPercent, formatPhone, formatUsd, initials, isoDay, maskDocument, maskPhone, moneyParts, parseDecimal, pluralize } from '@/lib/format'
+import { formatDateTime, formatDay, formatDecimal, formatInt, formatMoney, formatPercent, formatPhone, formatUsd, initials, isoDay, maskDocument, maskPhone, moneyParts, parseDecimal, pluralize, shortWallet, walletExplorerUrl } from '@/lib/format'
 
 describe('format', () => {
   it('formats BRL with regular spaces', () => {
@@ -56,5 +56,14 @@ describe('números e datas da gestão', () => {
     expect(formatDateTime('2026-10-22T01:30:00Z', 'America/Sao_Paulo')).toContain('22:30')
     expect(formatDay('2026-10-21')).toContain('21 out')
     expect(isoDay('2026-10-22T01:30:00Z', 'America/Sao_Paulo')).toBe('2026-10-21')
+  })
+})
+
+describe('carteira', () => {
+  const end = '0xabcdef0123456789abcdef0123456789abcdef01'
+  it('abrevia o endereço e monta o link do explorer', () => {
+    expect(shortWallet(end)).toBe('0xabcd…ef01')
+    expect(shortWallet(null)).toBe('')
+    expect(walletExplorerUrl(end)).toBe(`https://explorer.immutable.com/address/${end}`)
   })
 })
