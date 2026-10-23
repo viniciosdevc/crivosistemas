@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Crivosistemas.Infrastructure.Email;
+using Crivosistemas.Infrastructure.Integracoes;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -21,6 +22,11 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     public const string AdminEmail = "admin@teste.dev";
     public const string AdminPassword = "senha-segura-1";
     public const string PublicUrl = "https://crivo.test";
+    public const string CrivoToken = "token-de-teste";
+    public const string CrivoSegredo = "segredo-hmac-de-teste";
+
+    /// <summary>Substitui o HttpClient do crivonft: os testes preparam as respostas e inspecionam os envios.</summary>
+    public FakeCrivonftClient Crivonft { get; } = new();
 
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -39,10 +45,16 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("RateLimiting:Enabled", "false");
         builder.UseSetting("Serilog:MinimumLevel:Default", "Warning");
         builder.UseSetting("App:PublicUrl", PublicUrl);
+        builder.UseSetting("Integrations:Crivonft:BaseUrl", "https://crivonft.test");
+        builder.UseSetting("Integrations:Crivonft:Token", CrivoToken);
+        builder.UseSetting("Integrations:Crivonft:HmacSecret", CrivoSegredo);
+        builder.UseSetting("Integrations:Crivonft:ExportToken", "export-de-teste");
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<IEmailSender>();
             services.AddSingleton<IEmailSender>(Emails);
+            services.RemoveAll<ICrivonftClient>();
+            services.AddSingleton<ICrivonftClient>(Crivonft);
         });
     }
 
