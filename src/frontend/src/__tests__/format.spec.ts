@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatMoney, formatPhone, initials, maskDocument, maskPhone, moneyParts, pluralize } from '@/lib/format'
+import { formatDateTime, formatDay, formatDecimal, formatInt, formatMoney, formatPercent, formatPhone, formatUsd, initials, isoDay, maskDocument, maskPhone, moneyParts, parseDecimal, pluralize } from '@/lib/format'
 
 describe('format', () => {
   it('formats BRL with regular spaces', () => {
@@ -28,5 +28,33 @@ describe('format', () => {
     expect(initials('Ana')).toBe('A')
     expect(pluralize(1, 'item', 'itens')).toBe('1 item')
     expect(pluralize(3, 'item', 'itens')).toBe('3 itens')
+  })
+})
+
+describe('números e datas da gestão', () => {
+  it('lê decimais no padrão brasileiro e com ponto', () => {
+    expect(parseDecimal('12,5')).toBe(12.5)
+    expect(parseDecimal('1.234,56')).toBe(1234.56)
+    expect(parseDecimal('12.5')).toBe(12.5)
+    expect(parseDecimal(' 7 ')).toBe(7)
+    expect(parseDecimal('')).toBeNull()
+    expect(parseDecimal('abc')).toBeNull()
+    expect(parseDecimal('1,2,3')).toBeNull()
+    expect(parseDecimal(4)).toBe(4)
+  })
+
+  it('formata percentual, dólar e inteiros', () => {
+    expect(formatPercent(12.34)).toBe('12,3%')
+    expect(formatUsd(1234.5)).toBe('US$ 1,234.50')
+    expect(formatInt(12345)).toBe('12.345')
+    expect(formatDecimal(5.7)).toBe('5,7')
+  })
+
+  it('mostra datas no fuso de São Paulo, sem deslocar o dia', () => {
+    // 01:30 UTC ainda é o dia anterior em São Paulo (UTC-3).
+    expect(formatDateTime('2026-10-22T01:30:00Z', 'America/Sao_Paulo')).toContain('21 out')
+    expect(formatDateTime('2026-10-22T01:30:00Z', 'America/Sao_Paulo')).toContain('22:30')
+    expect(formatDay('2026-10-21')).toContain('21 out')
+    expect(isoDay('2026-10-22T01:30:00Z', 'America/Sao_Paulo')).toBe('2026-10-21')
   })
 })

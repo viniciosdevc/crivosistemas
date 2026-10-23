@@ -26,8 +26,8 @@ const items: NavItem[] = [
   { label: 'Painel', to: '/painel', icon: ChartColumn, exact: true },
   { label: 'Vendas', to: '/painel/vendas', icon: ReceiptText },
   { label: 'Clientes', to: '/painel/clientes', icon: Users },
-  { label: 'Preços e regras', to: '/painel/precos', icon: Calculator },
-  { label: 'Integrações', to: '/painel/integracoes', icon: Plug },
+  { label: 'Preços e regras', to: '/painel/precos', icon: Calculator, adminOnly: true },
+  { label: 'Integrações', to: '/painel/integracoes', icon: Plug, adminOnly: true },
   { label: 'Usuários', to: '/painel/usuarios', icon: UserCog, adminOnly: true },
 ]
 const visibleItems = computed(() => items.filter((i) => !i.adminOnly || auth.isAdmin))

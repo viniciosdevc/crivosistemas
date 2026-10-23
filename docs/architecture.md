@@ -65,7 +65,7 @@ Regras: faturamento conta só vendas `pago` ou `concluido` e não removidas (pen
 
 ## Frontend
 
-`src/frontend`: `layouts/AdminLayout.vue` (menu lateral recolhível, trilha por `meta.section`/`meta.title`, tema claro/escuro, menu da conta), `components/ui/*` (design system), `styles/main.css` (tokens). Rotas em `router/index.ts`; o painel fica em `/painel`: Painel, Vendas, Clientes, Preços e regras, Integrações e Usuários (só admin). O cliente HTTP (`lib/api.ts`) é same-origin com cookie e normaliza erros em `ApiError`.
+`src/frontend`: `layouts/AdminLayout.vue` (menu lateral recolhível, trilha por `meta.section`/`meta.title`, tema claro/escuro, menu da conta), `components/ui/*` (design system), `styles/main.css` (tokens). Rotas em `router/index.ts`; o painel fica em `/painel`: Painel, Vendas (`/vendas/:id`), Clientes (`/clientes/:id`), Preços e regras, Integrações e Usuários; as três últimas são só do admin (rota e menu). Filtros das listas ficam na URL (`lib/urlFilters.ts`) e as datas de período seguem America/Sao_Paulo (`lib/period.ts`). O cliente HTTP (`lib/api.ts`) é same-origin com cookie e normaliza erros em `ApiError`.
 
 ## Worker
 

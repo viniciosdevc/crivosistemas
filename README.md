@@ -1,6 +1,6 @@
 # Crivo Gestão (crivosistemas)
 
-Sistema de gestão **de uma empresa só** (single-tenant) para acompanhar vendas, clientes, regras de preço e integrações do crivonft. Fase 1 (base): login, painel e usuários. Fase 2 (backend): integração com o crivonft, vendas, clientes e precificação na API e no Worker; as telas Vue de Vendas, Clientes, Preços e regras e Integrações ainda são "Em construção".
+Sistema de gestão **de uma empresa só** (single-tenant) para acompanhar vendas, clientes, regras de preço e integrações do crivonft. Fase 1 (base): login, painel e usuários. Fase 2: integração com o crivonft, vendas, clientes e precificação na API e no Worker, e as telas Vue do Painel, Vendas, Clientes, Preços e regras e Integrações.
 
 A fonte da verdade das **vendas e clientes** é o crivonft; a das **regras de preço** é este sistema. O contrato entre os dois está em [`docs/integracao-crivonft.md`](docs/integracao-crivonft.md) e **já está implementado no backend** (veja a seção de configuração no próprio documento).
 

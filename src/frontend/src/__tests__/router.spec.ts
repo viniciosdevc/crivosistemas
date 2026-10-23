@@ -24,10 +24,10 @@ describe('router', () => {
     await router.replace('/esqueci-senha')
   })
 
-  it('o menu do painel tem as seis telas com seção e título', () => {
+  it('o painel tem as telas (e os detalhes) com seção e título', () => {
     const panel = router.getRoutes().filter((r) => r.path.startsWith('/painel') && r.meta.title)
     const titles = panel.map((r) => r.meta.title).sort()
-    expect(titles).toEqual(['Clientes', 'Integrações', 'Painel', 'Preços e regras', 'Usuários', 'Vendas'])
+    expect(titles).toEqual(['Cliente', 'Clientes', 'Integrações', 'Painel', 'Preços e regras', 'Usuários', 'Venda', 'Vendas'])
     for (const r of panel) {
       expect(r.meta.section, `seção de ${r.meta.title}`).toBeTruthy()
     }
@@ -54,6 +54,26 @@ describe('router', () => {
     signIn(admin)
     await router.push('/painel/usuarios')
     expect(router.currentRoute.value.name).toBe('users')
+  })
+
+  it('Preços e regras e Integrações são só do administrador', async () => {
+    signIn(operator)
+    await router.push('/painel/precos')
+    expect(router.currentRoute.value.path).toBe('/painel')
+    await router.push('/painel/integracoes')
+    expect(router.currentRoute.value.path).toBe('/painel')
+
+    signIn(admin)
+    await router.push('/painel/precos')
+    expect(router.currentRoute.value.name).toBe('pricing')
+  })
+
+  it('o operador abre vendas, clientes e os detalhes', async () => {
+    signIn(operator)
+    await router.push('/painel/vendas/abc')
+    expect(router.currentRoute.value.name).toBe('sale')
+    await router.push('/painel/clientes/abc')
+    expect(router.currentRoute.value.name).toBe('customer')
   })
 
   it('não existe cadastro público', () => {
