@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {
-  Calculator, ChartColumn, ChevronDown, KeyRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plug, ReceiptText, Sun, UserCog, Users, X,
+  Calculator, ChartColumn, ChevronDown, KeyRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plug, ReceiptText, SlidersHorizontal, Sun, UserCog, Users, X,
   Building2,
 } from 'lucide-vue-next'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
@@ -26,7 +26,8 @@ const items: NavItem[] = [
   { label: 'Painel', to: '/painel', icon: ChartColumn, exact: true },
   { label: 'Vendas', to: '/painel/vendas', icon: ReceiptText },
   { label: 'Clientes', to: '/painel/clientes', icon: Users },
-  { label: 'Preços e regras', to: '/painel/precos', icon: Calculator, adminOnly: true },
+  { label: 'Calculadora', to: '/painel/calculadora', icon: Calculator },
+  { label: 'Preços e regras', to: '/painel/precos', icon: SlidersHorizontal, adminOnly: true },
   { label: 'Integrações', to: '/painel/integracoes', icon: Plug, adminOnly: true },
   { label: 'Usuários', to: '/painel/usuarios', icon: UserCog, adminOnly: true },
 ]
@@ -158,6 +159,9 @@ async function logout() {
           </template>
         </nav>
         <div class="flex items-center gap-1">
+          <RouterLink to="/painel/calculadora" class="rounded-full p-2.5 text-ink hover:bg-surface-3" aria-label="Calculadora" title="Calculadora">
+            <Calculator class="size-5" stroke-width="1.7" />
+          </RouterLink>
           <button type="button" class="rounded-full p-2.5 text-ink hover:bg-surface-3" :aria-label="isDark ? 'Tema claro' : 'Tema escuro'" @click="toggleTheme">
             <Sun v-if="isDark" class="size-5" stroke-width="1.7" /><Moon v-else class="size-5" stroke-width="1.7" />
           </button>

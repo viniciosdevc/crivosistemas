@@ -20,6 +20,7 @@ public sealed record SalvarPrecificacaoRequest(
     [Required(ErrorMessage = "Informe as faixas.")] IReadOnlyList<FaixaPixDto> FaixasPix);
 public sealed record ImportarRequest(bool Forcar = false);
 public sealed record HistoricoPrecificacaoDto(Guid Id, int Versao, string UserNome, string Origem, DateTime CriadoEm, PrecificacaoContrato.PayloadDto Antes, PrecificacaoContrato.PayloadDto Depois);
+public sealed record RegrasDto(int Versao, ConfigCalculoDto Configuracao, IReadOnlyList<FaixaPixDto> FaixasPix);
 public sealed record CalculoDto(decimal PrecoUsd, decimal PrecoPixBrl, decimal MultiplicadorFaixa, decimal PrecoPelaFaixaBrl, decimal PisoBrl, bool AjustadoPeloPiso, int Versao);
 
 /// <summary>Regras de preço. Este sistema é o dono; salvar enfileira o envio ao crivonft (outbox) e o Worker o entrega.</summary>
@@ -34,6 +35,9 @@ public static class PrecificacaoEndpoints
         g.MapGet("/envios", Envios).WithSummary("Envios ao crivonft (outbox) e seus estados.");
         g.MapPost("/reenviar", Reenviar).WithSummary("Recoloca na fila o último envio que não foi concluído.");
         g.MapPost("/importar-crivonft", Importar).WithSummary("Traz as regras atuais do crivonft (primeira vez, ou com forcar).");
+        // Leitura das regras para a calculadora e a venda manual: qualquer pessoa autenticada (o operador também calcula preço).
+        app.MapGet("/api/precificacao/regras", Regras).WithTags("Precificacao").RequireAuthorization()
+            .WithSummary("Configuração de cálculo e faixas PIX atuais, só leitura.");
         g.MapGet("/calculo", Calcular).WithSummary("Preço PIX final em BRL para um preço em USD, pelas regras salvas.");
     }
 
@@ -46,6 +50,13 @@ public static class PrecificacaoEndpoints
         return new PrecificacaoDto(p.Versao, ToDto(p.ConfiguracaoCalculo),
             p.FaixasPix.Select(f => new FaixaPixDto(f.ValorMinUsd, f.ValorMaxUsd, f.Multiplicador, f.Ordem, f.Ativo)).ToList(),
             envio is null ? null : IntegracoesEndpoints.ToDto(envio), o.Value.Envia);
+    }
+
+    private static async Task<IResult> Regras(PrecificacaoService svc, CancellationToken ct)
+    {
+        var p = await svc.ObterAsync(ct);
+        return Results.Ok(new RegrasDto(p.Versao, ToDto(p.ConfiguracaoCalculo),
+            p.FaixasPix.Select(f => new FaixaPixDto(f.ValorMinUsd, f.ValorMaxUsd, f.Multiplicador, f.Ordem, f.Ativo)).ToList()));
     }
 
     private static async Task<IResult> Obter(PrecificacaoService svc, AppDbContext db, IOptions<CrivonftOptions> o, CancellationToken ct) =>

@@ -292,3 +292,10 @@ export interface StatusIntegracao {
   versaoPrecificacao: number
   ultimoEnvioPrecificacao: EnvioPrecificacao | null
 }
+
+/** Regras de preço vigentes, legíveis por qualquer usuário logado (calculadora e venda manual). */
+export interface RegrasPrecificacao {
+  versao: number
+  configuracao: ConfigCalculo
+  faixasPix: FaixaPix[]
+}
