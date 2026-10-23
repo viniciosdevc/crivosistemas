@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {
-  Calculator, ChartColumn, ChevronDown, KeyRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plug, ReceiptText, SlidersHorizontal, Sun, UserCog, Users, X,
+  Boxes, Calculator, ChartColumn, ChevronDown, KeyRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plug, Plus, ReceiptText, SlidersHorizontal, Sun, UserCog, Users, X,
   Building2,
 } from 'lucide-vue-next'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
@@ -8,8 +8,10 @@ import { computed, ref, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import BrandMark from '@/components/BrandMark.vue'
 import ChangePasswordModal from '@/components/admin/ChangePasswordModal.vue'
+import NewSaleModal from '@/components/admin/sales/NewSaleModal.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import { isDark, restoreTheme, toggleTheme } from '@/lib/theme'
+import type { VendaLista } from '@/lib/types'
 import { useAuthStore } from '@/stores/auth'
 
 interface NavItem { label: string; to: string; icon: Component; exact?: boolean; adminOnly?: boolean }
@@ -20,6 +22,7 @@ const router = useRouter()
 const collapsed = ref(false)
 const mobileOpen = ref(false)
 const passwordOpen = ref(false)
+const newSaleOpen = ref(false)
 restoreTheme()
 
 const items: NavItem[] = [
@@ -27,6 +30,7 @@ const items: NavItem[] = [
   { label: 'Vendas', to: '/painel/vendas', icon: ReceiptText },
   { label: 'Clientes', to: '/painel/clientes', icon: Users },
   { label: 'Calculadora', to: '/painel/calculadora', icon: Calculator },
+  { label: 'Estoque', to: '/painel/estoque', icon: Boxes },
   { label: 'Preços e regras', to: '/painel/precos', icon: SlidersHorizontal, adminOnly: true },
   { label: 'Integrações', to: '/painel/integracoes', icon: Plug, adminOnly: true },
   { label: 'Usuários', to: '/painel/usuarios', icon: UserCog, adminOnly: true },
@@ -43,6 +47,10 @@ watch(() => route.fullPath, () => (mobileOpen.value = false))
 const crumbs = computed(() => [route.meta.section, route.meta.title].filter(Boolean) as string[])
 const roleLabel = computed(() => (auth.me?.role === 'admin' ? 'Administrador' : 'Operador'))
 
+function onSaleCreated(venda: VendaLista) {
+  void router.push(`/painel/vendas/${venda.id}`)
+}
+
 async function logout() {
   await auth.logout()
   router.replace({ name: 'login' })
@@ -58,9 +66,14 @@ async function logout() {
         <Menu class="size-6" />
       </button>
       <BrandMark />
-      <button type="button" class="-mr-2 rounded-full p-2 text-ink hover:bg-surface-3" :aria-label="isDark ? 'Tema claro' : 'Tema escuro'" @click="toggleTheme">
-        <Sun v-if="isDark" class="size-5" /><Moon v-else class="size-5" />
-      </button>
+      <div class="-mr-2 flex items-center">
+        <button type="button" class="rounded-full p-2 text-ink hover:bg-surface-3" aria-label="Nova venda" @click="newSaleOpen = true">
+          <Plus class="size-5" />
+        </button>
+        <button type="button" class="rounded-full p-2 text-ink hover:bg-surface-3" :aria-label="isDark ? 'Tema claro' : 'Tema escuro'" @click="toggleTheme">
+          <Sun v-if="isDark" class="size-5" /><Moon v-else class="size-5" />
+        </button>
+      </div>
     </div>
 
     <div v-if="mobileOpen" class="fixed inset-0 z-40 bg-overlay animate-fade-in lg:hidden" @click="mobileOpen = false" />
@@ -159,6 +172,9 @@ async function logout() {
           </template>
         </nav>
         <div class="flex items-center gap-1">
+          <button type="button" class="rounded-full p-2.5 text-ink hover:bg-surface-3" aria-label="Nova venda" title="Nova venda" @click="newSaleOpen = true">
+            <Plus class="size-5" stroke-width="1.7" />
+          </button>
           <RouterLink to="/painel/calculadora" class="rounded-full p-2.5 text-ink hover:bg-surface-3" aria-label="Calculadora" title="Calculadora">
             <Calculator class="size-5" stroke-width="1.7" />
           </RouterLink>
@@ -177,5 +193,6 @@ async function logout() {
     </div>
   </div>
   <ChangePasswordModal v-model:open="passwordOpen" />
+  <NewSaleModal v-model:open="newSaleOpen" @created="onSaleCreated" />
   </div>
 </template>

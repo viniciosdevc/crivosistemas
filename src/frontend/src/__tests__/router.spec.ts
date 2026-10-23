@@ -27,7 +27,7 @@ describe('router', () => {
   it('o painel tem as telas (e os detalhes) com seção e título', () => {
     const panel = router.getRoutes().filter((r) => r.path.startsWith('/painel') && r.meta.title)
     const titles = panel.map((r) => r.meta.title).sort()
-    expect(titles).toEqual(['Calculadora', 'Cliente', 'Clientes', 'Integrações', 'Painel', 'Preços e regras', 'Usuários', 'Venda', 'Vendas'])
+    expect(titles).toEqual(['Calculadora', 'Cliente', 'Clientes', 'Estoque', 'Integrações', 'Painel', 'Preços e regras', 'Usuários', 'Venda', 'Vendas'])
     for (const r of panel) {
       expect(r.meta.section, `seção de ${r.meta.title}`).toBeTruthy()
     }
@@ -66,6 +66,12 @@ describe('router', () => {
     signIn(admin)
     await router.push('/painel/precos')
     expect(router.currentRoute.value.name).toBe('pricing')
+  })
+
+  it('o operador abre o estoque', async () => {
+    signIn(operator)
+    await router.push('/painel/estoque')
+    expect(router.currentRoute.value.name).toBe('stock')
   })
 
   it('o operador abre vendas, clientes e os detalhes', async () => {

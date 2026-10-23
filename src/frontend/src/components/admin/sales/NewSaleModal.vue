@@ -1,0 +1,254 @@
+<script setup lang="ts">
+import { computed, reactive, ref, watch } from 'vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiCheckbox from '@/components/ui/UiCheckbox.vue'
+import UiChips from '@/components/ui/UiChips.vue'
+import UiDatePicker from '@/components/ui/UiDatePicker.vue'
+import UiInput from '@/components/ui/UiInput.vue'
+import UiModal from '@/components/ui/UiModal.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
+import UiSkeleton from '@/components/ui/UiSkeleton.vue'
+import UiTextarea from '@/components/ui/UiTextarea.vue'
+import UiTimePicker from '@/components/ui/UiTimePicker.vue'
+import { ApiError, api } from '@/lib/api'
+import { currentTimeZone, formatDecimal, formatFixed, formatInt, formatMoney, formatPercent, formatTime, parseDecimal, todayIso } from '@/lib/format'
+import { calcularVendaManual, montarVendaManual, vendaManualValida, zonedToIso, type EntradaVendaManual } from '@/lib/sale'
+import { toast } from '@/lib/toast'
+import type { FormaPagamento, OrigemCusto, RegrasPrecificacao, ResumoEstoques, VendaLista } from '@/lib/types'
+
+/** Lança uma venda manual. O servidor recalcula custo, lucro e margem; o resumo aqui é só uma estimativa. */
+const open = defineModel<boolean>('open', { default: false })
+const emit = defineEmits<{ created: [venda: VendaLista] }>()
+
+const formaOptions: { value: FormaPagamento; label: string }[] = [
+  { value: 'pix', label: 'PIX' },
+  { value: 'cambios', label: 'Câmbios' },
+  { value: 'hibrido', label: 'Híbrido' },
+]
+const origemOptions: { value: OrigemCusto; label: string }[] = [
+  { value: 'estoque_usd', label: 'Estoque em USD' },
+  { value: 'cambios', label: 'Comprado em Câmbios' },
+  { value: 'estoque_esmeralda', label: 'Estoque de Esmeraldas' },
+  { value: 'manual', label: 'Custo Manual' },
+]
+
+const regras = ref<RegrasPrecificacao | null>(null)
+const estoque = ref<ResumoEstoques | null>(null)
+const loadError = ref<string | null>(null)
+const loadingData = ref(false)
+
+const day = ref('')
+const time = ref('')
+const nomeItem = ref('')
+const nickname = ref('')
+const observacao = ref('')
+const entregue = ref(false)
+const entrada = reactive<EntradaVendaManual>({
+  forma: 'cambios',
+  origem: 'estoque_usd',
+  custoUsd: '',
+  custoCambios: '',
+  quantidadeEsmeraldas: '',
+  usaTaxaPrata: false,
+  valorPix: '',
+  valorCambios: '',
+})
+const submitting = ref(false)
+const fieldErrors = reactive<Record<string, string>>({})
+const formError = ref<string | null>(null)
+
+async function loadData() {
+  loadingData.value = true
+  loadError.value = null
+  try {
+    ;[regras.value, estoque.value] = await Promise.all([
+      api.get<RegrasPrecificacao>('/api/precificacao/regras'),
+      api.get<ResumoEstoques>('/api/estoque/resumo'),
+    ])
+  } catch (e) {
+    loadError.value = e instanceof ApiError ? e.message : 'Não foi possível carregar as regras de preço.'
+  } finally {
+    loadingData.value = false
+  }
+}
+
+function reset() {
+  const now = new Date()
+  day.value = todayIso()
+  time.value = formatTime(now)
+  nomeItem.value = ''
+  nickname.value = ''
+  observacao.value = ''
+  entregue.value = false
+  Object.assign(entrada, { forma: 'cambios', origem: 'estoque_usd', custoUsd: '', custoCambios: '', quantidadeEsmeraldas: '', usaTaxaPrata: false, valorPix: '', valorCambios: '' })
+  Object.keys(fieldErrors).forEach((k) => delete fieldErrors[k])
+  formError.value = null
+}
+
+watch(open, (v) => {
+  if (!v) return
+  reset()
+  void loadData()
+})
+
+const usaEsmeralda = computed(() => entrada.origem === 'estoque_esmeralda')
+const usaCambios = computed(() => entrada.origem === 'cambios')
+const showPix = computed(() => entrada.forma !== 'cambios')
+const showCambios = computed(() => entrada.forma !== 'pix')
+const esmeraldasSaldo = computed(() => estoque.value?.esmeraldas.saldo ?? 0)
+const esmeraldasCusto = computed(() => estoque.value?.esmeraldas.custoMedio ?? 0)
+const usdCusto = computed(() => estoque.value?.usd.custoMedio ?? 0)
+
+const calc = computed(() =>
+  regras.value
+    ? calcularVendaManual(entrada, regras.value, { usdCustoMedio: usdCusto.value, esmeraldasCustoMedio: esmeraldasCusto.value })
+    : null,
+)
+const valid = computed(() => !!regras.value && vendaManualValida(entrada, nomeItem.value) && !!day.value && !!time.value)
+const esmeraldasExcedem = computed(() => usaEsmeralda.value && (parseDecimal(entrada.quantidadeEsmeraldas) ?? 0) > esmeraldasSaldo.value)
+
+async function submit() {
+  if (!valid.value) return
+  submitting.value = true
+  formError.value = null
+  Object.keys(fieldErrors).forEach((k) => delete fieldErrors[k])
+  try {
+    const body = montarVendaManual(entrada, {
+      dataHora: zonedToIso(day.value, time.value, currentTimeZone()),
+      nickname: nickname.value,
+      nomeItem: nomeItem.value,
+      observacao: observacao.value,
+      entregue: entregue.value,
+    })
+    const venda = await api.post<VendaLista>('/api/vendas/manuais', body)
+    toast.success('Venda registrada', entregue.value ? 'Entregue: já entra no faturamento.' : 'Pendente até ser marcada como entregue.')
+    open.value = false
+    emit('created', venda)
+  } catch (e) {
+    if (e instanceof ApiError) {
+      Object.assign(fieldErrors, e.fields)
+      if (Object.keys(e.fields).length === 0) toast.error('Não foi possível registrar a venda', e.message)
+      else formError.value = e.message
+    } else {
+      toast.error('Não foi possível registrar a venda')
+    }
+  } finally {
+    submitting.value = false
+  }
+}
+</script>
+
+<template>
+  <UiModal v-model:open="open" title="Nova venda" description="Lance uma venda feita fora do site. O custo, o lucro e a margem são recalculados pelo servidor." size="lg">
+    <form id="new-sale-form" class="flex flex-col gap-6" novalidate @submit.prevent="submit">
+      <p v-if="loadError" class="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">
+        {{ loadError }} <button type="button" class="font-medium underline" @click="loadData">Tentar de novo</button>
+      </p>
+
+      <section class="grid gap-4 sm:grid-cols-2" aria-label="Dados da venda">
+        <UiDatePicker v-model="day" label="Data" :error="fieldErrors.dataHora" />
+        <UiTimePicker v-model="time" label="Hora" />
+        <UiInput v-model="nomeItem" label="Nome do item" placeholder="Nome do item vendido" autocomplete="off" :error="fieldErrors.nomeItem" />
+        <UiInput v-model="nickname" label="Nickname do comprador" placeholder="Ex: ana" autocomplete="off" optional :error="fieldErrors.nicknameComprador" />
+      </section>
+
+      <section class="flex flex-col gap-4" aria-label="Pagamento e custo">
+        <UiChips v-model="entrada.forma" :options="formaOptions" label="Como o cliente pagou?" />
+        <p v-if="fieldErrors.formaPagamento" class="text-[13px] text-danger" role="alert">{{ fieldErrors.formaPagamento }}</p>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <UiSelect v-model="entrada.origem" label="De onde saiu o item?" :options="origemOptions" :error="fieldErrors.origemCusto" />
+
+          <div v-if="usaEsmeralda" class="flex flex-col gap-2">
+            <UiInput
+              v-model="entrada.quantidadeEsmeraldas"
+              :label="`Qtde. Esmeraldas${esmeraldasSaldo > 0 ? ` (saldo: ${formatDecimal(esmeraldasSaldo)})` : ''}`"
+              inputmode="decimal"
+              placeholder="0"
+              :error="fieldErrors.quantidadeEsmeraldas"
+            />
+            <p v-if="estoque && esmeraldasSaldo <= 0" class="text-[13px] text-warning">Sem saldo de esmeraldas no estoque.</p>
+            <p v-else-if="esmeraldasExcedem" class="text-[13px] text-warning">A quantidade passa do saldo disponível.</p>
+            <p v-else-if="estoque && esmeraldasCusto <= 0" class="text-[13px] text-warning">As esmeraldas em estoque estão sem custo.</p>
+            <p v-else-if="calc && calc.qtdEsmeraldas > 0" class="text-[13px] text-muted">
+              ≈ US$ {{ formatFixed(calc.custoUsd, 4) }} (custo médio US$ {{ formatFixed(esmeraldasCusto, 6) }} por esmeralda)
+            </p>
+          </div>
+          <UiInput
+            v-else-if="usaCambios"
+            v-model="entrada.custoCambios"
+            label="Custo em Câmbios"
+            inputmode="numeric"
+            placeholder="0"
+            suffix="C"
+            :error="fieldErrors.custoCambios"
+          />
+          <div v-else class="flex flex-col gap-2">
+            <UiInput v-model="entrada.custoUsd" label="Custo USD" prefix="US$" inputmode="decimal" placeholder="0,00" :error="fieldErrors.custoUsd" />
+            <p v-if="entrada.origem === 'estoque_usd' && calc" class="text-[13px] text-muted">
+              Dólar de compra: {{ formatMoney(calc.dolarCompra) }}{{ usdCusto > 0 ? ' (custo médio do estoque)' : ' (configuração)' }}
+            </p>
+          </div>
+        </div>
+
+        <div class="rounded-xl bg-surface-2 px-4 py-3">
+          <UiCheckbox v-model="entrada.usaTaxaPrata" label="Incluir taxa de pratas no custo" />
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <UiInput v-if="showPix" v-model="entrada.valorPix" label="Valor recebido em PIX" prefix="R$" inputmode="decimal" placeholder="0,00" :error="fieldErrors.valorVendaPix" />
+          <UiInput v-if="showCambios" v-model="entrada.valorCambios" label="Valor recebido em Câmbios" suffix="C" inputmode="numeric" placeholder="0" :error="fieldErrors.valorVendaCambios" />
+        </div>
+      </section>
+
+      <section class="rounded-2xl border border-line bg-surface-2 p-5" aria-labelledby="sale-summary-title">
+        <h3 id="sale-summary-title" class="mb-4 text-lg font-semibold text-ink">Resumo do cálculo</h3>
+        <UiSkeleton v-if="loadingData && !calc" class="h-20" />
+        <template v-else-if="calc">
+          <dl class="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-4">
+            <div>
+              <dt class="text-[13px] text-muted">Custo</dt>
+              <dd class="mt-0.5 truncate text-base font-semibold text-ink tabular">{{ formatMoney(calc.result.custoBrl) }}</dd>
+              <dd v-if="!usaCambios" class="truncate text-xs text-muted tabular">US$ {{ formatFixed(calc.custoUsd, 2) }}</dd>
+            </div>
+            <div>
+              <dt class="text-[13px] text-muted">Receita</dt>
+              <dd class="mt-0.5 truncate text-base font-semibold text-ink tabular">{{ formatMoney(calc.result.receitaTotalBrl) }}</dd>
+            </div>
+            <div>
+              <dt class="text-[13px] text-muted">Lucro</dt>
+              <dd :class="['mt-0.5 truncate text-base font-semibold tabular', calc.result.lucroBrl < 0 ? 'text-danger' : calc.result.lucroBrl > 0 ? 'text-success' : 'text-ink']">
+                {{ formatMoney(calc.result.lucroBrl) }}
+              </dd>
+            </div>
+            <div>
+              <dt class="text-[13px] text-muted">Margem</dt>
+              <dd :class="['mt-0.5 truncate text-base font-semibold tabular', calc.abaixoDoIdeal ? 'text-warning' : 'text-success']">
+                {{ formatPercent(calc.result.margemPercent) }}
+              </dd>
+              <dd class="truncate text-xs text-muted">ideal {{ formatPercent(calc.margemIdeal) }}</dd>
+            </div>
+          </dl>
+          <div class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-[13px] text-muted">
+            <span>Referência: {{ formatMoney(calc.result.precoVendaPix) }} no PIX · {{ formatInt(calc.result.precoVendaCambios) }} C em câmbios</span>
+            <span v-if="showCambios">Resultado em câmbios: <strong class="font-semibold text-ink">{{ formatInt(calc.result.lucroCambios) }} C</strong></span>
+          </div>
+        </template>
+      </section>
+
+      <section class="flex flex-col gap-4" aria-label="Entrega">
+        <div>
+          <UiCheckbox v-model="entregue" label="Já entregue" />
+          <p class="mt-1.5 pl-8 text-[13px] text-muted">Entregue entra no faturamento e debita o dólar do estoque. Sem marcar, a venda fica pendente até você entregá-la.</p>
+        </div>
+        <UiTextarea v-model="observacao" label="Observação" optional placeholder="Alguma anotação sobre esta venda" :error="fieldErrors.observacao" />
+      </section>
+
+      <p v-if="formError" class="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{{ formError }}</p>
+    </form>
+    <template #footer>
+      <UiButton variant="subtle" size="lg" @click="open = false">Voltar</UiButton>
+      <UiButton type="submit" form="new-sale-form" size="lg" :loading="submitting" :disabled="!valid">Confirmar venda</UiButton>
+    </template>
+  </UiModal>
+</template>
