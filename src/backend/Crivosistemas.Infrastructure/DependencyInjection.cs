@@ -1,4 +1,5 @@
 using Crivosistemas.Infrastructure.Email;
+using Crivosistemas.Infrastructure.Integracoes;
 using Crivosistemas.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -42,6 +43,21 @@ public static class DependencyInjection
         else
             services.AddSingleton<IEmailSender, LogEmailSender>();
         services.AddSingleton<EmailQueue>();
+
+        // Integração com o crivonft. Sem configuração, os endpoints respondem 503 e o worker não envia nada.
+        var cv = config.GetSection(CrivonftOptions.Section);
+        services.Configure<CrivonftOptions>(o =>
+        {
+            o.BaseUrl = cv["BaseUrl"]?.Trim().TrimEnd('/') ?? "";
+            o.Token = cv["Token"]?.Trim() ?? "";
+            o.HmacSecret = cv["HmacSecret"]?.Trim() ?? "";
+            o.ExportToken = cv["ExportToken"]?.Trim() ?? "";
+        });
+        services.AddHttpClient<ICrivonftClient, CrivonftClient>(c => c.Timeout = TimeSpan.FromSeconds(30));
+        services.AddScoped<IngestaoService>();
+        services.AddScoped<ReconciliacaoService>();
+        services.AddScoped<PrecificacaoService>();
+        services.AddScoped<PrecificacaoEnvioService>();
         return services;
     }
 

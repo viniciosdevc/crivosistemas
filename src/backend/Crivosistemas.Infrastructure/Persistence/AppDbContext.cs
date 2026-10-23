@@ -1,6 +1,9 @@
 using Crivosistemas.Domain.Audit;
 using Crivosistemas.Domain.Common;
 using Crivosistemas.Domain.Identity;
+using Crivosistemas.Domain.Integracoes;
+using Crivosistemas.Domain.Precificacao;
+using Crivosistemas.Domain.Vendas;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
@@ -12,6 +15,15 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<User> Users => Set<User>();
     public DbSet<UserToken> UserTokens => Set<UserToken>();
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
+    public DbSet<Cliente> Clientes => Set<Cliente>();
+    public DbSet<Venda> Vendas => Set<Venda>();
+    public DbSet<VendaItem> VendaItens => Set<VendaItem>();
+    public DbSet<EventoRecebido> EventosRecebidos => Set<EventoRecebido>();
+    public DbSet<ReconciliacaoExecucao> Reconciliacoes => Set<ReconciliacaoExecucao>();
+    public DbSet<PrecificacaoConfig> PrecificacaoConfigs => Set<PrecificacaoConfig>();
+    public DbSet<FaixaPix> FaixasPix => Set<FaixaPix>();
+    public DbSet<PrecificacaoHistorico> PrecificacaoHistoricos => Set<PrecificacaoHistorico>();
+    public DbSet<PrecificacaoEnvio> PrecificacaoEnvios => Set<PrecificacaoEnvio>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
