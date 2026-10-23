@@ -70,7 +70,7 @@ public static class PrecificacaoEndpoints
         }
         catch (CrivonftException e)
         {
-            return Results.Json(new { title = e.Message, code = "crivonft_indisponivel", status = 502 }, statusCode: 502);
+            return IntegracoesEndpoints.Crivonft502(e);
         }
     }
 

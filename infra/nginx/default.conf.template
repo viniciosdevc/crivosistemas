@@ -26,10 +26,12 @@ server {
     # Durante um deploy o contêiner da API é trocado: repete leituras algumas vezes (escritas o nginx nunca repete) e, se ainda
     # estiver fora, responde um JSON amigável em vez de um 502 cru, para o app mostrar "atualizando, tente de novo".
     proxy_connect_timeout 3s;
-    proxy_next_upstream error timeout http_502 http_503;
+    proxy_next_upstream error timeout;
     proxy_next_upstream_tries 3;
     proxy_next_upstream_timeout 10s;
-    proxy_intercept_errors on;
+    # Só erros GERADOS PELO NGINX (API fora do ar) viram "atualizando". Um 502/503 que a própria API devolve (ex.: 502 "o crivonft
+    # ainda não tem a rota") passa intacto, com o problem detail, para o app mostrar o motivo real.
+    proxy_intercept_errors off;
     error_page 502 503 504 = @api_updating;
   }
 

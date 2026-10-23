@@ -69,19 +69,21 @@ public static class DatabaseTasks
     }
 
     /// <summary>Comando de operação: <c>--importar-crivonft [AAAA-MM-DD]</c> faz a carga completa inicial (vendas desde a data, e todos os clientes)
-    /// puxando <c>/api/export/*</c> do crivonft. Pode rodar de novo: o upsert por data evita duplicar.</summary>
+    /// pedindo ao crivonft o reenvio do histórico (<c>/api/integracoes/gestao/reenviar</c>, janelas de 1 mês); sem a rota, usa o export (só NFT).
+    /// Pode rodar de novo: o upsert por data evita duplicar. Sem data, começa em 2020-01-01.</summary>
     public static async Task<int> ImportarCrivonftAsync(IServiceProvider services, DateOnly? desde)
     {
         await using var scope = services.CreateAsyncScope();
         var crivonft = scope.ServiceProvider.GetRequiredService<ICrivonftClient>();
-        if (!crivonft.ExportConfigurado)
+        if (!crivonft.ExportConfigurado && !crivonft.EnvioConfigurado)
         {
-            Console.Error.WriteLine("Configure Integrations:Crivonft:BaseUrl e ExportToken antes de importar.");
+            Console.Error.WriteLine("Configure Integrations:Crivonft (BaseUrl, Token, HmacSecret e ExportToken) antes de importar.");
             return 1;
         }
         var servico = scope.ServiceProvider.GetRequiredService<ReconciliacaoService>();
         var e = await servico.CargaInicialAsync(desde, CancellationToken.None);
-        Console.WriteLine($"Importação {(e.Estado == EstadoReconciliacao.Concluida ? "concluída" : "falhou")}: {e.VendasLidas} vendas lidas, {e.VendasAplicadas} aplicadas, {e.ClientesLidos} clientes lidos, {e.ClientesCriados} criados.");
+        Console.WriteLine($"Importação {(e.Estado == EstadoReconciliacao.Concluida ? "concluída" : "falhou")}: {e.VendasLidas} vendas {(e.Aviso is null ? "reenfileiradas no crivonft (os eventos chegam em seguida)" : "lidas")}, {e.VendasAplicadas} aplicadas, {e.ClientesLidos} clientes lidos, {e.ClientesCriados} criados.");
+        if (e.Aviso is not null) Console.WriteLine("Aviso: " + e.Aviso);
         if (e.Erro is not null) Console.Error.WriteLine(e.Erro);
         return e.Estado == EstadoReconciliacao.Concluida ? 0 : 1;
     }

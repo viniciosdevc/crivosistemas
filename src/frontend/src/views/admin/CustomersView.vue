@@ -16,7 +16,8 @@ import { useUrlFilters } from '@/lib/urlFilters'
 import { useAsync } from '@/lib/useAsync'
 
 const pageSize = 20
-const defaults = { busca: '', ordem: 'nome', dir: 'asc', page: '1' }
+// Padrão: quem comprou mais recentemente primeiro (ordem alfabética abria a lista com clientes antigos sem compras no período importado).
+const defaults = { busca: '', ordem: 'ultimaCompra', dir: 'desc', page: '1' }
 const { filters, set } = useUrlFilters(defaults)
 
 const query = computed(() => ({ busca: filters.value.busca, ordem: filters.value.ordem, dir: filters.value.dir, page: Number(filters.value.page) || 1, pageSize }))
