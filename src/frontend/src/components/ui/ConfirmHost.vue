@@ -1,0 +1,20 @@
+<script setup lang="ts">
+import { confirmState, resolveConfirm } from '@/lib/confirm'
+import UiButton from './UiButton.vue'
+import UiModal from './UiModal.vue'
+</script>
+
+<template>
+  <UiModal
+    :open="confirmState.open"
+    :title="confirmState.title"
+    :description="confirmState.description"
+    size="sm"
+    @update:open="(v) => !v && resolveConfirm(false)"
+  >
+    <template #footer>
+      <UiButton variant="subtle" @click="resolveConfirm(false)">{{ confirmState.cancelLabel }}</UiButton>
+      <UiButton :variant="confirmState.danger ? 'danger' : 'primary'" @click="resolveConfirm(true)">{{ confirmState.confirmLabel }}</UiButton>
+    </template>
+  </UiModal>
+</template>
