@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { FilterX } from 'lucide-vue-next'
-import { computed, watch } from 'vue'
+import { FilterX, Plus } from 'lucide-vue-next'
+import { computed, ref, watch } from 'vue'
+import NewSaleModal from '@/components/admin/sales/NewSaleModal.vue'
 import SaleTable from '@/components/admin/sales/SaleTable.vue'
 import PageCard from '@/components/ui/PageCard.vue'
 import UiButton from '@/components/ui/UiButton.vue'
@@ -14,6 +15,7 @@ import type { Paged, VendaLista } from '@/lib/types'
 import { useUrlFilters } from '@/lib/urlFilters'
 import { useAsync } from '@/lib/useAsync'
 
+const newSaleOpen = ref(false)
 const pageSize = 20
 const defaults = { de: '', ate: '', origem: '', status: '', pagamento: '', busca: '', ordem: 'data', dir: 'desc', page: '1' }
 const { filters, set, reset } = useUrlFilters(defaults)
@@ -23,6 +25,7 @@ const origemOptions = [
   { value: 'site', label: 'Site' },
   { value: 'nft', label: 'NFT' },
   { value: 'cambios', label: 'Câmbios' },
+  { value: 'manual', label: 'Manual' },
 ]
 const statusOptions = [
   { value: '', label: 'Todos os status' },
@@ -66,8 +69,9 @@ function onSort(key: string, dir: 'asc' | 'desc') {
 </script>
 
 <template>
-  <PageCard title="Vendas" subtitle="Vendas do site, NFT e câmbios, vindas do crivonft.">
+  <PageCard title="Vendas" subtitle="Vendas do site, NFT e câmbios vindas do crivonft, e as lançadas aqui.">
     <template #actions>
+      <UiButton @click="newSaleOpen = true"><Plus class="size-4" /> Nova venda</UiButton>
       <UiSearch :model-value="filters.busca" placeholder="Cliente, pedido, cupom ou item" @update:model-value="(v) => set({ busca: v })" />
     </template>
 
@@ -96,5 +100,6 @@ function onSort(key: string, dir: 'asc' | 'desc') {
         <UiPagination v-if="data" :page="data.page" :page-size="data.pageSize" :total="data.total" @update:page="(p) => set({ page: String(p) })" />
       </template>
     </SaleTable>
+    <NewSaleModal v-model:open="newSaleOpen" @created="run" />
   </PageCard>
 </template>

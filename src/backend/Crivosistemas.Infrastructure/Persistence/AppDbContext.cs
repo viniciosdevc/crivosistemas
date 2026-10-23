@@ -1,5 +1,6 @@
 using Crivosistemas.Domain.Audit;
 using Crivosistemas.Domain.Common;
+using Crivosistemas.Domain.Estoque;
 using Crivosistemas.Domain.Identity;
 using Crivosistemas.Domain.Integracoes;
 using Crivosistemas.Domain.Precificacao;
@@ -24,6 +25,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<FaixaPix> FaixasPix => Set<FaixaPix>();
     public DbSet<PrecificacaoHistorico> PrecificacaoHistoricos => Set<PrecificacaoHistorico>();
     public DbSet<PrecificacaoEnvio> PrecificacaoEnvios => Set<PrecificacaoEnvio>();
+    public DbSet<LoteEstoque> LotesEstoque => Set<LoteEstoque>();
+    public DbSet<MovimentoEstoque> MovimentosEstoque => Set<MovimentoEstoque>();
+    public DbSet<ConfiguracaoEstoque> ConfiguracoesEstoque => Set<ConfiguracaoEstoque>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {

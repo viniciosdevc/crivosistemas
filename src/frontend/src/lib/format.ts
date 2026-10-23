@@ -156,3 +156,8 @@ export function parseDecimal(raw: string | number | null | undefined): number | 
   const n = Number(normalized)
   return Number.isFinite(n) ? n : null
 }
+
+/** Número com até `digits` casas (custos unitários pequenos, como US$ por esmeralda). */
+export function formatFixed(value: number | null | undefined, digits = 6) {
+  return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: digits }).format(value ?? 0)
+}

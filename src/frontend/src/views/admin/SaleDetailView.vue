@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ArrowLeft, RefreshCw, TriangleAlert } from 'lucide-vue-next'
-import { computed, watch } from 'vue'
+import { ArrowLeft, Ban, PackageCheck, RefreshCw, TriangleAlert } from 'lucide-vue-next'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import PageCard from '@/components/ui/PageCard.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
@@ -8,9 +8,11 @@ import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiEmptyState from '@/components/ui/UiEmptyState.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
-import { api } from '@/lib/api'
-import { formatDateTime, formatDecimal, formatMoney, formatPercent, formatUsd } from '@/lib/format'
-import { estadoEvento, formaPagamento, labelOf, origemVenda, statusVenda, tipoCupom, tipoEvento } from '@/lib/labels'
+import { ApiError, api } from '@/lib/api'
+import { confirm, confirmWithReason } from '@/lib/confirm'
+import { formatDateTime, formatDecimal, formatFixed, formatMoney, formatPercent, formatUsd } from '@/lib/format'
+import { estadoEvento, formaPagamento, labelOf, motivoMovimento, origemCusto, origemVenda, statusVenda, tipoCupom, tipoEvento } from '@/lib/labels'
+import { toast } from '@/lib/toast'
 import type { VendaDetalhe } from '@/lib/types'
 import { useAsync } from '@/lib/useAsync'
 
@@ -19,6 +21,51 @@ const { data, loading, error, run } = useAsync((signal) => api.get<VendaDetalhe>
 watch(() => route.params.id, () => void run(), { immediate: true })
 
 const venda = computed(() => data.value?.venda)
+const isManual = computed(() => venda.value?.origem === 'manual')
+const canDeliver = computed(() => isManual.value && venda.value?.statusNormalizado === 'pendente')
+const canCancel = computed(() => isManual.value && ['pendente', 'concluido'].includes(venda.value?.statusNormalizado ?? ''))
+const acting = ref<'entregar' | 'cancelar' | null>(null)
+
+async function deliver() {
+  if (!venda.value) return
+  const ok = await confirm({
+    title: 'Marcar como entregue?',
+    description: 'A venda entra no faturamento e o dólar usado no custo sai do estoque.',
+    confirmLabel: 'Marcar como entregue',
+  })
+  if (!ok) return
+  acting.value = 'entregar'
+  try {
+    await api.post(`/api/vendas/${venda.value.id}/entregar`)
+    toast.success('Venda entregue')
+    await run()
+  } catch (e) {
+    toast.error('Não foi possível marcar como entregue', e instanceof ApiError ? e.message : undefined)
+  } finally {
+    acting.value = null
+  }
+}
+
+async function cancelSale() {
+  if (!venda.value) return
+  const motivo = await confirmWithReason({
+    title: 'Cancelar esta venda?',
+    description: 'O estoque usado nela volta para os mesmos lotes. A venda fica no histórico como cancelada.',
+    confirmLabel: 'Cancelar venda',
+    danger: true,
+  })
+  if (motivo === null) return
+  acting.value = 'cancelar'
+  try {
+    await api.post(`/api/vendas/${venda.value.id}/cancelar`, { motivo })
+    toast.success('Venda cancelada')
+    await run()
+  } catch (e) {
+    toast.error('Não foi possível cancelar a venda', e instanceof ApiError ? e.message : undefined)
+  } finally {
+    acting.value = null
+  }
+}
 const title = computed(() => (venda.value ? (venda.value.pedidoId ? `Pedido ${venda.value.pedidoId}` : `Venda ${venda.value.origemId.slice(0, 8)}`) : 'Venda'))
 const values = computed(() => {
   const v = data.value?.valores
@@ -40,6 +87,10 @@ const values = computed(() => {
 
 <template>
   <PageCard :title="title">
+    <template v-if="canDeliver || canCancel" #actions>
+      <UiButton v-if="canDeliver" :loading="acting === 'entregar'" :disabled="acting !== null" @click="deliver"><PackageCheck class="size-4" /> Marcar como entregue</UiButton>
+      <UiButton v-if="canCancel" variant="secondary" :loading="acting === 'cancelar'" :disabled="acting !== null" @click="cancelSale"><Ban class="size-4" /> Cancelar venda</UiButton>
+    </template>
     <template #title>
       <UiButton variant="ghost" size="sm" to="/painel/vendas" class="-ml-3 mb-2"><ArrowLeft class="size-4" /> Vendas</UiButton>
       <div class="flex flex-wrap items-center gap-3">
@@ -116,6 +167,47 @@ const values = computed(() => {
         <p v-if="!venda.faturavel" class="mt-4 rounded-xl bg-warning-soft px-3 py-2 text-[13px] text-warning">Esta venda não entra no faturamento (só pagas ou concluídas, não removidas).</p>
       </section>
 
+      <section v-if="data.manual" class="rounded-2xl border border-line p-5 lg:col-span-3" aria-labelledby="manual-title">
+        <h2 id="manual-title" class="mb-4 text-lg font-semibold text-ink">Venda manual</h2>
+        <dl class="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3 xl:grid-cols-5">
+          <div>
+            <dt class="text-sm text-muted">De onde saiu o item</dt>
+            <dd class="mt-0.5 text-text">{{ data.manual.origemCusto ? (origemCusto[data.manual.origemCusto] ?? data.manual.origemCusto) : '—' }}</dd>
+          </div>
+          <div v-if="data.manual.quantidadeEsmeraldas != null">
+            <dt class="text-sm text-muted">Esmeraldas</dt>
+            <dd class="mt-0.5 tabular text-text">{{ formatDecimal(data.manual.quantidadeEsmeraldas) }}</dd>
+          </div>
+          <div>
+            <dt class="text-sm text-muted">Taxa de prata</dt>
+            <dd class="mt-0.5 text-text">{{ data.manual.usaTaxaPrata ? 'Incluída no custo' : 'Não incluída' }}</dd>
+          </div>
+          <div>
+            <dt class="text-sm text-muted">Dólar usado</dt>
+            <dd class="mt-0.5 tabular text-text">{{ data.manual.dolarCompraUsado != null ? `R$ ${formatFixed(data.manual.dolarCompraUsado, 4)}` : '—' }}</dd>
+          </div>
+          <div v-if="data.manual.observacao" class="col-span-2 sm:col-span-3 xl:col-span-5">
+            <dt class="text-sm text-muted">Observação</dt>
+            <dd class="mt-0.5 whitespace-pre-line text-text">{{ data.manual.observacao }}</dd>
+          </div>
+        </dl>
+        <h3 class="mt-6 mb-3 text-base font-semibold text-ink">Movimentações de estoque</h3>
+        <p v-if="!data.manual.movimentos.length" class="text-muted">Nenhum estoque movimentado por esta venda ainda. O dólar só sai quando ela é marcada como entregue.</p>
+        <ul v-else class="divide-y divide-line rounded-xl border border-line">
+          <li v-for="(m, i) in data.manual.movimentos" :key="i" class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3">
+            <div class="flex items-center gap-2">
+              <StatusBadge :map="motivoMovimento" :value="m.motivo" />
+              <span class="text-text">{{ m.tipo === 'usd' ? 'Dólar' : 'Esmeraldas' }}</span>
+            </div>
+            <div class="flex items-center gap-4 text-sm">
+              <span :class="['tabular font-medium', m.quantidade < 0 ? 'text-danger' : 'text-success']">{{ m.quantidade > 0 ? '+' : '' }}{{ m.tipo === 'usd' ? formatUsd(m.quantidade) : formatDecimal(m.quantidade) }}</span>
+              <span class="tabular text-muted">{{ m.tipo === 'usd' ? `R$ ${formatFixed(m.custoUnitario, 4)}` : `US$ ${formatFixed(m.custoUnitario, 6)}` }} cada</span>
+              <span class="text-muted">{{ formatDateTime(m.criadoEm) }}</span>
+            </div>
+          </li>
+        </ul>
+      </section>
+
       <section class="overflow-hidden rounded-2xl border border-line lg:col-span-3" aria-labelledby="items-title">
         <h2 id="items-title" class="px-5 pt-5 pb-3 text-lg font-semibold text-ink">Itens</h2>
         <p v-if="!data.itens.length" class="px-5 pb-5 text-muted">Esta venda não tem itens.</p>
@@ -144,7 +236,7 @@ const values = computed(() => {
         </div>
       </section>
 
-      <section class="rounded-2xl border border-line p-5 lg:col-span-3" aria-labelledby="events-title">
+      <section v-if="!isManual || data.eventos.length" class="rounded-2xl border border-line p-5 lg:col-span-3" aria-labelledby="events-title">
         <h2 id="events-title" class="mb-1 text-lg font-semibold text-ink">Histórico de eventos</h2>
         <p class="mb-4 text-sm text-muted">Eventos do crivonft que criaram ou alteraram esta venda, do mais recente ao mais antigo.</p>
         <p v-if="!data.eventos.length" class="text-muted">Nenhum evento registrado (a venda pode ter vindo de uma carga ou reconciliação).</p>
