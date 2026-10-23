@@ -121,3 +121,38 @@ export function initials(name: string) {
 export function pluralize(count: number, one: string, many: string) {
   return `${count} ${count === 1 ? one : many}`
 }
+
+const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
+const decimal = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 4 })
+const integer = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 })
+
+/** "US$ 12.50" */
+export function formatUsd(value: number | null | undefined) {
+  return usd.format(value ?? 0).replace('$', 'US$ ')
+}
+
+/** "12,3456": número sem moeda, até 4 casas. */
+export function formatDecimal(value: number | null | undefined) {
+  return decimal.format(value ?? 0)
+}
+
+export function formatInt(value: number | null | undefined) {
+  return integer.format(value ?? 0)
+}
+
+/** "12,5%" a partir de um valor já em percentual (12.5). */
+export function formatPercent(value: number | null | undefined) {
+  return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(value ?? 0)}%`
+}
+
+/** Lê um número digitado no padrão brasileiro ("1.234,56" ou "12,5") ou com ponto ("12.5"). null quando vazio ou inválido. */
+export function parseDecimal(raw: string | number | null | undefined): number | null {
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null
+  const s = (raw ?? '').trim().replace(/\s/g, '')
+  if (!s) return null
+  // "1.234,56" -> ponto é milhar; "12.5" -> ponto é decimal.
+  const normalized = s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s
+  if (!/^-?\d*\.?\d+$/.test(normalized)) return null
+  const n = Number(normalized)
+  return Number.isFinite(n) ? n : null
+}

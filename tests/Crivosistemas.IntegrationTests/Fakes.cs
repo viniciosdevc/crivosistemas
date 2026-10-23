@@ -30,3 +30,38 @@ public sealed partial class CapturingEmailSender : IEmailSender
     [GeneratedRegex(@"https?://\S+\?token=([A-Za-z0-9_-]+)")]
     private static partial Regex TokenRegex();
 }
+
+/// <summary>Cliente do crivonft falso: serve páginas de exportação preparadas e guarda os PUTs de precificação recebidos.</summary>
+public sealed class FakeCrivonftClient : Crivosistemas.Infrastructure.Integracoes.ICrivonftClient
+{
+    public bool EnvioConfigurado { get; set; } = true;
+    public bool ExportConfigurado { get; set; } = true;
+    public List<System.Text.Json.JsonElement> Vendas { get; } = [];
+    public List<System.Text.Json.JsonElement> Clientes { get; } = [];
+    public Crivosistemas.Domain.Precificacao.PrecificacaoContrato.PayloadDto? Remota { get; set; }
+    public List<string> Enviados { get; } = [];
+    /// <summary>Status HTTP que o PUT devolve; 0 simula falha de rede.</summary>
+    public int StatusDoPut { get; set; } = 200;
+    public List<(DateOnly? De, DateOnly? Ate, int Offset)> ConsultasVendas { get; } = [];
+
+    public static System.Text.Json.JsonElement Linha(string json) => System.Text.Json.JsonDocument.Parse(json).RootElement.Clone();
+
+    public Task<Crivosistemas.Infrastructure.Integracoes.ExportPagina> ExportarVendasAsync(DateOnly? de, DateOnly? ate, int limit, int offset, CancellationToken ct)
+    {
+        ConsultasVendas.Add((de, ate, offset));
+        return Task.FromResult(new Crivosistemas.Infrastructure.Integracoes.ExportPagina(Vendas.Count, limit, offset, Vendas.Skip(offset).Take(limit).ToList()));
+    }
+
+    public Task<Crivosistemas.Infrastructure.Integracoes.ExportPagina> ExportarClientesAsync(int limit, int offset, CancellationToken ct) =>
+        Task.FromResult(new Crivosistemas.Infrastructure.Integracoes.ExportPagina(Clientes.Count, limit, offset, Clientes.Skip(offset).Take(limit).ToList()));
+
+    public Task<Crivosistemas.Domain.Precificacao.PrecificacaoContrato.PayloadDto> LerPrecificacaoAsync(CancellationToken ct) =>
+        Task.FromResult(Remota ?? throw new Crivosistemas.Infrastructure.Integracoes.CrivonftException("sem estado remoto", 404));
+
+    public Task<Crivosistemas.Infrastructure.Integracoes.EnvioResposta> EnviarPrecificacaoAsync(string corpoJson, CancellationToken ct)
+    {
+        Enviados.Add(corpoJson);
+        if (StatusDoPut == 0) throw new Crivosistemas.Infrastructure.Integracoes.CrivonftException("rede fora");
+        return Task.FromResult(new Crivosistemas.Infrastructure.Integracoes.EnvioResposta(StatusDoPut, StatusDoPut is >= 200 and < 300, null, null));
+    }
+}

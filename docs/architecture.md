@@ -25,30 +25,57 @@ O sistema é **single-tenant**: existe uma empresa só, então não há lojas, s
 - Erros: o handler global devolve `ProblemDetails` com `code` estável; validações 400 com erros por campo; regras de negócio 422; conflitos 409; logs estruturados (Serilog).
 - Auditoria: `AuditEntry` registra mudanças administrativas (usuário criado, desativado, papel alterado, senha trocada) na mesma transação da mudança.
 
-## Endpoints atuais
+## Endpoints
 
-| Rota | Quem | O quê |
+Papéis: **admin** (só administradores), **logado** (admin ou operador), **HMAC** (máquina a máquina, sem cookie nem CSRF).
+
+| Método e rota | Quem | O quê |
 | --- | --- | --- |
 | `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` | qualquer / logado | sessão |
 | `POST /api/auth/change-password` | logado | troca de senha |
 | `POST /api/auth/forgot-password`, `POST /api/auth/reset-password` | anônimo | redefinição por e-mail |
 | `GET/POST /api/users`, `PUT /api/users/{id}`, `POST /api/users/{id}/deactivate`, `POST /api/users/{id}/activate` | admin | usuários |
+| `POST /api/integracoes/crivonft/eventos` | HMAC | recebe eventos do crivonft (503 sem configuração) |
+| `GET /api/integracoes/crivonft/status` | admin | último evento, contagens por estado, últimos erros, última reconciliação, último envio de preços |
+| `GET /api/integracoes/crivonft/eventos` | admin | eventos recebidos; filtros `estado`, `tipo`, `busca`, `page`, `pageSize` |
+| `GET /api/integracoes/crivonft/eventos/{id}` | admin | evento com o corpo bruto |
+| `POST /api/integracoes/crivonft/eventos/{id}/reprocessar` | admin | reaplica um evento gravado |
+| `GET /api/integracoes/crivonft/reconciliacoes` | admin | execuções de reconciliação |
+| `POST /api/integracoes/crivonft/reconciliacoes` | admin | pede reconciliação de `{de, ate}` (o Worker executa; 202) |
+| `GET /api/vendas` | logado | lista paginada; filtros `de`, `ate`, `origem`, `statusNormalizado`, `formaPagamento`, `clienteId`, `busca`, `incluirRemovidas`, `ordem` (`data`, `total`, `lucro`), `dir` |
+| `GET /api/vendas/{id}` | logado | itens, valores, cupom e histórico de eventos |
+| `GET /api/vendas/resumo` | logado | faturamento, lucro, ticket médio, quantidade, por origem e por dia (`de`, `ate`, `origem`) |
+| `GET /api/clientes` | logado | busca, total gasto, nº de compras, última compra; `ordem` (`nome`, `totalGasto`, `compras`, `ultimaCompra`) |
+| `GET /api/clientes/{id}` | logado | detalhe com histórico de vendas |
+| `GET /api/precificacao` | admin | configuração de cálculo, faixas PIX, versão, último envio |
+| `PUT /api/precificacao` | admin | salva `{versao, configuracao, faixasPix}`; 409 se a versão mudou; 422 se inválido |
+| `GET /api/precificacao/historico`, `GET /api/precificacao/envios` | admin | histórico (quem, quando, antes/depois) e outbox de envios |
+| `POST /api/precificacao/reenviar` | admin | recoloca na fila o último envio não concluído |
+| `POST /api/precificacao/importar-crivonft` | admin | traz as regras atuais do crivonft (primeira vez; `forcar` depois) |
+| `GET /api/precificacao/calculo?usd=` | admin | preço PIX final em BRL pelas regras salvas |
 | `GET /health/live`, `GET /health/ready` | anônimo | health checks (ready confere MySQL e Redis) |
 
-Documentação interativa em `/docs` (Scalar) e `/openapi/v1.json`.
+Documentação interativa em `/docs` (Scalar) e `/openapi/v1.json`. Datas de período (`de`, `ate`) são dias `AAAA-MM-DD` em America/Sao_Paulo; os instantes saem em UTC (ISO-8601) e os campos `dia` já vêm no fuso de São Paulo.
 
 ## Dados
 
-Tabelas: `Users`, `UserTokens`, `AuditEntries`. Timestamps em UTC. Ids são Guid v7 gerados no código. Uma migration inicial limpa (`Inicial`).
+Tabelas: `Users`, `UserTokens`, `AuditEntries` (migration `Inicial`) e, na migration `IntegracaoVendasPrecificacao`: `Clientes` (chave única), `Vendas` (única por `Origem + OrigemId`), `VendaItens`, `EventosRecebidos` (id do evento único), `Reconciliacoes`, `PrecificacaoConfigs` (singleton com `Versao`), `FaixasPix`, `PrecificacaoHistoricos` e `PrecificacaoEnvios` (outbox). Timestamps em UTC. Ids são Guid v7 gerados no código.
+
+Regras: faturamento conta só vendas `pago` ou `concluido` e não removidas (pendente, cancelada, reembolsada e removida ficam de fora). Uma venda removida na origem é marcada (`RemovidaEm`), nunca apagada. Evento mais antigo que o `atualizado_em` gravado é ignorado.
 
 ## Frontend
 
-`src/frontend`: `layouts/AdminLayout.vue` (menu lateral recolhível, trilha por `meta.section`/`meta.title`, tema claro/escuro, menu da conta), `components/ui/*` (design system), `styles/main.css` (tokens). Rotas em `router/index.ts`; o painel fica em `/painel`: Painel, Vendas, Clientes, Preços e regras, Integrações e Usuários (só admin). O cliente HTTP (`lib/api.ts`) é same-origin com cookie e normaliza erros em `ApiError`.
+`src/frontend`: `layouts/AdminLayout.vue` (menu lateral recolhível, trilha por `meta.section`/`meta.title`, tema claro/escuro, menu da conta), `components/ui/*` (design system), `styles/main.css` (tokens). Rotas em `router/index.ts`; o painel fica em `/painel`: Painel, Vendas (`/vendas/:id`), Clientes (`/clientes/:id`), Preços e regras, Integrações e Usuários; as três últimas são só do admin (rota e menu). Filtros das listas ficam na URL (`lib/urlFilters.ts`) e as datas de período seguem America/Sao_Paulo (`lib/period.ts`). O cliente HTTP (`lib/api.ts`) é same-origin com cookie e normaliza erros em `ApiError`.
 
 ## Worker
 
-Hoje roda só a limpeza de tokens de senha vencidos. É o lugar da sincronização noturna e sob demanda com o crivonft (carga inicial e reconciliação dos últimos 3 dias).
+- `TokenCleanupJob`: limpa tokens de senha vencidos.
+- `ReconciliacaoJob`: a cada 30 s agenda a rodada noturna (uma por dia, depois das 03:00 de São Paulo, últimos 3 dias) e executa as reconciliações pendentes pedidas pela tela Integrações. Puxa `GET /api/export/clientes` e `/api/export/vendas` com Bearer `ExportToken` e aplica com a mesma regra de upsert dos eventos.
+- `PrecificacaoEnvioJob`: a cada 5 s entrega o outbox de preços (`PUT /api/integracoes/gestao/precificacao`, HMAC), com backoff de 5 s dobrando até 1 h, até 20 tentativas. 4xx permanente (menos 401/403/408/429) desiste.
+- Sem `Integrations:Crivonft` configurado, os dois últimos não fazem nada.
+
+Carga inicial completa: `--importar-crivonft [AAAA-MM-DD]` no executável da API (`docker compose run --rm migrate --importar-crivonft 2024-01-01`).
 
 ## Integração com o crivonft
 
-Segue o contrato em [`integracao-crivonft.md`](integracao-crivonft.md): eventos HTTP assinados com HMAC do crivonft para cá, carga e reconciliação por pull, e regras de preço daqui para lá. **Nada disso está implementado nesta fase.** O prefixo `crivosistemas:` no Redis existe justamente para dividir a instância com o crivonft.
+Segue o contrato em [`integracao-crivonft.md`](integracao-crivonft.md): eventos HTTP assinados com HMAC do crivonft para cá (`IngestaoService`), carga e reconciliação por pull (`ReconciliacaoService`), e regras de preço daqui para lá (`PrecificacaoService` grava, `PrecificacaoEnvioService` entrega). O cliente HTTP é `ICrivonftClient` (HttpClient tipado, trocado por um falso nos testes). O cálculo do preço PIX é a função pura `CalculoPreco.PrecoPix` no Domain, réplica de `calculateFromUsd` do crivonft. O prefixo `crivosistemas:` no Redis existe para dividir a instância com o crivonft.

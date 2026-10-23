@@ -16,9 +16,11 @@ declare module 'vue-router' {
 const admin: RouteRecordRaw[] = [
   { path: '', name: 'dashboard', component: () => import('@/views/admin/DashboardView.vue'), meta: { section: 'Gestão', title: 'Painel' } },
   { path: 'vendas', name: 'sales', component: () => import('@/views/admin/SalesView.vue'), meta: { section: 'Comercial', title: 'Vendas' } },
+  { path: 'vendas/:id', name: 'sale', component: () => import('@/views/admin/SaleDetailView.vue'), meta: { section: 'Comercial', title: 'Venda' } },
   { path: 'clientes', name: 'customers', component: () => import('@/views/admin/CustomersView.vue'), meta: { section: 'Comercial', title: 'Clientes' } },
-  { path: 'precos', name: 'pricing', component: () => import('@/views/admin/PricingView.vue'), meta: { section: 'Configurações', title: 'Preços e regras' } },
-  { path: 'integracoes', name: 'integrations', component: () => import('@/views/admin/IntegrationsView.vue'), meta: { section: 'Configurações', title: 'Integrações' } },
+  { path: 'clientes/:id', name: 'customer', component: () => import('@/views/admin/CustomerDetailView.vue'), meta: { section: 'Comercial', title: 'Cliente' } },
+  { path: 'precos', name: 'pricing', component: () => import('@/views/admin/PricingView.vue'), meta: { section: 'Configurações', title: 'Preços e regras', adminOnly: true } },
+  { path: 'integracoes', name: 'integrations', component: () => import('@/views/admin/IntegrationsView.vue'), meta: { section: 'Configurações', title: 'Integrações', adminOnly: true } },
   { path: 'usuarios', name: 'users', component: () => import('@/views/admin/users/UsersView.vue'), meta: { section: 'Administração', title: 'Usuários', adminOnly: true } },
 ]
 
