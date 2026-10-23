@@ -36,3 +36,12 @@ O contrato está em [`integracao-crivonft.md`](integracao-crivonft.md): vendas e
 
 ## 9. Marca
 "Crivo Gestão", com ícone próprio (peneira de pontos sobre o verde-limão do tema). Os tokens de cor e o tema claro/escuro do chamaezap foram mantidos.
+
+## 10. Estoque (USD e esmeraldas) e venda manual
+Trazidos do crivonft (`src/lib/inventory.ts`, `estoque/actions.ts`, `vendas/actions.ts`) com as mesmas contas, para a gestão do dia a dia sair de lá.
+
+- **Lotes + movimentos.** Cada compra é um lote (`LotesEstoque`) com custo unitário fixo; toda entrada e saída vira um `MovimentosEstoque`. O custo médio é ponderado pelo saldo. O admin pode fixar o custo médio do dólar (vale para o custo das vendas, como o `custo_medio_usd_override` do crivonft).
+- **Histórico preservado.** Compra lançada errado é editada ou cancelada só enquanto nada saiu dela; cancelar zera o saldo e fica no histórico. Depois disso, só ajuste (entrada vira lote novo pelo custo médio; saída é proporcional a todos os lotes, para o custo médio não se mover).
+- **Trava.** Toda escrita roda em transação e trava a linha de `ConfiguracoesEstoque` (`SELECT … FOR UPDATE`): duas vendas simultâneas não gastam o mesmo saldo.
+- **Venda manual = origem `manual`.** O servidor recalcula custo, lucro e margem com `CalculoVenda` (porta de `calculateSale`). Esmeraldas saem na criação; o dólar sai por FIFO quando a venda é marcada como entregue (só para custo "Estoque em USD"; no crivonft qualquer venda com custo USD debitava o dólar, inclusive as de esmeralda). Cancelar devolve aos mesmos lotes pelo custo original. Só a venda entregue entra no faturamento; pendente fica de fora, como no crivonft.
+- **Fora desta versão:** estoque de itens ("estoque normal"), código de fidelidade, cofre, lançamento financeiro da compra de dólar e o envio ao Pulse. Os lotes com saldo do crivonft podem ser importados uma vez (Estoque › Importar do crivonft).
