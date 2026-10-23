@@ -52,4 +52,6 @@ public class ReconciliacaoExecucao : Entity
     public int ClientesLidos { get; set; }
     public int ClientesCriados { get; set; }
     public string? Erro { get; set; }
+    /// <summary>Observação que não é falha, ex.: "crivonft desatualizado: só vendas NFT" (execução parcial).</summary>
+    public string? Aviso { get; set; }
 }

@@ -40,6 +40,12 @@ public sealed class FakeCrivonftClient : Crivosistemas.Infrastructure.Integracoe
     public List<System.Text.Json.JsonElement> Clientes { get; } = [];
     public Crivosistemas.Domain.Precificacao.PrecificacaoContrato.PayloadDto? Remota { get; set; }
     public List<string> Enviados { get; } = [];
+    /// <summary>Simula a rota /reenviar: false = 404 (crivonft desatualizado). Outro status de erro em <see cref="StatusDoReenvio"/>.</summary>
+    public bool RotaReenviarExiste { get; set; }
+    public int StatusDoReenvio { get; set; } = 200;
+    /// <summary>Janelas acima deste número de dias voltam truncadas (para testar a divisão).</summary>
+    public int TruncarAcimaDeDias { get; set; } = int.MaxValue;
+    public List<(DateOnly De, DateOnly Ate)> Reenvios { get; } = [];
     /// <summary>Status HTTP que o PUT devolve; 0 simula falha de rede.</summary>
     public int StatusDoPut { get; set; } = 200;
     public List<(DateOnly? De, DateOnly? Ate, int Offset)> ConsultasVendas { get; } = [];
@@ -54,6 +60,14 @@ public sealed class FakeCrivonftClient : Crivosistemas.Infrastructure.Integracoe
 
     public Task<Crivosistemas.Infrastructure.Integracoes.ExportPagina> ExportarClientesAsync(int limit, int offset, CancellationToken ct) =>
         Task.FromResult(new Crivosistemas.Infrastructure.Integracoes.ExportPagina(Clientes.Count, limit, offset, Clientes.Skip(offset).Take(limit).ToList()));
+
+    public Task<Crivosistemas.Infrastructure.Integracoes.ReenvioResposta> ReenviarPeriodoAsync(DateOnly de, DateOnly ate, CancellationToken ct)
+    {
+        if (!RotaReenviarExiste) throw new Crivosistemas.Infrastructure.Integracoes.CrivonftException("404", 404);
+        if (StatusDoReenvio != 200) throw new Crivosistemas.Infrastructure.Integracoes.CrivonftException("erro", StatusDoReenvio == 0 ? null : StatusDoReenvio);
+        Reenvios.Add((de, ate));
+        return Task.FromResult(new Crivosistemas.Infrastructure.Integracoes.ReenvioResposta(2, 1, 1, ate.DayNumber - de.DayNumber + 1 > TruncarAcimaDeDias));
+    }
 
     public Task<Crivosistemas.Domain.Precificacao.PrecificacaoContrato.PayloadDto> LerPrecificacaoAsync(CancellationToken ct) =>
         Task.FromResult(Remota ?? throw new Crivosistemas.Infrastructure.Integracoes.CrivonftException("sem estado remoto", 404));

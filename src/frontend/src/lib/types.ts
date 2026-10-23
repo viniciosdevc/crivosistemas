@@ -279,6 +279,8 @@ export interface Reconciliacao {
   clientesLidos: number
   clientesCriados: number
   erro: string | null
+  /** Observação que não é falha, ex.: execução parcial por crivonft desatualizado. */
+  aviso: string | null
 }
 
 export interface StatusIntegracao {

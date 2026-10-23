@@ -160,4 +160,17 @@ public sealed class PrecificacaoTests(ApiFactory factory)
         var c = await semConfig.LoginComo("sem-config@teste.dev");
         Assert.Equal(HttpStatusCode.ServiceUnavailable, (await c.Post("/api/precificacao/importar-crivonft", new { })).StatusCode);
     }
+
+    [Fact]
+    public async Task Falha_ao_ler_o_crivonft_responde_502_com_detalhe_claro()
+    {
+        var admin = await factory.SeedAndLoginAdminAsync();
+        // Sem estado remoto o fake lança CrivonftException 404: crivonft sem a rota de integração
+        factory.Crivonft.Remota = null;
+        var r = await admin.Post("/api/precificacao/importar-crivonft", new { forcar = true });
+        Assert.Equal(HttpStatusCode.BadGateway, r.StatusCode);
+        var corpo = await r.Body();
+        Assert.Equal("O crivonft ainda não tem a rota de integração; publique a atualização da loja.", corpo.GetProperty("detail").GetString());
+        Assert.Equal("crivonft_indisponivel", corpo.GetProperty("code").GetString());
+    }
 }

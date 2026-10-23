@@ -14,8 +14,9 @@ public sealed record EventoDto(Guid Id, Guid EventoId, string Tipo, string Estad
     int Tentativas, string? Resultado, string? Erro, string? Origem, string? OrigemId, string? ClienteChave);
 public sealed record EventoDetalheDto(EventoDto Evento, string Corpo);
 public sealed record ReconciliacaoDto(Guid Id, string Tipo, string Estado, DateOnly? De, DateOnly? Ate, DateTime CriadoEm, DateTime? IniciadoEm, DateTime? ConcluidoEm,
-    int VendasLidas, int VendasAplicadas, int ClientesLidos, int ClientesCriados, string? Erro);
+    int VendasLidas, int VendasAplicadas, int ClientesLidos, int ClientesCriados, string? Erro, string? Aviso);
 public sealed record ReconciliarRequest(DateOnly? De, DateOnly? Ate);
+public sealed record ImportarHistoricoRequest(DateOnly? Desde);
 public sealed record EnvioPrecificacaoDto(Guid Id, int Versao, string Estado, int Tentativas, DateTime CriadoEm, DateTime? UltimaTentativaEm, DateTime? ProximaTentativaEm,
     DateTime? EnviadoEm, int? UltimoStatusHttp, string? UltimoErro);
 public sealed record StatusIntegracaoDto(bool RecebeEventos, bool Envia, bool Exporta, DateTime? UltimoEventoRecebidoEm, Dictionary<string, int> EventosPorEstado,
@@ -40,6 +41,7 @@ public static class IntegracoesEndpoints
         admin.MapPost("/eventos/{id:guid}/reprocessar", Reprocessar).WithSummary("Reaplica um evento gravado.");
         admin.MapGet("/reconciliacoes", ListarReconciliacoes).WithSummary("Últimas execuções de reconciliação.");
         admin.MapPost("/reconciliacoes", Reconciliar).WithSummary("Pede uma reconciliação de um período (o Worker executa).");
+        admin.MapPost("/importar-historico", ImportarHistorico).WithSummary("Carga inicial: pede ao crivonft o reenvio de todo o histórico desde uma data (o Worker executa, em janelas de 1 mês).");
     }
 
     // ── recepção ────────────────────────────────────────────────────────────
@@ -100,7 +102,7 @@ public static class IntegracoesEndpoints
 
     internal static ReconciliacaoDto ToDto(ReconciliacaoExecucao r) => new(r.Id, r.Tipo switch { TipoReconciliacao.Noturna => "noturna", TipoReconciliacao.Manual => "manual", _ => "carga_inicial" },
         r.Estado switch { EstadoReconciliacao.Pendente => "pendente", EstadoReconciliacao.Executando => "executando", EstadoReconciliacao.Concluida => "concluida", _ => "falhou" },
-        r.De, r.Ate, r.CriadoEm, r.IniciadoEm, r.ConcluidoEm, r.VendasLidas, r.VendasAplicadas, r.ClientesLidos, r.ClientesCriados, r.Erro);
+        r.De, r.Ate, r.CriadoEm, r.IniciadoEm, r.ConcluidoEm, r.VendasLidas, r.VendasAplicadas, r.ClientesLidos, r.ClientesCriados, r.Erro, r.Aviso);
 
     internal static EnvioPrecificacaoDto ToDto(PrecificacaoEnvio e) => new(e.Id, e.Versao, e.Estado switch
         {
@@ -167,7 +169,7 @@ public static class IntegracoesEndpoints
     private static async Task<IResult> Reconciliar([FromBody] ReconciliarRequest req, AppDbContext db, ReconciliacaoService servico, IOptions<CrivonftOptions> opcoes,
         HttpContext http, CancellationToken ct)
     {
-        if (!opcoes.Value.Exporta) return Problema(StatusCodes.Status503ServiceUnavailable, "A integração com o crivonft não está configurada (BaseUrl e ExportToken).", "integracao_nao_configurada");
+        if (!opcoes.Value.Envia && !opcoes.Value.Exporta) return Problema(StatusCodes.Status503ServiceUnavailable, "A integração com o crivonft não está configurada (BaseUrl, Token, HmacSecret e ExportToken).", "integracao_nao_configurada");
         var hoje = Crivosistemas.Domain.Vendas.FusoSp.Hoje();
         var ate = req.Ate ?? hoje;
         var de = req.De ?? ate.AddDays(-(ReconciliacaoService.DiasNoturna - 1));
@@ -178,4 +180,23 @@ public static class IntegracoesEndpoints
         await db.SaveChangesAsync(ct);
         return Results.Accepted($"/api/integracoes/crivonft/reconciliacoes", ToDto(e));
     }
+
+    private static async Task<IResult> ImportarHistorico([FromBody] ImportarHistoricoRequest? req, AppDbContext db, IOptions<CrivonftOptions> opcoes, HttpContext http, CancellationToken ct)
+    {
+        if (!opcoes.Value.Envia && !opcoes.Value.Exporta) return Problema(StatusCodes.Status503ServiceUnavailable, "A integração com o crivonft não está configurada.", "integracao_nao_configurada");
+        var desde = req?.Desde ?? ReconciliacaoService.DesdePadrao;
+        var hoje = Crivosistemas.Domain.Vendas.FusoSp.Hoje();
+        if (desde > hoje) return Results.ValidationProblem(new Dictionary<string, string[]> { ["desde"] = ["A data não pode ser futura."] });
+        var e = new ReconciliacaoExecucao { Tipo = TipoReconciliacao.CargaInicial, De = desde, Ate = hoje, SolicitadoPor = http.User.Id() };
+        db.Reconciliacoes.Add(e);
+        db.Audit(http, "integracoes.importar_historico", "ReconciliacaoExecucao", e.Id, new { desde });
+        await db.SaveChangesAsync(ct);
+        return Results.Accepted("/api/integracoes/crivonft/reconciliacoes", ToDto(e));
+    }
+
+    /// <summary>Falha ao chamar o crivonft: 502 com um detalhe claro (o 503 fica reservado ao nginx "atualizando").</summary>
+    internal static IResult Crivonft502(CrivonftException e) => Results.Json(new
+    {
+        title = CrivonftClient.Explicar(e), detail = CrivonftClient.Explicar(e), code = "crivonft_indisponivel", status = 502, statusCrivonft = e.StatusHttp,
+    }, statusCode: StatusCodes.Status502BadGateway);
 }

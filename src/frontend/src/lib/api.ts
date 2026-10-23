@@ -77,7 +77,7 @@ async function request<T>(method: string, path: string, options: RequestOptions 
         ? 'Muitas tentativas em pouco tempo. Aguarde um instante.'
         : Object.keys(fields).length > 0
           ? (data?.title && !String(data.title).startsWith('One or more') ? data.title : 'Verifique os campos destacados.')
-          : (data?.title ?? (response.status >= 500 ? 'Servidor indisponível no momento. Tente novamente em instantes.' : 'Não foi possível concluir a operação.'))
+          : (data?.detail ?? data?.title ?? (response.status >= 500 ? 'Servidor indisponível no momento. Tente novamente em instantes.' : 'Não foi possível concluir a operação.'))
     throw new ApiError(response.status, message, data?.code, fields)
   }
   return data as T

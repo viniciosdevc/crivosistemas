@@ -42,6 +42,7 @@ Papéis: **admin** (só administradores), **logado** (admin ou operador), **HMAC
 | `POST /api/integracoes/crivonft/eventos/{id}/reprocessar` | admin | reaplica um evento gravado |
 | `GET /api/integracoes/crivonft/reconciliacoes` | admin | execuções de reconciliação |
 | `POST /api/integracoes/crivonft/reconciliacoes` | admin | pede reconciliação de `{de, ate}` (o Worker executa; 202) |
+| `POST /api/integracoes/crivonft/importar-historico` | admin | carga inicial desde `{desde}` (o Worker pede o reenvio ao crivonft mês a mês; 202) |
 | `GET /api/vendas` | logado | lista paginada; filtros `de`, `ate`, `origem`, `statusNormalizado`, `formaPagamento`, `clienteId`, `busca`, `incluirRemovidas`, `ordem` (`data`, `total`, `lucro`), `dir` |
 | `GET /api/vendas/{id}` | logado | itens, valores, cupom e histórico de eventos |
 | `GET /api/vendas/resumo` | logado | faturamento, lucro, ticket médio, quantidade, por origem e por dia (`de`, `ate`, `origem`) |
@@ -70,7 +71,7 @@ Regras: faturamento conta só vendas `pago` ou `concluido` e não removidas (pen
 ## Worker
 
 - `TokenCleanupJob`: limpa tokens de senha vencidos.
-- `ReconciliacaoJob`: a cada 30 s agenda a rodada noturna (uma por dia, depois das 03:00 de São Paulo, últimos 3 dias) e executa as reconciliações pendentes pedidas pela tela Integrações. Puxa `GET /api/export/clientes` e `/api/export/vendas` com Bearer `ExportToken` e aplica com a mesma regra de upsert dos eventos.
+- `ReconciliacaoJob`: a cada 30 s agenda a rodada noturna (uma por dia, depois das 03:00 de São Paulo, últimos 3 dias) e executa as reconciliações pendentes pedidas pela tela Integrações. Pede ao crivonft `POST /api/integracoes/gestao/reenviar` (janelas de 1 mês) e os eventos voltam pelo endpoint de eventos; se a rota não existe (404), cai em `GET /api/export/*` (só NFT) e grava o aviso na execução.
 - `PrecificacaoEnvioJob`: a cada 5 s entrega o outbox de preços (`PUT /api/integracoes/gestao/precificacao`, HMAC), com backoff de 5 s dobrando até 1 h, até 20 tentativas. 4xx permanente (menos 401/403/408/429) desiste.
 - Sem `Integrations:Crivonft` configurado, os dois últimos não fazem nada.
 

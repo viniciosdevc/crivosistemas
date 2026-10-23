@@ -1,5 +1,6 @@
 using System.Net;
 using Crivosistemas.Domain.Integracoes;
+using Crivosistemas.Domain.Vendas;
 using Crivosistemas.Infrastructure.Integracoes;
 using Crivosistemas.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,15 @@ namespace Crivosistemas.IntegrationTests;
 [Collection("api")]
 public sealed class ReconciliacaoTests(ApiFactory factory)
 {
+    /// <summary>O banco é compartilhado entre os testes: encerra pedidos pendentes de outros testes para que a fila só tenha o do teste atual.</summary>
+    private async Task LimparFila()
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.Reconciliacoes.Where(r => r.Estado == EstadoReconciliacao.Pendente || r.Estado == EstadoReconciliacao.Executando)
+            .ExecuteUpdateAsync(x => x.SetProperty(r => r.Estado, EstadoReconciliacao.Concluida));
+    }
+
     private static string Linha(string id, string nick, string status, decimal receita, string dh, string atualizado, string? pedido = null) =>
         $$"""
         {"id":"{{id}}","pedido_id":{{(pedido is null ? "null" : $"\"{pedido}\"")}},"data_hora":"{{dh}}","atualizado_em":"{{atualizado}}","status":"{{status}}",
@@ -20,6 +30,7 @@ public sealed class ReconciliacaoTests(ApiFactory factory)
     [Fact]
     public async Task Pedido_manual_fica_pendente_o_worker_puxa_vendas_e_clientes_e_reaplicar_nao_duplica()
     {
+        await LimparFila();
         var tag = "rec" + Guid.NewGuid().ToString("N")[..8];
         var f = factory.Crivonft;
         f.Vendas.Clear(); f.Clientes.Clear(); f.ConsultasVendas.Clear();
@@ -51,6 +62,12 @@ public sealed class ReconciliacaoTests(ApiFactory factory)
         var concl = vendas.GetProperty("items").EnumerateArray().First(v => v.GetProperty("statusNormalizado").GetString() == "concluido");
         Assert.Equal(100m, concl.GetProperty("totalBrl").GetDecimal());
         Assert.Equal("nft", concl.GetProperty("origem").GetString());
+
+        // As vendas exportadas ficam ligadas ao cliente pelo nickname (Clientes mostra total gasto e compras)
+        var cli = await (await admin.GetAsync($"/api/clientes?busca={tag}")).Json();
+        Assert.Equal(1, cli.GetProperty("total").GetInt32());
+        Assert.Equal(1, cli.GetProperty("items")[0].GetProperty("compras").GetInt32());
+        Assert.Equal(100m, cli.GetProperty("items")[0].GetProperty("totalGasto").GetDecimal());
 
         // Roda de novo: mesma regra de upsert, nada duplicado
         await using (var scope = factory.Services.CreateAsyncScope())
@@ -126,9 +143,139 @@ public sealed class ReconciliacaoTests(ApiFactory factory)
         var admin = await factory.SeedAndLoginAdminAsync();
         Assert.Equal(HttpStatusCode.BadRequest, (await admin.Post("/api/integracoes/crivonft/reconciliacoes", new { de = "2025-02-02", ate = "2025-01-01" })).StatusCode);
 
-        using var semConfig = factory.WithWebHostBuilder(b => b.UseSetting("Integrations:Crivonft:ExportToken", ""));
+        using var semConfig = factory.WithWebHostBuilder(b => b.UseSetting("Integrations:Crivonft:ExportToken", "").UseSetting("Integrations:Crivonft:Token", ""));
         await factory.SeedAndLoginAdminAsync("rec-sem-config@teste.dev");
         var c = await semConfig.LoginComo("rec-sem-config@teste.dev");
         Assert.Equal(HttpStatusCode.ServiceUnavailable, (await c.Post("/api/integracoes/crivonft/reconciliacoes", new { })).StatusCode);
+    }
+
+    [Fact]
+    public async Task Venda_gravada_sem_cliente_ganha_o_cliente_na_reconciliacao_mesmo_com_atualizado_em_igual()
+    {
+        await LimparFila();
+        var tag = "lig" + Guid.NewGuid().ToString("N")[..8];
+        var f = factory.Crivonft;
+        f.Vendas.Clear(); f.Clientes.Clear();
+        var t = new DateTime(2025, 6, 1, 15, 0, 0, DateTimeKind.Utc);
+        // Já gravada sem cliente (como ficou em produção)
+        await factory.Maquina().Enviar(CrivoHelpers.Evento("venda.upsert", CrivoHelpers.Venda($"{tag}-1", t, 80m, nick: null)));
+        f.Vendas.Add(FakeCrivonftClient.Linha(Linha($"{tag}-1", $"{tag}-Fulano", "entregue", 80m, t.ToString("O"), t.ToString("O"))));
+
+        var admin = await factory.SeedAndLoginAdminAsync();
+        Assert.Equal(0, (await (await admin.GetAsync($"/api/clientes?busca={tag}")).Json()).GetProperty("total").GetInt32());
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var svc = scope.ServiceProvider.GetRequiredService<ReconciliacaoService>();
+            await svc.SolicitarAsync(new DateOnly(2025, 6, 1), new DateOnly(2025, 6, 1), null, CancellationToken.None);
+            await svc.ExecutarAsync((await svc.ReivindicarPendenteAsync(CancellationToken.None))!, CancellationToken.None);
+        }
+        var cli = (await (await admin.GetAsync($"/api/clientes?busca={tag}")).Json()).GetProperty("items")[0];
+        Assert.Equal(1, cli.GetProperty("compras").GetInt32());
+        Assert.Equal(80m, cli.GetProperty("totalGasto").GetDecimal());
+    }
+
+    [Fact]
+    public async Task Lista_de_clientes_padrao_por_ultima_compra_traz_quem_comprou_antes_dos_alfabeticamente_primeiros()
+    {
+        var f = factory.Crivonft;
+        var tag = "ord" + Guid.NewGuid().ToString("N")[..8];
+        f.Vendas.Clear(); f.Clientes.Clear();
+        // Muitos clientes só do histórico completo (sem vendas importadas) e um comprador recente com nome alfabeticamente último
+        for (var i = 0; i < 30; i++) f.Clientes.Add(FakeCrivonftClient.Linha($$"""{"nickname":"{{tag}}-a{{i:00}}"}"""));
+        f.Clientes.Add(FakeCrivonftClient.Linha($$"""{"nickname":"{{tag}}-zz"}"""));
+        var t = DateTime.UtcNow.AddDays(-1);
+        f.Vendas.Add(FakeCrivonftClient.Linha(Linha($"{tag}-1", $"{tag}-zz", "entregue", 55m, t.ToString("O"), t.ToString("O"))));
+        await using (var scope = factory.Services.CreateAsyncScope())
+            await scope.ServiceProvider.GetRequiredService<ReconciliacaoService>().CargaInicialAsync(FusoSp.Hoje().AddDays(-3), CancellationToken.None);
+
+        var admin = await factory.SeedAndLoginAdminAsync();
+        var p1 = await (await admin.GetAsync($"/api/clientes?busca={tag}&ordem=ultimaCompra&dir=desc&pageSize=5")).Json();
+        Assert.Equal($"{tag}-zz", p1.GetProperty("items")[0].GetProperty("nickname").GetString());
+        Assert.Equal(55m, p1.GetProperty("items")[0].GetProperty("totalGasto").GetDecimal());
+    }
+
+    [Fact]
+    public async Task Reconciliacao_pelo_reenviar_pede_janelas_de_um_mes_divide_quando_trunca_e_nao_usa_o_export()
+    {
+        await LimparFila();
+        var f = factory.Crivonft;
+        f.Vendas.Clear(); f.Clientes.Clear(); f.Reenvios.Clear(); f.ConsultasVendas.Clear();
+        f.RotaReenviarExiste = true;
+        f.TruncarAcimaDeDias = 20;
+        try
+        {
+            await using var scope = factory.Services.CreateAsyncScope();
+            var svc = scope.ServiceProvider.GetRequiredService<ReconciliacaoService>();
+            await svc.SolicitarAsync(new DateOnly(2025, 1, 15), new DateOnly(2025, 3, 10), null, CancellationToken.None);
+            var e = (await svc.ReivindicarPendenteAsync(CancellationToken.None))!;
+            await svc.ExecutarAsync(e, CancellationToken.None);
+
+            Assert.Equal(EstadoReconciliacao.Concluida, e.Estado);
+            Assert.Null(e.Aviso);
+            Assert.Empty(f.ConsultasVendas); // nada do export
+            // Janelas: 15-31/01 (17 dias), 01-28/02 (28 dias, trunca e divide em duas), 01-10/03 (10 dias)
+            Assert.Equal(new DateOnly(2025, 1, 15), f.Reenvios[0].De);
+            Assert.Equal(new DateOnly(2025, 1, 31), f.Reenvios[0].Ate);
+            Assert.Equal((new DateOnly(2025, 2, 1), new DateOnly(2025, 2, 28)), f.Reenvios[1]);
+            Assert.Equal((new DateOnly(2025, 2, 1), new DateOnly(2025, 2, 14)), f.Reenvios[2]);
+            Assert.Equal((new DateOnly(2025, 2, 15), new DateOnly(2025, 2, 28)), f.Reenvios[3]);
+            Assert.Equal((new DateOnly(2025, 3, 1), new DateOnly(2025, 3, 10)), f.Reenvios[4]);
+            Assert.Equal(5, f.Reenvios.Count);
+            Assert.True(e.VendasLidas > 0);
+        }
+        finally { f.RotaReenviarExiste = false; f.TruncarAcimaDeDias = int.MaxValue; }
+    }
+
+    [Fact]
+    public async Task Sem_a_rota_reenviar_cai_no_export_e_registra_aviso_de_execucao_parcial()
+    {
+        await LimparFila();
+        var f = factory.Crivonft;
+        f.Vendas.Clear(); f.Clientes.Clear();
+        f.RotaReenviarExiste = false;
+        await using var scope = factory.Services.CreateAsyncScope();
+        var svc = scope.ServiceProvider.GetRequiredService<ReconciliacaoService>();
+        await svc.SolicitarAsync(new DateOnly(2025, 1, 1), new DateOnly(2025, 1, 2), null, CancellationToken.None);
+        var e = (await svc.ReivindicarPendenteAsync(CancellationToken.None))!;
+        await svc.ExecutarAsync(e, CancellationToken.None);
+        Assert.Equal(EstadoReconciliacao.Concluida, e.Estado);
+        Assert.Equal("crivonft desatualizado: só vendas NFT", e.Aviso);
+
+        var admin = await factory.SeedAndLoginAdminAsync();
+        var lista = await (await admin.GetAsync("/api/integracoes/crivonft/reconciliacoes")).Json();
+        Assert.Equal("crivonft desatualizado: só vendas NFT", lista.GetProperty("items")[0].GetProperty("aviso").GetString());
+    }
+
+    [Fact]
+    public async Task Erro_de_autenticacao_no_reenviar_falha_com_mensagem_clara()
+    {
+        await LimparFila();
+        var f = factory.Crivonft;
+        f.RotaReenviarExiste = true; f.StatusDoReenvio = 401;
+        try
+        {
+            await using var scope = factory.Services.CreateAsyncScope();
+            var svc = scope.ServiceProvider.GetRequiredService<ReconciliacaoService>();
+            await svc.SolicitarAsync(new DateOnly(2025, 1, 1), new DateOnly(2025, 1, 2), null, CancellationToken.None);
+            var e = (await svc.ReivindicarPendenteAsync(CancellationToken.None))!;
+            await svc.ExecutarAsync(e, CancellationToken.None);
+            Assert.Equal(EstadoReconciliacao.Falhou, e.Estado);
+            Assert.Equal("Token ou segredo diferentes nos dois sistemas.", e.Erro);
+        }
+        finally { f.RotaReenviarExiste = false; f.StatusDoReenvio = 200; }
+    }
+
+    [Fact]
+    public async Task Importar_historico_cria_uma_carga_inicial_pendente_so_para_admin()
+    {
+        var admin = await factory.SeedAndLoginAdminAsync();
+        var op = await factory.CreateAndLoginAsync(admin, "operator");
+        Assert.Equal(HttpStatusCode.Forbidden, (await op.Post("/api/integracoes/crivonft/importar-historico", new { desde = "2025-01-01" })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await admin.Post("/api/integracoes/crivonft/importar-historico", new { desde = "2999-01-01" })).StatusCode);
+        var r = await (await admin.Post("/api/integracoes/crivonft/importar-historico", new { desde = "2025-01-01" })).Json();
+        Assert.Equal("carga_inicial", r.GetProperty("tipo").GetString());
+        Assert.Equal("pendente", r.GetProperty("estado").GetString());
+        Assert.Equal("2025-01-01", r.GetProperty("de").GetString());
     }
 }
