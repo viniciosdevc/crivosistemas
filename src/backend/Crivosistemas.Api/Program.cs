@@ -4,6 +4,7 @@ using System.Threading.RateLimiting;
 using Crivosistemas.Api.Common;
 using Crivosistemas.Api.Modules.Auth;
 using Crivosistemas.Api.Modules.Clientes;
+using Crivosistemas.Api.Modules.Estoque;
 using Crivosistemas.Api.Modules.Integracoes;
 using Crivosistemas.Api.Modules.Precificacao;
 using Crivosistemas.Api.Modules.Vendas;
@@ -161,6 +162,8 @@ app.MapAuthEndpoints();
 app.MapUserEndpoints();
 app.MapIntegracoesEndpoints();
 app.MapVendasEndpoints();
+app.MapVendasManuaisEndpoints();
+app.MapEstoqueEndpoints();
 app.MapClientesEndpoints();
 app.MapPrecificacaoEndpoints();
 

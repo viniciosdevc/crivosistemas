@@ -28,6 +28,8 @@ public interface ICrivonftClient
     bool ExportConfigurado { get; }
     Task<ExportPagina> ExportarVendasAsync(DateOnly? de, DateOnly? ate, int limit, int offset, CancellationToken ct);
     Task<ExportPagina> ExportarClientesAsync(int limit, int offset, CancellationToken ct);
+    /// <summary>Lotes do estoque do crivonft: <paramref name="tipo"/> "usd" ou "esmeralda".</summary>
+    Task<ExportPagina> ExportarEstoqueAsync(string tipo, int limit, int offset, CancellationToken ct);
     Task<PrecificacaoContrato.PayloadDto> LerPrecificacaoAsync(CancellationToken ct);
     Task<EnvioResposta> EnviarPrecificacaoAsync(string corpoJson, CancellationToken ct);
 }
@@ -50,6 +52,9 @@ public sealed class CrivonftClient(HttpClient http, IOptions<CrivonftOptions> op
 
     public Task<ExportPagina> ExportarClientesAsync(int limit, int offset, CancellationToken ct) =>
         ExportarAsync($"/api/export/clientes?limit={limit}&offset={offset}", ct);
+
+    public Task<ExportPagina> ExportarEstoqueAsync(string tipo, int limit, int offset, CancellationToken ct) =>
+        ExportarAsync($"/api/export/estoque/{(tipo == "usd" ? "usd" : "esmeralda")}?limit={limit}&offset={offset}", ct);
 
     private async Task<ExportPagina> ExportarAsync(string caminho, CancellationToken ct)
     {

@@ -1,3 +1,4 @@
+using Crivosistemas.Domain.Estoque;
 using Crivosistemas.Domain.Integracoes;
 using Crivosistemas.Domain.Precificacao;
 using Crivosistemas.Domain.Vendas;
@@ -40,6 +41,11 @@ internal sealed class VendaConfig : IEntityTypeConfiguration<Venda>
         b.Property(x => x.CustoUsd).HasPrecision(18, 8);
         b.Property(x => x.ValorCambios).HasPrecision(18, 4);
         b.Property(x => x.CustoCambios).HasPrecision(18, 4);
+        b.Property(x => x.OrigemCusto).HasConversion<string>().HasMaxLength(20);
+        b.Property(x => x.QuantidadeEsmeraldas).HasPrecision(18, 4);
+        b.Property(x => x.DolarCompraUsado).HasPrecision(18, 8);
+        b.Property(x => x.Observacao).HasMaxLength(500);
+        b.Ignore(x => x.Manual);
         b.Ignore(x => x.Removida);
         b.Ignore(x => x.Faturavel);
         b.HasIndex(x => new { x.Origem, x.OrigemId }).IsUnique();
@@ -138,5 +144,51 @@ internal sealed class PrecificacaoEnvioConfig : IEntityTypeConfiguration<Precifi
         b.Property(x => x.UltimoErro).HasMaxLength(2000);
         b.HasIndex(x => new { x.Estado, x.ProximaTentativaEm });
         b.HasIndex(x => x.Versao);
+    }
+}
+
+internal sealed class LoteEstoqueConfig : IEntityTypeConfiguration<LoteEstoque>
+{
+    public void Configure(EntityTypeBuilder<LoteEstoque> b)
+    {
+        b.ToTable("LotesEstoque");
+        b.Property(x => x.Tipo).HasConversion<string>().HasMaxLength(10);
+        b.Property(x => x.Origem).HasConversion<string>().HasMaxLength(20);
+        b.Property(x => x.OrigemId).HasMaxLength(64);
+        b.Property(x => x.Quantidade).HasPrecision(18, 8);
+        b.Property(x => x.Saldo).HasPrecision(18, 8);
+        b.Property(x => x.CustoTotal).HasPrecision(18, 8);
+        b.Property(x => x.CustoUnitario).HasPrecision(18, 8);
+        b.Property(x => x.Observacao).HasMaxLength(300);
+        b.Property(x => x.MotivoCancelamento).HasMaxLength(300);
+        b.Ignore(x => x.Cancelado);
+        b.Ignore(x => x.Intocado);
+        b.HasIndex(x => new { x.Tipo, x.DataCompra, x.CriadoEm });
+        b.HasIndex(x => new { x.Tipo, x.OrigemId }).IsUnique();
+    }
+}
+
+internal sealed class MovimentoEstoqueConfig : IEntityTypeConfiguration<MovimentoEstoque>
+{
+    public void Configure(EntityTypeBuilder<MovimentoEstoque> b)
+    {
+        b.ToTable("MovimentosEstoque");
+        b.Property(x => x.Tipo).HasConversion<string>().HasMaxLength(10);
+        b.Property(x => x.Motivo).HasConversion<string>().HasMaxLength(20);
+        b.Property(x => x.Quantidade).HasPrecision(18, 8);
+        b.Property(x => x.CustoUnitario).HasPrecision(18, 8);
+        b.Property(x => x.Observacao).HasMaxLength(300);
+        b.HasOne<LoteEstoque>().WithMany().HasForeignKey(x => x.LoteId).OnDelete(DeleteBehavior.Restrict);
+        b.HasIndex(x => new { x.Tipo, x.CriadoEm });
+        b.HasIndex(x => x.VendaId);
+    }
+}
+
+internal sealed class ConfiguracaoEstoqueConfig : IEntityTypeConfiguration<ConfiguracaoEstoque>
+{
+    public void Configure(EntityTypeBuilder<ConfiguracaoEstoque> b)
+    {
+        b.ToTable("ConfiguracoesEstoque");
+        b.Property(x => x.CustoMedioUsdFixo).HasPrecision(18, 8);
     }
 }

@@ -14,8 +14,11 @@ public sealed record CupomDto(string Codigo, string? Tipo);
 public sealed record ValoresDto(decimal TotalBrl, decimal DescontoBrl, decimal TaxaBrl, decimal ValorPixBrl, decimal ValorCambios, decimal CustoBrl, decimal CustoUsd,
     decimal CustoCambios, decimal LucroBrl, decimal MargemPercent);
 public sealed record VendaEventoDto(Guid Id, Guid EventoId, string Tipo, string Estado, DateTime OcorridoEm, DateTime RecebidoEm, string? Resultado, string? Erro);
+public sealed record VendaManualDto(string? OrigemCusto, decimal? QuantidadeEsmeraldas, bool UsaTaxaPrata, decimal? DolarCompraUsado, string? Observacao,
+    IReadOnlyList<MovimentoVendaDto> Movimentos);
+public sealed record MovimentoVendaDto(string Tipo, decimal Quantidade, decimal CustoUnitario, string Motivo, DateTime CriadoEm);
 public sealed record VendaDetalheDto(VendaListaDto Venda, ValoresDto Valores, CupomDto? Cupom, IReadOnlyList<VendaItemDto> Itens, DateTime AtualizadoEmOrigem, DateTime? RemovidaEm,
-    IReadOnlyList<VendaEventoDto> Eventos);
+    IReadOnlyList<VendaEventoDto> Eventos, VendaManualDto? Manual);
 
 public sealed record TotaisDto(decimal Faturamento, decimal Lucro, decimal TicketMedio, int Quantidade);
 public sealed record ResumoOrigemDto(string Origem, decimal Faturamento, decimal Lucro, int Quantidade);
@@ -64,7 +67,7 @@ public static class VendasEndpoints
         }
         if (!string.IsNullOrWhiteSpace(origem))
         {
-            if (!Nomes.TentarOrigem(origem, out var o)) erros["origem"] = ["Use nft, cambios ou site."]; else q = q.Where(v => v.Origem == o);
+            if (!Nomes.TentarOrigem(origem, out var o)) erros["origem"] = ["Use nft, cambios, site ou manual."]; else q = q.Where(v => v.Origem == o);
         }
         var st = statusNormalizado ?? status;
         if (!string.IsNullOrWhiteSpace(st))
@@ -102,6 +105,14 @@ public static class VendasEndpoints
         var v = await db.Vendas.AsNoTracking().Include(x => x.Cliente).Include(x => x.Itens).FirstOrDefaultAsync(x => x.Id == id, ct)
             ?? throw new NotFoundException("Venda não encontrada.");
         var origem = Nomes.Origem(v.Origem);
+        VendaManualDto? manual = null;
+        if (v.Manual)
+        {
+            var movs = await db.MovimentosEstoque.AsNoTracking().Where(m => m.VendaId == v.Id).OrderBy(m => m.CriadoEm).ToListAsync(ct);
+            manual = new VendaManualDto(v.OrigemCusto is { } oc ? Nomes.Custo(oc) : null, v.QuantidadeEsmeraldas, v.UsaTaxaPrata, v.DolarCompraUsado, v.Observacao,
+                movs.Select(m => new MovimentoVendaDto(Infrastructure.Estoque.EstoqueService.Nome(m.Tipo), m.Quantidade, m.CustoUnitario,
+                    Estoque.EstoqueEndpoints.Motivo(m.Motivo), m.CriadoEm)).ToList());
+        }
         var eventos = await db.EventosRecebidos.AsNoTracking().Where(e => e.Origem == origem && e.OrigemId == v.OrigemId)
             .OrderByDescending(e => e.OcorridoEm).ThenByDescending(e => e.RecebidoEm).Take(100).ToListAsync(ct);
         return Results.Ok(new VendaDetalheDto(ToLista(v),
@@ -109,7 +120,8 @@ public static class VendasEndpoints
             v.CupomCodigo is null ? null : new CupomDto(v.CupomCodigo, v.CupomTipo is { } t ? Nomes.Cupom(t) : null),
             v.Itens.OrderBy(i => i.Ordem).Select(i => new VendaItemDto(i.Ordem, i.Descricao, i.Quantidade, i.PrecoUsd, i.PrecoBrl, i.Referencia)).ToList(),
             v.AtualizadoEmOrigem, v.RemovidaEm,
-            eventos.Select(e => new VendaEventoDto(e.Id, e.EventoId, e.Tipo, IntegracoesEndpoints.Nome(e.Estado), e.OcorridoEm, e.RecebidoEm, e.Resultado, e.Erro)).ToList()));
+            eventos.Select(e => new VendaEventoDto(e.Id, e.EventoId, e.Tipo, IntegracoesEndpoints.Nome(e.Estado), e.OcorridoEm, e.RecebidoEm, e.Resultado, e.Erro)).ToList(),
+            manual));
     }
 
     private static async Task<IResult> Resumo(AppDbContext db, DateOnly? de, DateOnly? ate, string? origem, CancellationToken ct)
@@ -120,7 +132,7 @@ public static class VendasEndpoints
         var q = db.Vendas.AsNoTracking().Where(VendaConsultas.Faturavel).Where(v => v.DataHora >= ini && v.DataHora < fim);
         if (!string.IsNullOrWhiteSpace(origem))
         {
-            if (!Nomes.TentarOrigem(origem, out var o)) return Results.ValidationProblem(new Dictionary<string, string[]> { ["origem"] = ["Use nft, cambios ou site."] });
+            if (!Nomes.TentarOrigem(origem, out var o)) return Results.ValidationProblem(new Dictionary<string, string[]> { ["origem"] = ["Use nft, cambios, site ou manual."] });
             q = q.Where(v => v.Origem == o);
         }
         // O agrupamento por dia é feito em memória para respeitar o fuso de São Paulo, só com as colunas necessárias.

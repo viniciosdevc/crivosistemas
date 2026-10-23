@@ -55,6 +55,15 @@ public sealed class FakeCrivonftClient : Crivosistemas.Infrastructure.Integracoe
     public Task<Crivosistemas.Infrastructure.Integracoes.ExportPagina> ExportarClientesAsync(int limit, int offset, CancellationToken ct) =>
         Task.FromResult(new Crivosistemas.Infrastructure.Integracoes.ExportPagina(Clientes.Count, limit, offset, Clientes.Skip(offset).Take(limit).ToList()));
 
+    public List<System.Text.Json.JsonElement> EstoqueUsd { get; } = [];
+    public List<System.Text.Json.JsonElement> EstoqueEsmeralda { get; } = [];
+
+    public Task<Crivosistemas.Infrastructure.Integracoes.ExportPagina> ExportarEstoqueAsync(string tipo, int limit, int offset, CancellationToken ct)
+    {
+        var l = tipo == "usd" ? EstoqueUsd : EstoqueEsmeralda;
+        return Task.FromResult(new Crivosistemas.Infrastructure.Integracoes.ExportPagina(l.Count, limit, offset, l.Skip(offset).Take(limit).ToList()));
+    }
+
     public Task<Crivosistemas.Domain.Precificacao.PrecificacaoContrato.PayloadDto> LerPrecificacaoAsync(CancellationToken ct) =>
         Task.FromResult(Remota ?? throw new Crivosistemas.Infrastructure.Integracoes.CrivonftException("sem estado remoto", 404));
 

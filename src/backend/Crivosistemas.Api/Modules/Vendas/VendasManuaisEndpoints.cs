@@ -1,0 +1,193 @@
+using System.ComponentModel.DataAnnotations;
+using Crivosistemas.Api.Common;
+using Crivosistemas.Domain.Common;
+using Crivosistemas.Domain.Estoque;
+using Crivosistemas.Domain.Integracoes;
+using Crivosistemas.Domain.Precificacao;
+using Crivosistemas.Domain.Vendas;
+using Crivosistemas.Infrastructure.Estoque;
+using Crivosistemas.Infrastructure.Integracoes;
+using Crivosistemas.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace Crivosistemas.Api.Modules.Vendas;
+
+public sealed record NovaVendaRequest(
+    DateTime? DataHora,
+    [StringLength(120, ErrorMessage = "Nickname muito longo.")] string? NicknameComprador,
+    [Required(ErrorMessage = "Informe o nome do item."), StringLength(300, MinimumLength = 1, ErrorMessage = "Informe o nome do item.")] string NomeItem,
+    [Required(ErrorMessage = "Informe a forma de pagamento.")] string FormaPagamento,
+    [Required(ErrorMessage = "Informe de onde saiu o item.")] string OrigemCusto,
+    [Range(typeof(decimal), "0", "1000000", ParseLimitsInInvariantCulture = true, ConvertValueInInvariantCulture = true, ErrorMessage = "Custo USD inválido.")] decimal CustoUsd,
+    [Range(typeof(decimal), "0", "1000000000", ParseLimitsInInvariantCulture = true, ConvertValueInInvariantCulture = true, ErrorMessage = "Custo em câmbios inválido.")] decimal CustoCambios,
+    [Range(typeof(decimal), "0", "1000000000", ParseLimitsInInvariantCulture = true, ConvertValueInInvariantCulture = true, ErrorMessage = "Quantidade de esmeraldas inválida.")] decimal QuantidadeEsmeraldas,
+    bool UsaTaxaPrata,
+    [Range(typeof(decimal), "0", "100000000", ParseLimitsInInvariantCulture = true, ConvertValueInInvariantCulture = true, ErrorMessage = "Valor PIX inválido.")] decimal ValorVendaPix,
+    [Range(typeof(decimal), "0", "1000000000", ParseLimitsInInvariantCulture = true, ConvertValueInInvariantCulture = true, ErrorMessage = "Valor em câmbios inválido.")] decimal ValorVendaCambios,
+    [StringLength(500, ErrorMessage = "Observação muito longa.")] string? Observacao,
+    bool Entregue = false);
+
+public sealed record CancelarVendaRequest([StringLength(300, ErrorMessage = "Motivo muito longo.")] string? Motivo);
+
+/// <summary>Vendas lançadas à mão aqui (origem "manual"). O servidor recalcula custo, lucro e margem com as regras de preço salvas
+/// e mexe no estoque: esmeraldas saem na criação, o dólar sai (FIFO) quando a venda é marcada como entregue. Cancelar devolve aos mesmos lotes.</summary>
+public static class VendasManuaisEndpoints
+{
+    public static void MapVendasManuaisEndpoints(this IEndpointRouteBuilder app)
+    {
+        var g = app.MapGroup("/api/vendas").WithTags("Vendas").RequireAuthorization();
+        g.MapPost("/manuais", Criar).WithSummary("Registra uma venda manual (pendente, ou já entregue).");
+        g.MapPost("/{id:guid}/entregar", Entregar).WithSummary("Marca a venda manual como entregue: entra no faturamento e debita o dólar.");
+        g.MapPost("/{id:guid}/cancelar", Cancelar).WithSummary("Cancela a venda manual e devolve o estoque.");
+    }
+
+    private const string StatusPendente = "pendente", StatusEntregue = "entregue", StatusCancelada = "cancelada";
+
+    private static async Task<IResult> Criar([FromBody] NovaVendaRequest req, AppDbContext db, PrecificacaoService precos, EstoqueService estoque,
+        IngestaoService ingestao, HttpContext http, CancellationToken ct)
+    {
+        var erros = new Dictionary<string, string[]>();
+        if (!Nomes.TentarForma(req.FormaPagamento, out var forma)) erros["formaPagamento"] = ["Use pix, cambios ou hibrido."];
+        if (!Nomes.TentarCusto(req.OrigemCusto, out var origemCusto)) erros["origemCusto"] = ["Use estoque_usd, cambios, estoque_esmeralda ou manual."];
+        if (string.IsNullOrWhiteSpace(req.NomeItem)) erros["nomeItem"] = ["Informe o nome do item."];
+        if (erros.Count > 0) return Results.ValidationProblem(erros);
+
+        var pix = forma == FormaPagamento.Cambios ? 0 : req.ValorVendaPix;
+        var cambios = forma == FormaPagamento.Pix ? 0 : Math.Round(req.ValorVendaCambios, 0, MidpointRounding.AwayFromZero);
+        if (pix + cambios <= 0) throw new DomainException("valor_obrigatorio", "Informe quanto o cliente pagou.");
+        if (origemCusto == OrigemCusto.EstoqueEsmeralda && req.QuantidadeEsmeraldas <= 0)
+            throw new DomainException("esmeraldas_obrigatorias", "Informe quantas esmeraldas saíram do estoque.");
+        if (origemCusto == OrigemCusto.Cambios && req.CustoCambios <= 0)
+            throw new DomainException("custo_obrigatorio", "Informe o custo em câmbios.");
+
+        var userId = http.User.Id();
+        var nomeUsuario = http.User.Identity?.Name;
+        var venda = await db.InTransactionAsync(async () =>
+        {
+            await estoque.TravarAsync(ct);
+            var (cfg, faixas) = PrecificacaoService.ParaCalculo(await precos.ObterAsync(ct));
+            if (!req.UsaTaxaPrata) cfg = cfg with { TaxaPrata = 0 };
+
+            // Custo efetivo (mesma regra do crivonft): dólar do estoque pelo custo médio; esmeraldas pelo custo médio delas em US$.
+            var custoUsd = (double)req.CustoUsd;
+            double? dolarCompra = null;
+            if (origemCusto == OrigemCusto.EstoqueUsd)
+            {
+                var r = await estoque.ResumoAsync(TipoEstoque.Usd, ct);
+                if (r.CustoMedio > 0) dolarCompra = (double)r.CustoMedio;
+            }
+            if (origemCusto == OrigemCusto.EstoqueEsmeralda)
+            {
+                var r = await estoque.ResumoAsync(TipoEstoque.Esmeralda, ct);
+                if (req.QuantidadeEsmeraldas > r.Saldo)
+                    throw new DomainException("saldo_insuficiente", $"Saldo de esmeraldas insuficiente. Disponível: {r.Saldo:0.##}.");
+                if (r.CustoMedio <= 0) throw new DomainException("custo_medio_ausente", "As esmeraldas em estoque estão sem custo. Confira o estoque.");
+                custoUsd = (double)(req.QuantidadeEsmeraldas * r.CustoMedio);
+            }
+            var calc = CalculoVenda.Venda(origemCusto == OrigemCusto.Cambios ? 0 : custoUsd, (double)pix, (double)cambios, cfg, faixas,
+                origemCusto == OrigemCusto.Cambios ? (double)req.CustoCambios : null, dolarCompra);
+
+            Cliente? cliente = null;
+            var nick = req.NicknameComprador?.Trim();
+            if (!string.IsNullOrEmpty(nick)) cliente = await ingestao.AplicarClienteAsync(new ClientePayload(nick, nick, null, null, null), sobrescrever: false, ct);
+
+            var agora = DateTime.UtcNow;
+            var v = new Venda
+            {
+                Origem = OrigemVenda.Manual,
+                OrigemId = "",
+                DataHora = (req.DataHora ?? agora).ToUniversalTime(),
+                Status = StatusPendente,
+                StatusNormalizado = StatusVenda.Pendente,
+                FormaPagamento = forma,
+                Vendedor = nomeUsuario,
+                Cliente = cliente,
+                ClienteId = cliente?.Id,
+                TotalBrl = (decimal)calc.ReceitaTotalBrl,
+                ValorPixBrl = pix,
+                ValorCambios = cambios,
+                CustoBrl = (decimal)calc.CustoBrl,
+                CustoUsd = (decimal)calc.CustoUsd,
+                CustoCambios = (decimal)calc.CustoCambios,
+                LucroBrl = (decimal)calc.LucroBrl,
+                MargemPercent = (decimal)calc.MargemPercent,
+                OrigemCusto = origemCusto,
+                QuantidadeEsmeraldas = origemCusto == OrigemCusto.EstoqueEsmeralda ? req.QuantidadeEsmeraldas : null,
+                UsaTaxaPrata = req.UsaTaxaPrata,
+                DolarCompraUsado = calc.DolarCompraUsado is { } d ? (decimal)d : null,
+                Observacao = string.IsNullOrWhiteSpace(req.Observacao) ? null : req.Observacao.Trim(),
+                CriadoPor = userId,
+                AtualizadoEmOrigem = agora,
+            };
+            v.OrigemId = v.Id.ToString();
+            v.Itens.Add(new VendaItem { VendaId = v.Id, Ordem = 0, Descricao = req.NomeItem.Trim(), Quantidade = 1, PrecoUsd = (decimal)calc.CustoUsd, PrecoBrl = v.TotalBrl });
+            db.Vendas.Add(v);
+            await db.SaveChangesAsync(ct);
+
+            // Esmeraldas saem já na criação (reserva física, como no crivonft).
+            if (origemCusto == OrigemCusto.EstoqueEsmeralda)
+                await estoque.DebitarVendaAsync(TipoEstoque.Esmeralda, req.QuantidadeEsmeraldas, v.Id, userId, ct);
+            if (req.Entregue) await MarcarEntregueAsync(v, estoque, userId, ct);
+
+            db.Audit(http, "venda.manual_criada", "Venda", v.Id, new { v.TotalBrl, v.LucroBrl, origemCusto = Nomes.Custo(origemCusto), req.Entregue });
+            await db.SaveChangesAsync(ct);
+            return v;
+        }, ct);
+        return Results.Created($"/api/vendas/{venda.Id}", VendasEndpoints.ToLista(venda));
+    }
+
+    private static async Task MarcarEntregueAsync(Venda v, EstoqueService estoque, Guid userId, CancellationToken ct)
+    {
+        if (v.OrigemCusto == OrigemCusto.EstoqueUsd && v.CustoUsd > 0)
+            await estoque.DebitarVendaAsync(TipoEstoque.Usd, v.CustoUsd, v.Id, userId, ct);
+        v.Status = StatusEntregue;
+        v.StatusNormalizado = StatusVenda.Concluido;
+        v.AtualizadoEm = v.AtualizadoEmOrigem = DateTime.UtcNow;
+    }
+
+    private static async Task<Venda> ManualAsync(AppDbContext db, Guid id, CancellationToken ct)
+    {
+        var v = await db.Vendas.Include(x => x.Cliente).FirstOrDefaultAsync(x => x.Id == id, ct) ?? throw new NotFoundException("Venda não encontrada.");
+        if (!v.Manual) throw new DomainException("venda_nao_manual", "Só vendas lançadas aqui podem ser alteradas. As do crivonft mudam por lá.");
+        return v;
+    }
+
+    private static async Task<IResult> Entregar(Guid id, AppDbContext db, EstoqueService estoque, HttpContext http, CancellationToken ct)
+    {
+        var v = await db.InTransactionAsync(async () =>
+        {
+            await estoque.TravarAsync(ct);
+            var v = await ManualAsync(db, id, ct);
+            if (v.StatusNormalizado != StatusVenda.Pendente) throw new DomainException("status_invalido", "Só uma venda pendente pode ser marcada como entregue.");
+            await MarcarEntregueAsync(v, estoque, http.User.Id(), ct);
+            db.Audit(http, "venda.manual_entregue", "Venda", v.Id);
+            await db.SaveChangesAsync(ct);
+            return v;
+        }, ct);
+        return Results.Ok(VendasEndpoints.ToLista(v));
+    }
+
+    private static async Task<IResult> Cancelar(Guid id, [FromBody] CancelarVendaRequest? req, AppDbContext db, EstoqueService estoque, HttpContext http, CancellationToken ct)
+    {
+        var v = await db.InTransactionAsync(async () =>
+        {
+            await estoque.TravarAsync(ct);
+            var v = await ManualAsync(db, id, ct);
+            if (v.StatusNormalizado == StatusVenda.Cancelado) throw new DomainException("status_invalido", "Esta venda já está cancelada.");
+            var devolvido = await estoque.EstornarVendaAsync(v.Id, null, http.User.Id(), ct);
+            v.Status = StatusCancelada;
+            v.StatusNormalizado = StatusVenda.Cancelado;
+            v.AtualizadoEm = v.AtualizadoEmOrigem = DateTime.UtcNow;
+            if (!string.IsNullOrWhiteSpace(req?.Motivo))
+            {
+                var obs = $"{v.Observacao}\nCancelada: {req.Motivo.Trim()}".Trim();
+                v.Observacao = obs.Length > 500 ? obs[..500] : obs;
+            }
+            db.Audit(http, "venda.manual_cancelada", "Venda", v.Id, new { motivo = req?.Motivo, devolvido });
+            await db.SaveChangesAsync(ct);
+            return v;
+        }, ct);
+        return Results.Ok(VendasEndpoints.ToLista(v));
+    }
+}
