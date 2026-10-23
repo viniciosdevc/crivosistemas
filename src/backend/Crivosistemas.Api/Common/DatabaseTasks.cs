@@ -1,0 +1,68 @@
+using Crivosistemas.Domain.Identity;
+using Crivosistemas.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+
+namespace Crivosistemas.Api.Common;
+
+public static class DatabaseTasks
+{
+    public static async Task MigrateAsync(IServiceProvider services)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("Migrations");
+        // O contêiner do banco pode ainda estar subindo (ou reiniciando) quando o deploy começa: espera em vez de falhar.
+        // CanConnect é falso quando o servidor está no ar mas o banco ainda não existe; por isso migra direto: o EF cria o banco
+        // se faltar e só lança exceção enquanto o servidor estiver inacessível.
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                var pending = (await db.Database.GetPendingMigrationsAsync()).ToList();
+                logger.LogInformation("Aplicando {Count} migration(s) pendente(s): {Names}", pending.Count, string.Join(", ", pending));
+                await db.Database.MigrateAsync();
+                break;
+            }
+            catch (Exception e) when (attempt < 40)
+            {
+                logger.LogWarning("Banco ainda inacessível ({Message}); nova tentativa ({Attempt}/40)", e.Message, attempt);
+                await Task.Delay(TimeSpan.FromSeconds(3));
+            }
+        }
+    }
+
+    /// <summary>Comando de operação: <c>--seed-admin email senha [nome]</c> cria o primeiro administrador. Não há cadastro público.
+    /// Não faz nada se o e-mail já existir, então pode rodar a cada deploy sem efeito colateral.</summary>
+    public static async Task<int> SeedAdminAsync(IServiceProvider services, string email, string password, string? name)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher<User>>();
+
+        var normalized = User.NormalizeEmail(email);
+        if (!new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(normalized))
+        {
+            Console.Error.WriteLine($"E-mail inválido: {email}");
+            return 1;
+        }
+        if (password.Length < 8)
+        {
+            Console.Error.WriteLine("A senha deve ter pelo menos 8 caracteres.");
+            return 1;
+        }
+        if (await db.Users.AnyAsync(u => u.Email == normalized))
+        {
+            Console.WriteLine($"Já existe um usuário com o e-mail {normalized}; nada foi alterado.");
+            return 0;
+        }
+
+        var user = new User { Name = string.IsNullOrWhiteSpace(name) ? "Administrador" : name.Trim(), Email = normalized, Role = UserRole.Admin };
+        user.PasswordHash = hasher.HashPassword(user, password);
+        db.Users.Add(user);
+        db.Audit(null, "users.seeded_admin", "User", user.Id, new { email = normalized });
+        await db.SaveChangesAsync();
+        Console.WriteLine($"Administrador {normalized} criado.");
+        return 0;
+    }
+}

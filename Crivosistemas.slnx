@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/backend/">
+    <Project Path="src/backend/Crivosistemas.Api/Crivosistemas.Api.csproj" />
+    <Project Path="src/backend/Crivosistemas.Domain/Crivosistemas.Domain.csproj" />
+    <Project Path="src/backend/Crivosistemas.Infrastructure/Crivosistemas.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/workers/">
+    <Project Path="src/workers/Crivosistemas.Worker/Crivosistemas.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Crivosistemas.IntegrationTests/Crivosistemas.IntegrationTests.csproj" />
+    <Project Path="tests/Crivosistemas.UnitTests/Crivosistemas.UnitTests.csproj" />
+  </Folder>
+</Solution>
