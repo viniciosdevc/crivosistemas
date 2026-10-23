@@ -32,6 +32,11 @@ public sealed class PrecificacaoTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Forbidden, (await operador.GetAsync("/api/precificacao")).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await operador.Put("/api/precificacao", Corpo(0))).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await factory.NewClient().GetAsync("/api/precificacao")).StatusCode);
+        // As regras em si (sem envios) o operador lê, para a calculadora e a venda manual.
+        var regras = await (await operador.GetAsync("/api/precificacao/regras")).Json();
+        Assert.True(regras.GetProperty("faixasPix").GetArrayLength() > 0);
+        Assert.False(regras.TryGetProperty("ultimoEnvio", out _));
+        Assert.Equal(HttpStatusCode.Unauthorized, (await factory.NewClient().GetAsync("/api/precificacao/regras")).StatusCode);
 
         var atual = await (await admin.GetAsync("/api/precificacao")).Json();
         var v0 = atual.GetProperty("versao").GetInt32();
