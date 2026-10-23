@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'
 import SaleTable from '@/components/admin/sales/SaleTable.vue'
 import PageCard from '@/components/ui/PageCard.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
+import { habboAvatarUrl } from '@/lib/habbo'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiEmptyState from '@/components/ui/UiEmptyState.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
@@ -26,7 +27,7 @@ const ticket = computed(() => (c.value && c.value.compras > 0 ? c.value.totalGas
     <template #title>
       <UiButton variant="ghost" size="sm" to="/painel/clientes" class="-ml-3 mb-2"><ArrowLeft class="size-4" /> Clientes</UiButton>
       <div class="flex items-center gap-4">
-        <UiAvatar v-if="c" :name="c.nickname" />
+        <UiAvatar v-if="c" :name="c.nickname" :src="habboAvatarUrl(c.nickname)" size="lg" />
         <div class="min-w-0">
           <h1 class="truncate text-2xl font-semibold tracking-tight text-ink lg:text-[28px]">{{ c?.nickname ?? 'Cliente' }}</h1>
           <p v-if="c?.email" class="truncate text-[15px] text-muted">{{ c.email }}</p>

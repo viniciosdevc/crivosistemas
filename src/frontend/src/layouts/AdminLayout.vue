@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {
-  Boxes, Calculator, ChartColumn, ChevronDown, KeyRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plug, Plus, ReceiptText, SlidersHorizontal, Sun, UserCog, Users, X,
+  Boxes, Calculator, ChartColumn, ChevronDown, Coins, KeyRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plug, Plus, ReceiptText, SlidersHorizontal, Sun, UserCog, Users, X,
   Building2,
 } from 'lucide-vue-next'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
@@ -8,7 +8,7 @@ import { computed, ref, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import BrandMark from '@/components/BrandMark.vue'
 import ChangePasswordModal from '@/components/admin/ChangePasswordModal.vue'
-import NewSaleModal from '@/components/admin/sales/NewSaleModal.vue'
+import QuickActionsModal, { type QuickTab } from '@/components/admin/QuickActionsModal.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import { isDark, restoreTheme, toggleTheme } from '@/lib/theme'
 import type { VendaLista } from '@/lib/types'
@@ -22,7 +22,12 @@ const router = useRouter()
 const collapsed = ref(false)
 const mobileOpen = ref(false)
 const passwordOpen = ref(false)
-const newSaleOpen = ref(false)
+const quickOpen = ref(false)
+const quickTab = ref<QuickTab>('nft')
+function openQuick(t: QuickTab) {
+  quickTab.value = t
+  quickOpen.value = true
+}
 restoreTheme()
 
 const items: NavItem[] = [
@@ -67,7 +72,13 @@ async function logout() {
       </button>
       <BrandMark />
       <div class="-mr-2 flex items-center">
-        <button type="button" class="rounded-full p-2 text-ink hover:bg-surface-3" aria-label="Nova venda" @click="newSaleOpen = true">
+        <button type="button" class="rounded-full p-2 text-ink hover:bg-surface-3" aria-label="Calculadora" @click="openQuick('nft')">
+          <Calculator class="size-5" />
+        </button>
+        <button type="button" class="rounded-full p-2 text-ink hover:bg-surface-3" aria-label="Moedas" @click="openQuick('moedas')">
+          <Coins class="size-5" />
+        </button>
+        <button type="button" class="rounded-full p-2 text-ink hover:bg-surface-3" aria-label="Nova venda" @click="openQuick('venda')">
           <Plus class="size-5" />
         </button>
         <button type="button" class="rounded-full p-2 text-ink hover:bg-surface-3" :aria-label="isDark ? 'Tema claro' : 'Tema escuro'" @click="toggleTheme">
@@ -172,12 +183,15 @@ async function logout() {
           </template>
         </nav>
         <div class="flex items-center gap-1">
-          <button type="button" class="rounded-full p-2.5 text-ink hover:bg-surface-3" aria-label="Nova venda" title="Nova venda" @click="newSaleOpen = true">
+          <button type="button" class="rounded-full p-2.5 text-ink hover:bg-surface-3" aria-label="Calculadora" title="Calculadora" @click="openQuick('nft')">
+            <Calculator class="size-5" stroke-width="1.7" />
+          </button>
+          <button type="button" class="rounded-full p-2.5 text-ink hover:bg-surface-3" aria-label="Moedas" title="Moedas" @click="openQuick('moedas')">
+            <Coins class="size-5" stroke-width="1.7" />
+          </button>
+          <button type="button" class="rounded-full p-2.5 text-ink hover:bg-surface-3" aria-label="Nova venda" title="Nova venda" @click="openQuick('venda')">
             <Plus class="size-5" stroke-width="1.7" />
           </button>
-          <RouterLink to="/painel/calculadora" class="rounded-full p-2.5 text-ink hover:bg-surface-3" aria-label="Calculadora" title="Calculadora">
-            <Calculator class="size-5" stroke-width="1.7" />
-          </RouterLink>
           <button type="button" class="rounded-full p-2.5 text-ink hover:bg-surface-3" :aria-label="isDark ? 'Tema claro' : 'Tema escuro'" @click="toggleTheme">
             <Sun v-if="isDark" class="size-5" stroke-width="1.7" /><Moon v-else class="size-5" stroke-width="1.7" />
           </button>
@@ -193,6 +207,6 @@ async function logout() {
     </div>
   </div>
   <ChangePasswordModal v-model:open="passwordOpen" />
-  <NewSaleModal v-model:open="newSaleOpen" @created="onSaleCreated" />
+  <QuickActionsModal v-model:open="quickOpen" v-model:tab="quickTab" @created="onSaleCreated" />
   </div>
 </template>

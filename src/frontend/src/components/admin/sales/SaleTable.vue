@@ -7,6 +7,8 @@ import StatusBadge from '@/components/ui/StatusBadge.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiEmptyState from '@/components/ui/UiEmptyState.vue'
+import UiAvatar from '@/components/ui/UiAvatar.vue'
+import { habboAvatarUrl } from '@/lib/habbo'
 import { formatDate, formatMoney, formatTime } from '@/lib/format'
 import { formaPagamento, labelOf, origemVenda, statusVenda } from '@/lib/labels'
 import type { VendaLista } from '@/lib/types'
@@ -78,10 +80,13 @@ const sortColumn = computed(() => (props.sort ? (reverse[props.sort] ?? props.so
       </div>
     </template>
     <template #cell-cliente="{ row }">
-      <template v-if="row.cliente">
-        <RouterLink :to="{ name: 'customer', params: { id: row.cliente.id } }" class="text-ink hover:underline">{{ row.cliente.nickname }}</RouterLink>
-        <p v-if="row.cliente.email" class="max-w-52 truncate text-sm text-muted">{{ row.cliente.email }}</p>
-      </template>
+      <div v-if="row.cliente" class="flex items-center gap-3">
+        <UiAvatar :name="row.cliente.nickname" :src="habboAvatarUrl(row.cliente.nickname)" size="sm" />
+        <div class="min-w-0">
+          <RouterLink :to="{ name: 'customer', params: { id: row.cliente.id } }" class="text-ink hover:underline">{{ row.cliente.nickname }}</RouterLink>
+          <p v-if="row.cliente.email" class="max-w-52 truncate text-sm text-muted">{{ row.cliente.email }}</p>
+        </div>
+      </div>
       <span v-else class="text-faint">Sem cliente</span>
     </template>
     <template #cell-formaPagamento="{ row }">{{ labelOf(formaPagamento, row.formaPagamento).label }}</template>

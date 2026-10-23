@@ -2,6 +2,7 @@
 import { ArrowLeft, Ban, PackageCheck, RefreshCw, TriangleAlert } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import UiAvatar from '@/components/ui/UiAvatar.vue'
 import PageCard from '@/components/ui/PageCard.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
@@ -9,6 +10,7 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiEmptyState from '@/components/ui/UiEmptyState.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { ApiError, api } from '@/lib/api'
+import { habboAvatarUrl } from '@/lib/habbo'
 import { confirm, confirmWithReason } from '@/lib/confirm'
 import { formatDateTime, formatDecimal, formatFixed, formatMoney, formatPercent, formatUsd } from '@/lib/format'
 import { estadoEvento, formaPagamento, labelOf, motivoMovimento, origemCusto, origemVenda, statusVenda, tipoCupom, tipoEvento } from '@/lib/labels'
@@ -129,11 +131,14 @@ const values = computed(() => {
         <dl class="space-y-3 text-[15px]">
           <div>
             <dt class="text-sm text-muted">Cliente</dt>
-            <dd>
-              <RouterLink v-if="venda.cliente" :to="{ name: 'customer', params: { id: venda.cliente.id } }" class="font-medium text-ink hover:underline">{{ venda.cliente.nickname }}</RouterLink>
-              <span v-else class="text-faint">Sem cliente identificado</span>
-              <span v-if="venda.cliente?.email" class="block text-sm text-muted">{{ venda.cliente.email }}</span>
+            <dd v-if="venda.cliente" class="mt-1 flex items-center gap-3">
+              <UiAvatar :name="venda.cliente.nickname" :src="habboAvatarUrl(venda.cliente.nickname)" />
+              <div class="min-w-0">
+                <RouterLink :to="{ name: 'customer', params: { id: venda.cliente.id } }" class="font-medium text-ink hover:underline">{{ venda.cliente.nickname }}</RouterLink>
+                <span v-if="venda.cliente.email" class="block text-sm text-muted">{{ venda.cliente.email }}</span>
+              </div>
             </dd>
+            <dd v-else class="text-faint">Sem cliente identificado</dd>
           </div>
           <div>
             <dt class="text-sm text-muted">Pagamento</dt>
