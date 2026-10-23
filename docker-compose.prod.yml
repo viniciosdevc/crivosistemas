@@ -1,0 +1,56 @@
+# Stack de produção para o Dokploy (ou qualquer host com MySQL/Redis gerenciados): migrations, API, worker e web.
+# Sem serviços de MySQL/Redis aqui: ConnectionStrings__Database e ConnectionStrings__Redis vêm do .env. Veja docs/architecture.md.
+# O Redis pode ser a mesma instância do crivonft: todas as chaves usam o prefixo `crivosistemas:`.
+# Uso: docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+# Primeiro administrador: docker compose -f docker-compose.prod.yml run --rm migrate --seed-admin <email> <senha> [nome]
+name: crivosistemas
+
+x-backend: &backend
+  build: { context: ., dockerfile: infra/docker/api.Dockerfile }
+  env_file: [.env]
+  networks: [default, dokploy-network]
+
+services:
+  # Aplica as migrations do EF Core uma vez e sai. A API só sobe depois que ele termina com sucesso.
+  migrate:
+    <<: *backend
+    command: ["--migrate"]
+    restart: "no"
+
+  api:
+    <<: *backend
+    restart: unless-stopped
+    # O alias existe SÓ na rede privada deste stack. Na dokploy-network compartilhada ele resolveria para um endereço que o
+    # contêiner web não alcança (502 "Host is unreachable"); a dokploy-network está aqui apenas para chegar ao MySQL/Redis.
+    networks:
+      default:
+        aliases: [crivosistemas-api]
+      dokploy-network: {}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  worker:
+    build: { context: ., dockerfile: infra/docker/worker.Dockerfile }
+    env_file: [.env]
+    restart: unless-stopped
+    networks: [default, dokploy-network]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  # Entrada pública. No Dokploy, aponte o domínio para este serviço, porta 80.
+  web:
+    build: { context: ., dockerfile: infra/docker/web.Dockerfile }
+    restart: unless-stopped
+    environment:
+      # Nome único para não colidir com o "api" de outro projeto na rede compartilhada.
+      API_UPSTREAM: crivosistemas-api:8080
+    networks:
+      default:
+        aliases: [crivosistemas-web]
+      dokploy-network: {}
+    depends_on:
+      api: { condition: service_healthy }
+
+networks:
+  dokploy-network:
+    external: true

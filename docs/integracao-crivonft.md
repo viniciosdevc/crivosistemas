@@ -1,0 +1,77 @@
+# Contrato de integração crivonft ⇄ crivosistemas (v1)
+
+Fonte da verdade das **vendas e clientes**: crivonft (PostgreSQL).
+Fonte da verdade das **regras de preço** (configuração de cálculo, faixas PIX, cupons): crivosistemas (MySQL), com cópia local no crivonft.
+
+## Autenticação (ambos os sentidos)
+- `Authorization: Bearer <token>` + `X-Crivo-Signature: sha256=<hex HMAC-SHA256(secret, rawBody)>` + `X-Crivo-Timestamp: <unix segundos>`.
+- O HMAC é sobre `"{timestamp}.{rawBody}"`. Rejeitar se |agora - timestamp| > 300 s.
+- Env crivonft: `GESTAO_URL`, `GESTAO_TOKEN`, `GESTAO_HMAC_SECRET`, `GESTAO_SYNC_DESDE` (opcional, AAAA-MM-DD).
+- Env crivosistemas: `Integrations__Crivonft__BaseUrl`, `__Token`, `__HmacSecret` (os mesmos valores), `__ExportToken` (= IMPORT_SECRET do crivonft).
+- Sem URL/token configurados, o crivonft não envia nada e a venda segue normal.
+
+## 1. Eventos crivonft → crivosistemas
+`POST {GESTAO_URL}/api/integracoes/crivonft/eventos`
+
+Corpo (um evento por request):
+```json
+{
+  "id": "uuid do evento (outbox)",
+  "tipo": "venda.upsert | venda.removida | cliente.upsert",
+  "ocorrido_em": "2026-10-23T18:00:00Z",
+  "dados": { ... }
+}
+```
+Respostas: `200/201` processado; `200` com `{"duplicado":true}` se o id do evento já foi visto; `4xx` = erro permanente (crivonft marca como falho, não repete), exceto `401/403/408/429`, que repetem; `5xx`/timeout = repetir.
+
+### `venda.upsert` → `dados`
+```json
+{
+  "origem": "nft | cambios | site",
+  "origem_id": "uuid da linha em vendas_nft / vendas_cambios / loja_pedidos",
+  "pedido_id": "uuid loja_pedidos ou null",
+  "data_hora": "ISO-8601 UTC",
+  "status": "string original da origem",
+  "status_normalizado": "pendente | pago | concluido | cancelado | reembolsado",
+  "forma_pagamento": "pix | cambios | hibrido | null",
+  "vendedor": "string ou null",
+  "cliente": null | { "chave": "nickname ou identidade_id", "nickname": "...", "email": null, "identidade_id": null },
+  "itens": [ { "descricao": "...", "quantidade": 1, "preco_usd": 0, "preco_brl": 0, "referencia": "listing/token id ou null" } ],
+  "valores": {
+    "total_brl": 0, "desconto_brl": 0, "taxa_brl": 0,
+    "valor_pix_brl": 0, "valor_cambios": 0,
+    "custo_brl": 0, "custo_usd": 0, "custo_cambios": 0,
+    "lucro_brl": 0, "margem_percent": 0
+  },
+  "cupom": { "codigo": "...", "tipo": "percentual|valor_fixo|taxa_gratis" } ,
+  "atualizado_em": "ISO-8601 UTC"
+}
+```
+Chave de upsert no crivosistemas: `(origem, origem_id)`. Ignorar evento cujo `atualizado_em` seja mais antigo que o já gravado.
+Valores monetários: número decimal (não string), BRL com 2 casas, USD/câmbios até 4.
+
+### `venda.removida` → `dados`: `{ "origem": "...", "origem_id": "..." }` (venda excluída na origem: marcar como removida, não apagar).
+
+### `cliente.upsert` → `dados`: `{ "chave": "...", "nickname": "...", "email": null, "identidade_id": null, "criado_em": "..." }`
+
+## 2. Carga inicial e reconciliação (crivosistemas puxa)
+Usa as rotas já existentes do crivonft com `Authorization: Bearer <IMPORT_SECRET>`:
+`GET /api/export/vendas?de=&ate=&limit=&offset=` e `GET /api/export/clientes` (formato em `crivonft/docs/API.md`).
+Worker do crivosistemas roda 1x por noite para os últimos 3 dias e sob demanda pela tela Integrações.
+
+## 3. Regras de preço crivosistemas → crivonft
+`PUT {crivonft}/api/integracoes/gestao/precificacao` (mesma autenticação, com o token/segredo do crivonft)
+```json
+{
+  "versao": 12,
+  "configuracao_calculo": {
+    "valor_k_feira": 13, "valor_k_trocas": 12, "moedas_por_k": 1000,
+    "dolar_padrao_compra": 5.7, "dolar_padrao_venda": 6.0,
+    "taxa_prata": 1, "margem_venda_cambios_percent": 20
+  },
+  "faixas_pix": [ { "valor_min_usd": 0, "valor_max_usd": 10, "multiplicador": 7.5, "ordem": 0, "ativo": true } ]
+}
+```
+O crivonft aplica numa transação (substitui `loja_faixas_pix`, atualiza o singleton `loja_configuracoes_calculo`), ignora `versao` menor ou igual à última aplicada, e responde `{ "aplicada": true, "versao": 12 }`.
+`GET {crivonft}/api/integracoes/gestao/precificacao` devolve o estado atual no mesmo formato (para importar na primeira vez).
+Cupons ficam para a v2 do contrato.

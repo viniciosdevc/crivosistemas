@@ -1,0 +1,83 @@
+# Ambiente integrado: MySQL, Redis, migrations, API, worker e web (nginx + SPA).
+# Uso: cp .env.example .env && docker compose up -d --build   ->  http://localhost:8080
+# Primeiro administrador: docker compose run --rm migrate --seed-admin voce@empresa.com 'senha-forte-123' 'Seu Nome'
+name: crivosistemas
+
+x-backend-env: &backend-env
+  ConnectionStrings__Database: "Server=mysql;Port=3306;Database=${MYSQL_DATABASE:-crivosistemas};User=${MYSQL_USER:-crivosistemas};Password=${MYSQL_PASSWORD:?defina MYSQL_PASSWORD no .env};"
+  ConnectionStrings__Redis: "redis:6379"
+  Auth__RequireHttps: ${AUTH_REQUIRE_HTTPS:-false}
+  App__PublicUrl: ${APP_PUBLIC_URL:-http://localhost:8080}
+  Smtp__Host: ${SMTP_HOST:-}
+  Smtp__Port: ${SMTP_PORT:-587}
+  Smtp__Username: ${SMTP_USERNAME:-}
+  Smtp__Password: ${SMTP_PASSWORD:-}
+  Smtp__UseSsl: ${SMTP_USE_SSL:-false}
+  Smtp__FromAddress: ${SMTP_FROM_ADDRESS:-}
+  Smtp__FromName: ${SMTP_FROM_NAME:-Crivo Gestão}
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-crivosistemas}
+      MYSQL_USER: ${MYSQL_USER:-crivosistemas}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?defina MYSQL_PASSWORD no .env}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?defina MYSQL_ROOT_PASSWORD no .env}
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci"]
+    volumes: [mysql-data:/var/lib/mysql]
+    ports: ["127.0.0.1:${MYSQL_PORT:-3306}:3306"]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Aplica as migrations do EF Core uma vez e sai. API e worker só sobem depois que ele termina com sucesso.
+  # Também serve para comandos de operação: `docker compose run --rm migrate --seed-admin <email> <senha> [nome]`.
+  migrate:
+    build: { context: ., dockerfile: infra/docker/api.Dockerfile }
+    command: ["--migrate"]
+    environment: *backend-env
+    depends_on:
+      mysql: { condition: service_healthy }
+    restart: "no"
+
+  api:
+    build: { context: ., dockerfile: infra/docker/api.Dockerfile }
+    restart: unless-stopped
+    environment: *backend-env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  worker:
+    build: { context: ., dockerfile: infra/docker/worker.Dockerfile }
+    restart: unless-stopped
+    environment: *backend-env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  web:
+    build: { context: ., dockerfile: infra/docker/web.Dockerfile }
+    restart: unless-stopped
+    ports: ["${WEB_PORT:-8080}:80"]
+    depends_on:
+      api: { condition: service_healthy }
+
+volumes:
+  mysql-data:
+  redis-data:

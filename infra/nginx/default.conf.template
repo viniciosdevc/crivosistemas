@@ -1,0 +1,63 @@
+# Serve o SPA e faz proxy da API na mesma origem (o cookie de sessão continua de primeira parte).
+# Renderizado pela imagem do nginx na partida (envsubst troca só as variáveis definidas, como API_UPSTREAM).
+server {
+  listen 80;
+  server_name _;
+  root /usr/share/nginx/html;
+  client_max_body_size 1m;
+
+  add_header X-Content-Type-Options nosniff always;
+  add_header Referrer-Policy strict-origin-when-cross-origin always;
+  add_header X-Frame-Options DENY always;
+
+  # Resolve o nome da API de novo (DNS embutido do Docker) em vez de guardar o IP da partida: depois que o contêiner da API é
+  # recriado ele ganha outro IP, e um upstream resolvido só na partida responderia 502 até reiniciar o nginx.
+  resolver ${DNS_RESOLVER} valid=10s ipv6=off;
+  set $api_upstream ${API_UPSTREAM};
+
+  location = /healthz { access_log off; return 200 "ok"; }
+
+  location /api/ {
+    proxy_pass http://$api_upstream;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    # Durante um deploy o contêiner da API é trocado: repete leituras algumas vezes (escritas o nginx nunca repete) e, se ainda
+    # estiver fora, responde um JSON amigável em vez de um 502 cru, para o app mostrar "atualizando, tente de novo".
+    proxy_connect_timeout 3s;
+    proxy_next_upstream error timeout http_502 http_503;
+    proxy_next_upstream_tries 3;
+    proxy_next_upstream_timeout 10s;
+    proxy_intercept_errors on;
+    error_page 502 503 504 = @api_updating;
+  }
+
+  location @api_updating {
+    default_type application/json;
+    add_header Retry-After 5 always;
+    return 503 '{"title":"Estamos atualizando o sistema. Tente novamente em instantes.","code":"updating"}';
+  }
+
+  # Página estática de "atualizando" (tenta de novo sozinha); também acessível direto numa janela de manutenção.
+  location = /updating.html { add_header Cache-Control "no-store"; try_files /updating.html =404; }
+
+  location = /robots.txt {
+    default_type text/plain;
+    return 200 "User-agent: *\nDisallow: /\n";
+  }
+
+  location /assets/ {
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+    try_files $uri =404;
+  }
+
+  location / {
+    add_header Cache-Control "no-cache";
+    try_files $uri $uri/ /index.html;
+  }
+
+  gzip on;
+  gzip_types text/css application/javascript application/json image/svg+xml;
+}
