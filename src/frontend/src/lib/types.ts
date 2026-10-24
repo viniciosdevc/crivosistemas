@@ -684,27 +684,19 @@ export interface ItemEstoque {
   nome: string
   imagemUrl: string | null
   quantidade: number
+  /** Valor pago por unidade, em US$. */
   custoUnitario: number
   custoTotal: number
   /** AAAA-MM-DD */
   dataCompra: string
   precoMercadoBrl: number | null
+  /** Custo de mercado por unidade em US$ (base da calculadora). */
+  precoMercadoUsd: number | null
   precoAtualizadoEm: string | null
-  lucroPotencial: number | null
   status: StatusItemEstoque
+  /** Total recebido na venda, em R$. */
   valorVenda: number | null
   dataVenda: string | null
-  lucroRealizado: number | null
   observacao: string | null
   motivoCancelamento: string | null
-}
-export interface ResumoItensEstoque {
-  itens: number
-  unidades: number
-  custoTotal: number
-  valorMercado: number | null
-  lucroPotencial: number | null
-  semPreco: number
-  vendidos: number
-  lucroRealizado: number
 }

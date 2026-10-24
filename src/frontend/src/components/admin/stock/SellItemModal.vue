@@ -5,12 +5,13 @@ import UiDatePicker from '@/components/ui/UiDatePicker.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiModal from '@/components/ui/UiModal.vue'
 import { ApiError, api } from '@/lib/api'
-import { formatMoney, parseDecimal, todayIso } from '@/lib/format'
+import { formatMoney, formatUsd, parseDecimal, todayIso } from '@/lib/format'
+import { analisarItem } from '@/lib/itens'
 import { toast } from '@/lib/toast'
-import type { ItemEstoque } from '@/lib/types'
+import type { ItemEstoque, RegrasPrecificacao } from '@/lib/types'
 
 /** Dá baixa no item com o valor total recebido; mostra o lucro. */
-const props = defineProps<{ item: ItemEstoque | null }>()
+const props = defineProps<{ item: ItemEstoque | null; regras: RegrasPrecificacao | null }>()
 const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{ saved: [] }>()
 
@@ -21,12 +22,12 @@ const error = ref<string | null>(null)
 watch(open, (v) => {
   if (!v) return
   error.value = null
-  const p = props.item?.precoMercadoBrl
-  Object.assign(form, { data: todayIso(), valor: p != null ? String(p * props.item!.quantidade).replace('.', ',') : '' })
+  const a = props.item && props.regras ? analisarItem(props.item, props.regras).mercado : null
+  Object.assign(form, { data: todayIso(), valor: a ? a.vendaPix.toFixed(2).replace('.', ',') : '' })
 })
 
 const valor = computed(() => parseDecimal(form.valor))
-const lucro = computed(() => (valor.value != null && props.item ? valor.value - props.item.custoTotal : null))
+const lucro = computed(() => (valor.value != null && props.item && props.regras ? valor.value - analisarItem(props.item, props.regras).custoBrl : null))
 
 async function submit() {
   if (!props.item) return
@@ -46,7 +47,7 @@ async function submit() {
 </script>
 
 <template>
-  <UiModal v-model:open="open" title="Vender item" :description="item ? `${item.nome} · ${item.quantidade} un. · custo ${formatMoney(item.custoTotal)}` : undefined">
+  <UiModal v-model:open="open" title="Vender item" :description="item ? `${item.nome} · ${item.quantidade} un. · custo ${formatUsd(item.custoTotal)}` : undefined">
     <form id="sell-item-form" class="flex flex-col gap-4" novalidate @submit.prevent="submit">
       <UiInput v-model="form.valor" label="Valor recebido (total)" prefix="R$" inputmode="decimal" placeholder="0,00" />
       <UiDatePicker v-model="form.data" label="Data da venda" :max="todayIso()" />

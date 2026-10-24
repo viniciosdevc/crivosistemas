@@ -164,8 +164,8 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                         .HasColumnType("char(36)");
 
                     b.Property<decimal>("CustoUnitario")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
 
                     b.Property<DateTime>("DataCompra")
                         .HasColumnType("date");
@@ -196,6 +196,10 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                     b.Property<decimal?>("PrecoMercadoBrl")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("PrecoMercadoUsd")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
 
                     b.Property<int>("Quantidade")
                         .HasColumnType("int");
