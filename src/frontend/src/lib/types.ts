@@ -676,3 +676,35 @@ export interface HabboEstado {
   envios: HabboEnvio[]
 }
 
+
+export type StatusItemEstoque = 'estoque' | 'vendido' | 'cancelado'
+export interface ItemEstoque {
+  id: string
+  categoria: string | null
+  nome: string
+  imagemUrl: string | null
+  quantidade: number
+  custoUnitario: number
+  custoTotal: number
+  /** AAAA-MM-DD */
+  dataCompra: string
+  precoMercadoBrl: number | null
+  precoAtualizadoEm: string | null
+  lucroPotencial: number | null
+  status: StatusItemEstoque
+  valorVenda: number | null
+  dataVenda: string | null
+  lucroRealizado: number | null
+  observacao: string | null
+  motivoCancelamento: string | null
+}
+export interface ResumoItensEstoque {
+  itens: number
+  unidades: number
+  custoTotal: number
+  valorMercado: number | null
+  lucroPotencial: number | null
+  semPreco: number
+  vendidos: number
+  lucroRealizado: number
+}

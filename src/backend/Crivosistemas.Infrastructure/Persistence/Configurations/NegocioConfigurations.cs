@@ -192,6 +192,25 @@ internal sealed class MovimentoEstoqueConfig : IEntityTypeConfiguration<Moviment
     }
 }
 
+internal sealed class ItemEstoqueConfig : IEntityTypeConfiguration<ItemEstoque>
+{
+    public void Configure(EntityTypeBuilder<ItemEstoque> b)
+    {
+        b.ToTable("ItensEstoque");
+        b.Property(x => x.Categoria).HasMaxLength(100);
+        b.Property(x => x.Nome).HasMaxLength(200);
+        b.Property(x => x.ImagemUrl).HasMaxLength(500);
+        b.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+        b.Property(x => x.CustoUnitario).HasPrecision(18, 2);
+        b.Property(x => x.PrecoMercadoBrl).HasPrecision(18, 2);
+        b.Property(x => x.ValorVenda).HasPrecision(18, 2);
+        b.Property(x => x.Observacao).HasMaxLength(300);
+        b.Property(x => x.MotivoCancelamento).HasMaxLength(300);
+        b.Ignore(x => x.CustoTotal);
+        b.HasIndex(x => new { x.Status, x.DataCompra });
+    }
+}
+
 internal sealed class ConfiguracaoEstoqueConfig : IEntityTypeConfiguration<ConfiguracaoEstoque>
 {
     public void Configure(EntityTypeBuilder<ConfiguracaoEstoque> b)

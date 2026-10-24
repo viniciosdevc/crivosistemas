@@ -148,6 +148,74 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                     b.ToTable("ConfiguracoesEstoque", (string)null);
                 });
 
+            modelBuilder.Entity("Crivosistemas.Domain.Estoque.ItemEstoque", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Categoria")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("CriadoPor")
+                        .HasColumnType("char(36)");
+
+                    b.Property<decimal>("CustoUnitario")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("DataCompra")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("DataVenda")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ImagemUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("MotivoCancelamento")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("Observacao")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<DateTime?>("PrecoAtualizadoEm")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal?>("PrecoMercadoBrl")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("Quantidade")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<decimal?>("ValorVenda")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status", "DataCompra");
+
+                    b.ToTable("ItensEstoque", (string)null);
+                });
+
             modelBuilder.Entity("Crivosistemas.Domain.Estoque.LoteEstoque", b =>
                 {
                     b.Property<Guid>("Id")

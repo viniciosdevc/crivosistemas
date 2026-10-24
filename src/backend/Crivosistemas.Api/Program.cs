@@ -180,6 +180,7 @@ app.MapUserEndpoints();
 app.MapIntegracoesEndpoints();
 app.MapVendasEndpoints();
 app.MapVendasManuaisEndpoints();
+app.MapItensEstoqueEndpoints();
 app.MapEstoqueEndpoints();
 app.MapFinanceiroEndpoints();
 app.MapCambiosEndpoints();
