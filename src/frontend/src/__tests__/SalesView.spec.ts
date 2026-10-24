@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import SalesView from '@/views/admin/SalesView.vue'
 import { limparCacheImagens } from '@/lib/imagens'
+import { todayIso } from '@/lib/format'
 import type { VendaLista } from '@/lib/types'
 
 const get = vi.fn()
@@ -15,6 +16,9 @@ const venda: VendaLista = {
   id: 'v1', origem: 'nft', origemId: 'o-1', pedidoId: '1001', dataHora: '2026-10-22T15:00:00Z', dia: '2026-10-22', status: 'paid', statusNormalizado: 'pago',
   formaPagamento: 'pix', vendedor: null, item: 'Dragão Azul +2', cliente: { id: 'c1', nickname: 'Ana', email: 'ana@x.com', carteira: null }, totalBrl: 150, lucroBrl: 30, margemPercent: 20, removida: false, faturavel: true,
 }
+
+const subtotal = { quantidade: 14, totalBrl: 900, lucroBrl: 120 }
+const hoje = todayIso()
 
 async function setup(url = '/painel/vendas') {
   const router = createRouter({
@@ -35,18 +39,23 @@ describe('SalesView', () => {
   beforeEach(() => {
     limparCacheImagens()
     get.mockReset()
-    get.mockResolvedValue({ items: [venda], page: 1, pageSize: 20, total: 1 })
+    get.mockResolvedValue({ items: [venda], page: 1, pageSize: 6, total: 1, subtotal })
     vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} })
   })
 
   it('carrega a lista e mostra venda, cliente, status e total', async () => {
     const { wrapper } = await setup()
-    expect(get).toHaveBeenCalledWith('/api/vendas', expect.objectContaining({ page: 1, pageSize: 20, ordem: 'data', dir: 'desc', origem: '', busca: '' }), expect.anything())
+    expect(get).toHaveBeenCalledWith('/api/vendas', expect.objectContaining({ page: 1, pageSize: 6, de: hoje, ate: hoje, ordem: 'data', dir: 'desc', origem: '', busca: '' }), expect.anything())
     const text = wrapper.text()
     expect(text).toContain('Dragão Azul +2')
     expect(text).toContain('Ana')
     expect(text).toContain('Pago')
     expect(text).toContain('R$ 150,00')
+    // Subtotal do filtro inteiro (vem do servidor), não só das 6 linhas visíveis.
+    const sub = wrapper.get('[data-testid="subtotal-row"]').text()
+    expect(sub).toContain('14 vendas')
+    expect(sub).toContain('R$ 900,00')
+    expect(sub).toContain('R$ 120,00')
   })
 
   it('aplica na API os filtros que vêm da URL', async () => {
@@ -59,7 +68,7 @@ describe('SalesView', () => {
   })
 
   it('paginar e limpar filtros atualiza a URL', async () => {
-    get.mockResolvedValue({ items: [venda], page: 1, pageSize: 20, total: 55 })
+    get.mockResolvedValue({ items: [venda], page: 1, pageSize: 6, total: 55, subtotal })
     const { router, wrapper } = await setup('/painel/vendas?origem=nft')
     await wrapper.find('[aria-label="Próxima página"]').trigger('click')
     await flushPromises()
@@ -69,7 +78,7 @@ describe('SalesView', () => {
     await wrapper.findAll('button').find((b) => b.text().includes('Limpar filtros'))!.trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.query).toEqual({})
-    expect(get).toHaveBeenLastCalledWith('/api/vendas', expect.objectContaining({ origem: '', page: 1 }), expect.anything())
+    expect(get).toHaveBeenLastCalledWith('/api/vendas', expect.objectContaining({ origem: '', page: 1, de: hoje, ate: hoje }), expect.anything())
   })
 
   it('ordenar por lucro grava a ordem na URL', async () => {
@@ -96,7 +105,7 @@ describe('SalesView', () => {
     get.mockImplementation((url: string) =>
       url.startsWith('/api/vendas/imagens')
         ? Promise.resolve({ imagens: { 'Dragão Azul': 'https://img/x.png' } })
-        : Promise.resolve({ items: [venda, { ...venda, id: 'v2', item: null, origemId: 'abcdef123456' }], page: 1, pageSize: 20, total: 2 }),
+        : Promise.resolve({ items: [venda, { ...venda, id: 'v2', item: null, origemId: 'abcdef123456' }], page: 1, pageSize: 6, total: 2, subtotal }),
     )
     const { wrapper } = await setup()
     expect(wrapper.find('img[src="https://img/x.png"]').exists()).toBe(true)

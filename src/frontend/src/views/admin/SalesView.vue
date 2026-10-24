@@ -10,14 +10,17 @@ import UiPagination from '@/components/ui/UiPagination.vue'
 import UiSearch from '@/components/ui/UiSearch.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
 import { api } from '@/lib/api'
+import { formatMoney, todayIso } from '@/lib/format'
 import { toast } from '@/lib/toast'
-import type { Paged, VendaLista } from '@/lib/types'
+import type { VendasPagina } from '@/lib/types'
 import { useUrlFilters } from '@/lib/urlFilters'
 import { useAsync } from '@/lib/useAsync'
 
 const newSaleOpen = ref(false)
-const pageSize = 20
-const defaults = { de: '', ate: '', origem: '', status: '', pagamento: '', busca: '', ordem: 'data', dir: 'desc', page: '1' }
+const pageSize = 6
+// Abre sempre no dia de hoje; limpar os filtros volta para hoje.
+const hoje = todayIso()
+const defaults = { de: hoje, ate: hoje, origem: '', status: '', pagamento: '', busca: '', ordem: 'data', dir: 'desc', page: '1' }
 const { filters, set, reset } = useUrlFilters(defaults)
 
 const origemOptions = [
@@ -56,11 +59,11 @@ const query = computed(() => ({
   pageSize,
 }))
 
-const { data, loading, error, run } = useAsync((signal) => api.get<Paged<VendaLista>>('/api/vendas', query.value, signal))
+const { data, loading, error, run } = useAsync((signal) => api.get<VendasPagina>('/api/vendas', query.value, signal))
 watch(query, () => void run(), { immediate: true })
 watch(error, (e) => e && toast.error('Não foi possível carregar as vendas', e.message))
 
-const hasFilters = computed(() => ['de', 'ate', 'origem', 'status', 'pagamento', 'busca'].some((k) => filters.value[k as keyof typeof defaults] !== ''))
+const hasFilters = computed(() => (Object.keys(defaults) as (keyof typeof defaults)[]).some((k) => !['ordem', 'dir', 'page'].includes(k) && filters.value[k] !== defaults[k]))
 const rangeError = computed(() => (filters.value.de && filters.value.ate && filters.value.de > filters.value.ate ? 'A data inicial deve ser anterior à final.' : null))
 
 function onSort(key: string, dir: 'asc' | 'desc') {
@@ -76,8 +79,8 @@ function onSort(key: string, dir: 'asc' | 'desc') {
     </template>
 
     <form class="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6" @submit.prevent>
-      <UiDatePicker label="De" :model-value="filters.de" :max="filters.ate || undefined" placeholder="Qualquer data" @update:model-value="(v) => set({ de: v ?? '' })" />
-      <UiDatePicker label="Até" :model-value="filters.ate" :min="filters.de || undefined" :error="rangeError" placeholder="Qualquer data" @update:model-value="(v) => set({ ate: v ?? '' })" />
+      <UiDatePicker label="De" :model-value="filters.de" :max="filters.ate || undefined" @update:model-value="(v) => set({ de: v ?? '' })" />
+      <UiDatePicker label="Até" :model-value="filters.ate" :min="filters.de || undefined" :error="rangeError" @update:model-value="(v) => set({ ate: v ?? '' })" />
       <UiSelect label="Origem" :model-value="filters.origem" :options="origemOptions" @update:model-value="(v) => set({ origem: v })" />
       <UiSelect label="Status" :model-value="filters.status" :options="statusOptions" @update:model-value="(v) => set({ status: v })" />
       <UiSelect label="Pagamento" :model-value="filters.pagamento" :options="paymentOptions" @update:model-value="(v) => set({ pagamento: v })" />
@@ -97,6 +100,13 @@ function onSort(key: string, dir: 'asc' | 'desc') {
       @retry="run"
     >
       <template #footer>
+        <div v-if="data?.items.length" class="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 border-t border-line bg-surface-2 px-4 py-3 text-sm font-semibold text-ink" data-testid="subtotal-row">
+          <span>Subtotal · {{ data.subtotal.quantidade }} {{ data.subtotal.quantidade === 1 ? 'venda' : 'vendas' }} <span class="font-normal text-muted">(sem canceladas, todas as páginas)</span></span>
+          <span class="tabular">
+            Total {{ formatMoney(data.subtotal.totalBrl) }}
+            · Lucro <span :class="data.subtotal.lucroBrl < 0 && 'text-danger'">{{ formatMoney(data.subtotal.lucroBrl) }}</span>
+          </span>
+        </div>
         <UiPagination v-if="data" :page="data.page" :page-size="data.pageSize" :total="data.total" @update:page="(p) => set({ page: String(p) })" />
       </template>
     </SaleTable>

@@ -93,6 +93,10 @@ public sealed class EstoqueTests(ApiFactory factory)
         Assert.Equal("Trono Dourado", detalhe.GetProperty("venda").GetProperty("item").GetString());
         var lista = (await (await op.GetAsync($"/api/vendas?busca={nick}")).Json()).GetProperty("items")[0];
         Assert.Equal("Trono Dourado", lista.GetProperty("item").GetString());
+        // Subtotal soma todo o filtro (só faturáveis), não só a página.
+        var pag = await (await op.GetAsync($"/api/vendas?busca={nick}&pageSize=1")).Json();
+        Assert.Equal(1, pag.GetProperty("subtotal").GetProperty("quantidade").GetInt32());
+        Assert.Equal(1000m, D(pag.GetProperty("subtotal"), "totalBrl"));
 
         // Imagem do item vem do crivonft, com cache: a segunda chamada não consulta de novo.
         factory.Crivonft.Imagens["Trono Dourado"] = "https://img.example/trono.png";

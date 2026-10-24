@@ -21,6 +21,17 @@ export interface AppUser {
   isYou: boolean
 }
 
+/** Soma das vendas faturáveis do filtro inteiro (todas as páginas). */
+export interface SubtotalVendas {
+  quantidade: number
+  totalBrl: number
+  lucroBrl: number
+}
+
+export interface VendasPagina extends Paged<VendaLista> {
+  subtotal: SubtotalVendas
+}
+
 export interface Paged<T> {
   items: T[]
   page: number
