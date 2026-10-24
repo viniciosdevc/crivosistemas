@@ -184,7 +184,12 @@ export interface ClienteLista {
   id: string
   nickname: string
   email: string | null
+  /** Texto como cadastrado no crivonft (livre, até 120); só é endereço quando `carteiraValida`. */
   carteira: string | null
+  carteiraValida: boolean
+  /** Carteira vinculada na loja, quando difere de `carteira`. */
+  carteiraLoja: string | null
+  favorito: boolean
   totalGasto: number
   compras: number
   ultimaCompra: string | null

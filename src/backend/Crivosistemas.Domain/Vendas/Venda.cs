@@ -91,8 +91,12 @@ public class Cliente : Entity
     public required string Nickname { get; set; }
     public string? Email { get; set; }
     public string? IdentidadeId { get; set; }
-    /// <summary>Endereço da carteira (0x…, minúsculas, Immutable zkEVM), se a origem informou.</summary>
+    /// <summary>Carteira como cadastrada no crivonft: texto livre (até 120); endereço 0x… válido fica em minúsculas.</summary>
     public string? Carteira { get; set; }
+    /// <summary>Carteira vinculada na loja (identidade/pedido; 0x… válido) quando difere de <see cref="Carteira"/>.</summary>
+    public string? CarteiraLoja { get; set; }
+    /// <summary>Cliente favorito (dado do crivonft, editável pelo painel via API do crivonft).</summary>
+    public bool Favorito { get; set; }
     /// <summary>Quando o cliente nasceu na origem (se informado).</summary>
     public DateTime? CriadoEmOrigem { get; set; }
     public DateTime CriadoEm { get; set; } = DateTime.UtcNow;

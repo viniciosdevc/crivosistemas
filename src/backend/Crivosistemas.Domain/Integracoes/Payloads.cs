@@ -4,7 +4,7 @@ using Crivosistemas.Domain.Vendas;
 
 namespace Crivosistemas.Domain.Integracoes;
 
-public sealed record ClientePayload(string Chave, string Nickname, string? Email, string? IdentidadeId, DateTime? CriadoEm, string? Carteira = null);
+public sealed record ClientePayload(string Chave, string Nickname, string? Email, string? IdentidadeId, DateTime? CriadoEm, string? Carteira = null, bool? Favorito = null, string? CarteiraLoja = null);
 
 public sealed record ItemPayload(string Descricao, decimal Quantidade, decimal PrecoUsd, decimal PrecoBrl, string? Referencia);
 
@@ -169,11 +169,38 @@ public static class PayloadParser
         var email = Texto(c, "email", e, P("email"), obrigatorio: false, max: 254);
         var identidade = Texto(c, "identidade_id", e, P("identidade_id"), obrigatorio: false, max: 120);
         var criado = Data(c, "criado_em", e, P("criado_em"), obrigatorio: false);
-        var carteira = NormalizarCarteira(Texto(c, "carteira", e, P("carteira"), obrigatorio: false, max: 120));
-        return chave is null ? null : new ClientePayload(chave, nickname ?? chave, email, identidade, criado, carteira);
+        var carteira = CarteiraTexto(c, "carteira");
+        var carteiraLoja = NormalizarCarteira(CarteiraTexto(c, "carteira_loja"));
+        var favorito = Booleano(c, "favorito");
+        return chave is null ? null : new ClientePayload(chave, nickname ?? chave, email, identidade, criado, carteira, favorito, carteiraLoja);
     }
 
-    /// <summary>Endereço de carteira (0x + 40 hexadecimais) em minúsculas; qualquer outra coisa vira null, sem rejeitar o evento.</summary>
+    /// <summary>Carteira como cadastrada na origem (campo livre): lida sem rejeitar o evento, com trim e no máximo <see cref="CarteiraMax"/> caracteres;
+    /// em minúsculas só quando é um endereço válido. Vazio, null ou tipo estranho viram null.</summary>
+    public static string? CarteiraTexto(JsonElement o, string prop)
+    {
+        if (!o.TryGetProperty(prop, out var v) || v.ValueKind != JsonValueKind.String) return null;
+        return TextoCarteira(v.GetString());
+    }
+
+    public const int CarteiraMax = 120;
+
+    /// <summary>Texto livre de carteira: trim, até 120 caracteres; endereço válido (0x + 40 hex) em minúsculas; vazio vira null.</summary>
+    public static string? TextoCarteira(string? valor)
+    {
+        var t = valor?.Trim();
+        if (string.IsNullOrEmpty(t)) return null;
+        if (t.Length > CarteiraMax) t = t[..CarteiraMax].TrimEnd();
+        return NormalizarCarteira(t) ?? t;
+    }
+
+    /// <summary>Endereço válido: 0x seguido de 40 hexadecimais.</summary>
+    public static bool CarteiraValida(string? valor) => NormalizarCarteira(valor) is not null;
+
+    private static bool? Booleano(JsonElement o, string prop) =>
+        o.TryGetProperty(prop, out var v) && v.ValueKind is JsonValueKind.True or JsonValueKind.False ? v.GetBoolean() : null;
+
+    /// <summary>Endereço de carteira (0x + 40 hexadecimais) em minúsculas; qualquer outra coisa vira null.</summary>
     public static string? NormalizarCarteira(string? valor)
     {
         var v = valor?.Trim().ToLowerInvariant();

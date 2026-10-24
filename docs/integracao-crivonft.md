@@ -37,7 +37,7 @@ Respostas: `200/201` processado; `200` com `{"duplicado":true}` se o id do event
   "status_normalizado": "pendente | pago | concluido | cancelado | reembolsado",
   "forma_pagamento": "pix | cambios | hibrido | null",
   "vendedor": "string ou null",
-  "cliente": null | { "chave": "nickname ou identidade_id", "nickname": "...", "email": null, "identidade_id": null, "carteira": null },
+  "cliente": null | { "chave": "nickname ou identidade_id", "nickname": "...", "email": null, "identidade_id": null, "carteira": null, "carteira_valida": false, "carteira_loja": null, "favorito": null },
   "itens": [ { "descricao": "...", "quantidade": 1, "preco_usd": 0, "preco_brl": 0, "referencia": "listing/token id ou null" } ],
   "valores": {
     "total_brl": 0, "desconto_brl": 0, "taxa_brl": 0,
@@ -54,9 +54,11 @@ Valores monetários: número decimal (não string), BRL com 2 casas, USD/câmbio
 
 ### `venda.removida` → `dados`: `{ "origem": "...", "origem_id": "..." }` (venda excluída na origem: marcar como removida, não apagar).
 
-### `cliente.upsert` → `dados`: `{ "chave": "...", "nickname": "...", "email": null, "identidade_id": null, "carteira": null, "criado_em": "..." }`
+### `cliente.upsert` → `dados`: `{ "chave": "...", "nickname": "...", "email": null, "identidade_id": null, "carteira": null, "carteira_valida": false, "carteira_loja": null, "favorito": null, "criado_em": "..." }`
 
-**Campo `carteira` (cliente, v1.2, opcional):** endereço da carteira do cliente (0x + 40 hexadecimais, Immutable zkEVM), em minúsculas, ou `null`/ausente quando a origem não conhece. Vem em `venda.upsert.cliente` e em `cliente.upsert`. O receptor guarda em minúsculas, **atualiza** quando vem preenchido e **nunca apaga** uma carteira já conhecida ao receber `null`; valor que não é um endereço válido é ignorado sem rejeitar o evento. Origem: pedido do site = carteira do pedido; venda manual (nft/câmbios) = carteira da identidade Habbo de mesmo nickname. Na exportação (`/api/export/clientes`) a coluna `carteira` é lida do mesmo jeito e só preenche cliente que ainda não tinha carteira.
+**Campos de cliente `carteira`, `carteira_valida`, `carteira_loja` e `favorito` (v1.3, opcionais):** o crivonft é o dono desses dados e o Gestão os edita pela API dele (abaixo). `carteira` é o texto **como cadastrado** no crivonft (campo livre, trim, até 120 caracteres; em minúsculas só quando é um endereço 0x + 40 hexadecimais); texto que não é endereço é mantido e o painel o marca como "formato inválido" (`carteiraValida` na API, calculado). `carteira_loja` é a carteira vinculada na loja (identidade/pedido, 0x válido) quando difere de `carteira`; `favorito` é o flag do cliente (`null` = o cliente não tem cadastro lá). Vêm em `venda.upsert.cliente` e em `cliente.upsert`, e `favorito`/`carteira` também na exportação `/api/export/clientes`. O receptor **atualiza** o que vem preenchido (`favorito: false` desliga) e **nunca apaga** ao receber `null` ou ausente. Preferência da carteira no crivonft: manual (clientes_favoritos) > identidade > pedido. A reconciliação (`/reenviar`) traz também todos os clientes com favorito ou carteira cadastrados, mesmo sem venda no período.
+
+**Editar carteira/favorito (Gestão → crivonft):** `PATCH /api/clientes/{id}` com `{ "carteira"?: string|null, "favorito"?: bool }` (admin ou operador). Com a integração configurada, o Gestão chama `PUT {BaseUrl}/api/integracoes/gestao/clientes` (mesmo Bearer + HMAC + timestamp) com `{ "nickname", "carteira"?, "favorito"? }` e só grava local a resposta `{ "ok": true, "cliente": { "nickname", "carteira", "favorito" } }`. Erro do crivonft vira `502` com `detail` claro (404 = rota ausente, publique a atualização; 401/403 = token ou segredo; 422 = a mensagem dele, ex.: cliente sem nickname; rede/tempo esgotado). Sem integração configurada grava só local. A edição é auditada (`clientes.atualizado`).
 
 ## 2. Carga inicial e reconciliação (crivosistemas puxa)
 Usa as rotas já existentes do crivonft com `Authorization: Bearer <IMPORT_SECRET>`:

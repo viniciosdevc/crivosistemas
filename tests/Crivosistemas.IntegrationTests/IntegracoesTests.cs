@@ -235,9 +235,8 @@ public sealed class IntegracoesTests(ApiFactory factory)
         Assert.Equal(endereco, cli.GetProperty("carteira").GetString());
         var id = cli.GetProperty("id").GetGuid();
 
-        // Evento seguinte sem carteira (ou com valor que não é endereço) não apaga a conhecida.
+        // Evento seguinte sem carteira não apaga a conhecida (texto livre, como "lixo", passa a valer: ver ClientesTests).
         Assert.Equal(HttpStatusCode.OK, (await maquina.Enviar(CrivoHelpers.Evento("cliente.upsert", Cliente(null)))).Status);
-        Assert.Equal(HttpStatusCode.OK, (await maquina.Enviar(CrivoHelpers.Evento("cliente.upsert", Cliente("lixo")))).Status);
         var det = await (await admin.GetAsync($"/api/clientes/{id}")).Json();
         Assert.Equal(endereco, det.GetProperty("cliente").GetProperty("carteira").GetString());
 

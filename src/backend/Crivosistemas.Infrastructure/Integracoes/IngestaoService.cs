@@ -250,20 +250,24 @@ public sealed class IngestaoService(AppDbContext db, FinanceiroService financeir
             ?? await db.Clientes.FirstOrDefaultAsync(x => x.Chave == p.Chave, ct);
         if (c is null)
         {
-            c = new Cliente { Chave = p.Chave, Nickname = p.Nickname, Email = p.Email, IdentidadeId = p.IdentidadeId, Carteira = p.Carteira, CriadoEmOrigem = p.CriadoEm };
+            c = new Cliente { Chave = p.Chave, Nickname = p.Nickname, Email = p.Email, IdentidadeId = p.IdentidadeId, Carteira = p.Carteira, CarteiraLoja = p.CarteiraLoja, Favorito = p.Favorito ?? false, CriadoEmOrigem = p.CriadoEm };
             db.Clientes.Add(c);
             return c;
         }
         if (!sobrescrever)
         {
-            // Dado exportado não sobrescreve, mas preenche a carteira que ainda faltava.
+            // Dado exportado não sobrescreve, mas preenche a carteira que ainda faltava e aplica o favorito (o crivonft é o dono).
             if (c.Carteira is null && p.Carteira is not null) c.Carteira = p.Carteira;
+            if (c.CarteiraLoja is null && p.CarteiraLoja is not null) c.CarteiraLoja = p.CarteiraLoja;
+            if (p.Favorito is { } fav && c.Favorito != fav) c.Favorito = fav;
             return c;
         }
         c.Nickname = p.Nickname;
         if (p.Email is not null) c.Email = p.Email;
         if (p.IdentidadeId is not null) c.IdentidadeId = p.IdentidadeId;
         if (p.Carteira is not null) c.Carteira = p.Carteira; // null nunca apaga uma carteira conhecida
+        if (p.CarteiraLoja is not null) c.CarteiraLoja = p.CarteiraLoja;
+        if (p.Favorito is { } favorito) c.Favorito = favorito;
         if (p.CriadoEm is not null) c.CriadoEmOrigem = p.CriadoEm;
         c.AtualizadoEm = DateTime.UtcNow;
         return c;

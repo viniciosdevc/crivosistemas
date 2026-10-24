@@ -4,7 +4,8 @@ import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import CambiosHistory from '@/components/admin/cambios/CambiosHistory.vue'
 import SaleTable from '@/components/admin/sales/SaleTable.vue'
-import WalletAddress from '@/components/admin/WalletAddress.vue'
+import CarteiraEditor from '@/components/admin/clientes/CarteiraEditor.vue'
+import FavoritoEstrela from '@/components/admin/clientes/FavoritoEstrela.vue'
 import PageCard from '@/components/ui/PageCard.vue'
 import StatBlocks, { type Stat } from '@/components/ui/StatBlocks.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
@@ -14,7 +15,7 @@ import UiEmptyState from '@/components/ui/UiEmptyState.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { api } from '@/lib/api'
 import { formatDate, formatDateTime } from '@/lib/format'
-import type { ClienteDetalhe } from '@/lib/types'
+import type { ClienteDetalhe, ClienteLista } from '@/lib/types'
 import { useAsync } from '@/lib/useAsync'
 
 const route = useRoute()
@@ -22,6 +23,9 @@ const { data, loading, error, run } = useAsync((signal) => api.get<ClienteDetalh
 watch(() => route.params.id, () => void run(), { immediate: true })
 
 const c = computed(() => data.value?.cliente)
+function atualizar(salvo: ClienteLista) {
+  if (data.value) data.value = { ...data.value, cliente: { ...data.value.cliente, ...salvo } }
+}
 const stats = computed<Stat[]>(() => {
   if (!c.value) return []
   return [
@@ -41,9 +45,12 @@ const ticket = computed(() => (c.value && c.value.compras > 0 ? c.value.totalGas
       <div class="flex items-center gap-4">
         <UiAvatar v-if="c" :name="c.nickname" :src="habboAvatarUrl(c.nickname)" size="lg" />
         <div class="min-w-0">
-          <h1 class="truncate text-2xl font-semibold tracking-tight text-ink lg:text-[28px]">{{ c?.nickname ?? 'Cliente' }}</h1>
+          <div class="flex items-center gap-1">
+            <h1 class="truncate text-2xl font-semibold tracking-tight text-ink lg:text-[28px]">{{ c?.nickname ?? 'Cliente' }}</h1>
+            <FavoritoEstrela v-if="c" :id="c.id" :favorito="c.favorito" :nickname="c.nickname" @changed="atualizar" />
+          </div>
           <p v-if="c?.email" class="truncate text-[15px] text-muted">{{ c.email }}</p>
-          <p v-if="c?.carteira" class="mt-1 text-[15px] text-muted">Carteira <WalletAddress :address="c.carteira" full /></p>
+          <div v-if="c" class="mt-1 text-[15px] text-muted"><CarteiraEditor :cliente="c" full @changed="atualizar" /></div>
         </div>
       </div>
     </template>
