@@ -37,7 +37,7 @@ describe('erro de gateway (Cloudflare/nginx)', () => {
   it('troca o texto cru da Cloudflare por uma mensagem útil', async () => {
     vi.useFakeTimers()
     respond(520, { title: 'Error 520', detail: 'The origin web server returned an invalid or incomplete response to Cloudflare.' })
-    const result = api.get('/api/acessos').catch((e) => e)
+    const result = failure(api.get('/api/acessos'))
     await vi.runAllTimersAsync()
     const e = await result
     vi.useRealTimers()
