@@ -250,3 +250,8 @@ internal sealed class LancamentoFinanceiroConfig : IEntityTypeConfiguration<Lanc
         b.HasOne<MovimentoCambios>().WithMany().HasForeignKey(x => x.MovimentoCambiosId).OnDelete(DeleteBehavior.SetNull);
     }
 }
+
+internal sealed class ConfiguracaoFinanceiroConfig : IEntityTypeConfiguration<ConfiguracaoFinanceiro>
+{
+    public void Configure(EntityTypeBuilder<ConfiguracaoFinanceiro> b) => b.ToTable("ConfiguracoesFinanceiro");
+}

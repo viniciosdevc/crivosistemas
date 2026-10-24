@@ -25,6 +25,7 @@ public sealed record NovoLancamentoRequest(
     [Range(typeof(decimal), "0.01", "100000000", ParseLimitsInInvariantCulture = true, ConvertValueInInvariantCulture = true, ErrorMessage = "Informe um valor maior que zero.")] decimal ValorBrl,
     [Required(ErrorMessage = "Informe a data.")] DateOnly? Data,
     bool Pendente = false);
+public sealed record InicioFinanceiroRequest([Required(ErrorMessage = "Informe a data.")] DateOnly? Data);
 public sealed record CancelarLancamentoRequest([StringLength(300, ErrorMessage = "Motivo muito longo.")] string? Motivo);
 
 /// <summary>Financeiro: entradas e saídas em R$. O PIX das vendas e as compras de dólar entram sozinhos (veja FinanceiroService);
@@ -37,6 +38,9 @@ public static class FinanceiroEndpoints
         g.MapGet("/resumo", Resumo).WithSummary("Saldo (confirmados), resultado de hoje, do mês e do período, pendências e totais por categoria.");
         g.MapGet("/lancamentos", Listar).WithSummary("Lançamentos com filtros: de, ate, tipo, status, origem, busca.");
         g.MapGet("/categorias", Categorias).WithSummary("Categorias sugeridas e já usadas.");
+        g.MapGet("/inicio", async (FinanceiroService svc, AppDbContext db, CancellationToken ct) => { var d = await svc.InicioAsync(ct); await db.SaveChangesAsync(ct); return Results.Ok(new { data = d }); })
+            .WithSummary("Primeiro dia que conta no financeiro.");
+        g.MapPut("/inicio", DefinirInicio).WithSummary("Muda o primeiro dia que conta (vale para vendas e compras novas ou sincronizadas dali em diante).");
         g.MapPost("/sincronizar", Sincronizar).WithSummary("Gera os lançamentos de vendas PIX e compras de dólar anteriores ao financeiro (idempotente).");
         g.MapPost("/lancamentos", Criar).WithSummary("Lança uma entrada ou saída manual (confirmada ou pendente).");
         g.MapPost("/lancamentos/{id:guid}/confirmar", Confirmar).WithSummary("Confirma um lançamento manual pendente (o dinheiro entrou ou saiu).");
@@ -128,6 +132,18 @@ public static class FinanceiroEndpoints
         var usadas = await db.LancamentosFinanceiros.AsNoTracking().Select(l => l.Categoria).Distinct().ToListAsync(ct);
         return Results.Ok(RegrasFinanceiro.CategoriasSugeridas.Concat(usadas.Order(StringComparer.CurrentCultureIgnoreCase))
             .Distinct(StringComparer.CurrentCultureIgnoreCase).ToList());
+    }
+
+    private static async Task<IResult> DefinirInicio([FromBody] InicioFinanceiroRequest req, FinanceiroService svc, AppDbContext db, HttpContext http, CancellationToken ct)
+    {
+        await db.InTransactionAsync(async () =>
+        {
+            await svc.DefinirInicioAsync(req.Data!.Value, ct);
+            db.Audit(http, "financeiro.inicio_definido", "ConfiguracaoFinanceiro", null, new { data = req.Data });
+            await db.SaveChangesAsync(ct);
+            return true;
+        }, ct);
+        return Results.Ok(new { data = req.Data });
     }
 
     private static async Task<IResult> Sincronizar(FinanceiroService svc, AppDbContext db, HttpContext http, CancellationToken ct)

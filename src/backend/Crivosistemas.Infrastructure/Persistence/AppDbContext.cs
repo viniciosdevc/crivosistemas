@@ -31,6 +31,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<MovimentoEstoque> MovimentosEstoque => Set<MovimentoEstoque>();
     public DbSet<ConfiguracaoEstoque> ConfiguracoesEstoque => Set<ConfiguracaoEstoque>();
     public DbSet<LancamentoFinanceiro> LancamentosFinanceiros => Set<LancamentoFinanceiro>();
+    public DbSet<ConfiguracaoFinanceiro> ConfiguracoesFinanceiro => Set<ConfiguracaoFinanceiro>();
     public DbSet<SaldoCambios> SaldosCambios => Set<SaldoCambios>();
     public DbSet<MovimentoCambios> MovimentosCambios => Set<MovimentoCambios>();
 

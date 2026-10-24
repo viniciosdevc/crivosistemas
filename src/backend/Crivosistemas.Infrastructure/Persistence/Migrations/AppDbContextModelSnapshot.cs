@@ -266,6 +266,22 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                     b.ToTable("MovimentosEstoque", (string)null);
                 });
 
+            modelBuilder.Entity("Crivosistemas.Domain.Financeiro.ConfiguracaoFinanceiro", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("AtualizadoEm")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("DataInicio")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ConfiguracoesFinanceiro", (string)null);
+                });
+
             modelBuilder.Entity("Crivosistemas.Domain.Financeiro.LancamentoFinanceiro", b =>
                 {
                     b.Property<Guid>("Id")
