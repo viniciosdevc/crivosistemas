@@ -61,15 +61,25 @@ public class LancamentoFinanceiro : Entity
     }
 }
 
+/// <summary>Singleton: a partir de quando o financeiro conta. Vendas e compras de dólar de dias anteriores não geram lançamento
+/// (o saldo parte do que for lançado desde então; para começar com dinheiro em caixa, lance um "Saldo inicial").</summary>
+public class ConfiguracaoFinanceiro : Entity
+{
+    public DateOnly DataInicio { get; set; }
+    public DateTime AtualizadoEm { get; set; } = DateTime.UtcNow;
+}
+
 public static class RegrasFinanceiro
 {
+    public const string CategoriaSaldoInicial = "Saldo inicial";
+
     public const string CategoriaVendaPix = "Venda PIX";
     public const string CategoriaCompraUsd = "Compra de USD";
     public const string CategoriaVendaCambios = "Venda de câmbios";
 
     /// <summary>Sugestões do formulário (as mesmas do crivonft, mais as que já foram usadas).</summary>
     public static readonly string[] CategoriasSugeridas =
-        [CategoriaVendaPix, CategoriaVendaCambios, CategoriaCompraUsd, "Aporte", "Retirada", "Salário", "Comissão", "Anúncios", "Ferramentas", "Taxas", "Impostos", "Reembolso", "Outros"];
+        [CategoriaSaldoInicial, CategoriaVendaPix, CategoriaVendaCambios, CategoriaCompraUsd, "Aporte", "Retirada", "Salário", "Comissão", "Anúncios", "Ferramentas", "Taxas", "Impostos", "Reembolso", "Outros"];
 
     public static string Tipo(TipoLancamento t) => t == TipoLancamento.Entrada ? "entrada" : "saida";
     public static bool TentarTipo(string? s, out TipoLancamento t)

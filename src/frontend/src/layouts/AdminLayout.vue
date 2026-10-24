@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
   Boxes, Calculator, HandCoins, ChartColumn, ChevronDown, Coins, KeyRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plug, Plus, ReceiptText, SlidersHorizontal, Sun, UserCog, Users, X,
-  Building2, Mail, Store, Wallet,
+  Building2, Mail, Wallet,
 } from 'lucide-vue-next'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, ref, watch, type Component } from 'vue'
@@ -15,7 +15,6 @@ import type { VendaLista } from '@/lib/types'
 import { useAuthStore } from '@/stores/auth'
 
 interface NavItem { label: string; to: string; icon: Component; exact?: boolean; adminOnly?: boolean }
-interface NavGroup { label: string; icon: Component; items: NavItem[] }
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -31,46 +30,51 @@ function openQuick(t: QuickTab) {
 }
 restoreTheme()
 
-const items: NavItem[] = [
-  { label: 'Painel', to: '/painel', icon: ChartColumn, exact: true },
-  { label: 'Vendas', to: '/painel/vendas', icon: ReceiptText },
-  { label: 'Clientes', to: '/painel/clientes', icon: Users },
-  { label: 'Estoque', to: '/painel/estoque', icon: Boxes },
-  { label: 'Financeiro', to: '/painel/financeiro', icon: Wallet, adminOnly: true },
-]
-// Menus recolhíveis: o que é de uso menos frequente fica dentro de um grupo.
+interface NavGroup { key: string; label: string; icon: Component; items: NavItem[] }
+
+const top: NavItem = { label: 'Painel', to: '/painel', icon: ChartColumn, exact: true }
 const groups: NavGroup[] = [
   {
-    label: 'Loja',
-    icon: Store,
-    items: [
-      { label: 'Calculadora', to: '/painel/calculadora', icon: Calculator },
+    key: 'operacoes', label: 'Operações', icon: ReceiptText, items: [
+      { label: 'Vendas', to: '/painel/vendas', icon: ReceiptText },
+      { label: 'Clientes', to: '/painel/clientes', icon: Users },
       { label: 'Venda de Câmbios', to: '/painel/cambios', icon: HandCoins },
-      { label: 'Convites', to: '/painel/convites', icon: Mail, adminOnly: true },
+    ],
+  },
+  {
+    key: 'ativos', label: 'Ativos', icon: Boxes, items: [
+      { label: 'Estoque', to: '/painel/estoque', icon: Boxes },
+    ],
+  },
+  {
+    key: 'gestao', label: 'Gestão', icon: Wallet, items: [
+      { label: 'Financeiro', to: '/painel/financeiro', icon: Wallet, adminOnly: true },
+      { label: 'Convites da loja', to: '/painel/convites', icon: Mail, adminOnly: true },
       { label: 'Preços e regras', to: '/painel/precos', icon: SlidersHorizontal, adminOnly: true },
     ],
   },
   {
-    label: 'Sistema',
-    icon: UserCog,
-    items: [
+    key: 'sistema', label: 'Sistema', icon: UserCog, items: [
       { label: 'Integrações', to: '/painel/integracoes', icon: Plug, adminOnly: true },
       { label: 'Usuários', to: '/painel/usuarios', icon: UserCog, adminOnly: true },
     ],
   },
 ]
-const visibleItems = computed(() => items.filter((i) => !i.adminOnly || auth.isAdmin))
-const visibleGroups = computed(() => groups
-  .map((g) => ({ ...g, items: g.items.filter((i) => !i.adminOnly || auth.isAdmin) }))
-  .filter((g) => g.items.length > 0))
-// Com o menu recolhido (só ícones) os grupos viram uma lista plana.
-const flatItems = computed(() => [...visibleItems.value, ...visibleGroups.value.flatMap((g) => g.items)])
-const openGroups = ref<Record<string, boolean>>({})
-function groupOpen(g: NavGroup) {
-  return openGroups.value[g.label] ?? g.items.some(isActive)
+const visibleGroups = computed(() =>
+  groups
+    .map((g) => ({ ...g, items: g.items.filter((i) => !i.adminOnly || auth.isAdmin) }))
+    .filter((g) => g.items.length > 0),
+)
+// Grupos fechados à mão; o grupo da rota atual fica sempre aberto.
+const closed = ref<Set<string>>(new Set())
+function isOpen(g: NavGroup) {
+  return !closed.value.has(g.key) || g.items.some(isActive)
 }
-function toggleGroup(g: NavGroup) {
-  openGroups.value[g.label] = !groupOpen(g)
+function toggle(g: NavGroup) {
+  const next = new Set(closed.value)
+  if (next.has(g.key)) next.delete(g.key)
+  else next.add(g.key)
+  closed.value = next
 }
 
 function isActive(item: NavItem) {
@@ -155,48 +159,47 @@ async function logout() {
 
       <nav class="scrollbar-thin mt-3 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pb-4">
         <RouterLink
-          v-for="item in (collapsed ? flatItems : visibleItems)"
-          :key="item.to"
-          :to="item.to"
-          :title="collapsed ? item.label : undefined"
-          :aria-current="isActive(item) ? 'page' : undefined"
+          :to="top.to"
+          :title="collapsed ? top.label : undefined"
+          :aria-current="isActive(top) ? 'page' : undefined"
           :class="[
             'flex h-11 items-center gap-3 rounded-xl text-[15px] transition-colors',
             collapsed ? 'justify-center' : 'px-3',
-            isActive(item) ? 'bg-brand font-medium text-brand-ink' : 'text-text hover:bg-surface-3 hover:text-ink',
+            isActive(top) ? 'bg-brand font-medium text-brand-ink' : 'text-text hover:bg-surface-3 hover:text-ink',
           ]"
         >
-          <component :is="item.icon" class="size-[18px] shrink-0" stroke-width="1.7" />
-          <span v-if="!collapsed" class="flex-1 truncate">{{ item.label }}</span>
+          <component :is="top.icon" class="size-[18px] shrink-0" stroke-width="1.7" />
+          <span v-if="!collapsed" class="flex-1 truncate">{{ top.label }}</span>
         </RouterLink>
-        <template v-if="!collapsed">
-          <div v-for="g in visibleGroups" :key="g.label">
-            <button
-              type="button"
-              :aria-expanded="groupOpen(g)"
-              :class="['flex h-11 w-full items-center gap-3 rounded-xl px-3 text-[15px] transition-colors hover:bg-surface-3 hover:text-ink', g.items.some(isActive) ? 'text-ink' : 'text-text']"
-              @click="toggleGroup(g)"
-            >
-              <component :is="g.icon" class="size-[18px] shrink-0" stroke-width="1.7" />
-              <span class="flex-1 truncate text-left">{{ g.label }}</span>
-              <ChevronDown :class="['size-4 text-muted transition-transform', groupOpen(g) && 'rotate-180']" />
-            </button>
-            <div v-if="groupOpen(g)" class="mt-1 ml-5 flex flex-col gap-1 border-l border-line pl-2">
-              <RouterLink
-                v-for="item in g.items"
-                :key="item.to"
-                :to="item.to"
-                :aria-current="isActive(item) ? 'page' : undefined"
-                :class="[
-                  'flex h-10 items-center gap-3 rounded-xl px-3 text-[14px] transition-colors',
-                  isActive(item) ? 'bg-brand font-medium text-brand-ink' : 'text-text hover:bg-surface-3 hover:text-ink',
-                ]"
-              >
-                <component :is="item.icon" class="size-4 shrink-0" stroke-width="1.7" />
-                <span class="flex-1 truncate">{{ item.label }}</span>
-              </RouterLink>
-            </div>
-          </div>
+        <template v-for="g in visibleGroups" :key="g.key">
+          <button
+            v-if="!collapsed"
+            type="button"
+            class="mt-2 flex h-9 items-center justify-between rounded-xl px-3 text-xs font-medium uppercase tracking-wide text-muted hover:text-ink"
+            :aria-expanded="isOpen(g)"
+            @click="toggle(g)"
+          >
+            {{ g.label }}
+            <ChevronDown :class="['size-4 transition-transform', !isOpen(g) && '-rotate-90']" />
+          </button>
+          <div v-else class="mx-2 my-1 border-t border-line" />
+          <template v-if="collapsed || isOpen(g)">
+            <template v-for="item in g.items" :key="item.to">
+          <RouterLink
+            :to="item.to"
+            :title="collapsed ? item.label : undefined"
+            :aria-current="isActive(item) ? 'page' : undefined"
+            :class="[
+              'flex h-11 items-center gap-3 rounded-xl text-[15px] transition-colors',
+              collapsed ? 'justify-center' : 'pl-5 pr-3',
+              isActive(item) ? 'bg-brand font-medium text-brand-ink' : 'text-text hover:bg-surface-3 hover:text-ink',
+            ]"
+          >
+            <component :is="item.icon" class="size-[18px] shrink-0" stroke-width="1.7" />
+            <span v-if="!collapsed" class="flex-1 truncate">{{ item.label }}</span>
+          </RouterLink>
+            </template>
+          </template>
         </template>
       </nav>
 

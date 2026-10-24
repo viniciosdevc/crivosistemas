@@ -60,6 +60,13 @@ public sealed class FinanceiroTests(ApiFactory factory)
     {
         var admin = await factory.SeedAndLoginAdminAsync();
         var antes = await Saldo(admin);
+        var hoje = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(-3)).ToString("yyyy-MM-dd");
+
+        // Venda de dias antes do início do controle não gera lançamento (o saldo parte de hoje).
+        var antiga = "fin-old-" + Guid.NewGuid().ToString("N")[..8];
+        await factory.Maquina().Enviar(CrivoHelpers.Evento("venda.upsert", CrivoHelpers.Venda(antiga, DateTime.UtcNow.AddDays(-5), 999m)));
+        Assert.Equal(antes, await Saldo(admin));
+
 
         // Venda do crivonft concluída com PIX entra; atualizar o valor reajusta; cancelar tira.
         var origemId = "fin-" + Guid.NewGuid().ToString("N")[..8];
@@ -96,13 +103,13 @@ public sealed class FinanceiroTests(ApiFactory factory)
         Assert.Equal(antes, await Saldo(admin));
 
         // Compra de dólar sai do caixa; editar reajusta; cancelar devolve.
-        var lote = await (await admin.Post("/api/estoque/usd/compras", new { data = "2026-10-20", quantidade = 100, custoTotal = 530 })).Json();
+        var lote = await (await admin.Post("/api/estoque/usd/compras", new { data = hoje, quantidade = 100, custoTotal = 530 })).Json();
         var loteId = lote.GetProperty("id").GetGuid();
         Assert.Equal(antes - 530m, await Saldo(admin));
         var compra = (await Lancamentos(admin, "Depósito USD: $100.00"))[0];
         Assert.Equal("saida", compra.GetProperty("tipo").GetString());
         Assert.Equal("Compra de USD", compra.GetProperty("categoria").GetString());
-        (await admin.Put($"/api/estoque/usd/compras/{loteId}", new { data = "2026-10-20", quantidade = 100, custoTotal = 540 })).EnsureSuccessStatusCode();
+        (await admin.Put($"/api/estoque/usd/compras/{loteId}", new { data = hoje, quantidade = 100, custoTotal = 540 })).EnsureSuccessStatusCode();
         Assert.Equal(antes - 540m, await Saldo(admin));
         (await admin.Post($"/api/estoque/usd/compras/{loteId}/cancelar", new { motivo = "engano" })).EnsureSuccessStatusCode();
         Assert.Equal(antes, await Saldo(admin));
