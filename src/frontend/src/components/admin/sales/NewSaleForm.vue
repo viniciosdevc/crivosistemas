@@ -5,16 +5,14 @@ import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCheckbox from '@/components/ui/UiCheckbox.vue'
 import UiChips from '@/components/ui/UiChips.vue'
-import UiDatePicker from '@/components/ui/UiDatePicker.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import UiTextarea from '@/components/ui/UiTextarea.vue'
-import UiTimePicker from '@/components/ui/UiTimePicker.vue'
 import { ApiError, api } from '@/lib/api'
-import { currentTimeZone, formatDecimal, formatFixed, formatInt, formatMoney, formatPercent, formatTime, parseDecimal, todayIso } from '@/lib/format'
+import { formatDecimal, formatFixed, formatInt, formatMoney, formatPercent, parseDecimal } from '@/lib/format'
 import { habboAvatarUrl } from '@/lib/habbo'
-import { calcularVendaManual, montarVendaManual, taxaFeiraBrl, taxaFeiraPadrao, vendaManualValida, zonedToIso, type EntradaVendaManual } from '@/lib/sale'
+import { calcularVendaManual, montarVendaManual, taxaFeiraBrl, vendaManualValida, type EntradaVendaManual } from '@/lib/sale'
 import { toast } from '@/lib/toast'
 import type { FormaPagamento, OrigemCusto, RegrasPrecificacao, ResumoEstoques, VendaLista } from '@/lib/types'
 
@@ -40,14 +38,10 @@ const estoque = ref<ResumoEstoques | null>(null)
 const loadError = ref<string | null>(null)
 const loadingData = ref(false)
 
-const day = ref('')
-const time = ref('')
 const nomeItem = ref('')
 const nickname = ref('')
 const observacao = ref('')
 const entregue = ref(true)
-// Enquanto o usuário não mexer na taxa da feira, ela acompanha a forma de pagamento.
-const taxaMexida = ref(false)
 const avatarNick = ref('')
 let avatarTimer: ReturnType<typeof setTimeout> | undefined
 const entrada = reactive<EntradaVendaManual>({
@@ -80,33 +74,24 @@ async function loadData() {
 }
 
 function reset() {
-  const now = new Date()
-  day.value = todayIso()
-  time.value = formatTime(now)
   nomeItem.value = ''
   nickname.value = ''
   observacao.value = ''
   entregue.value = true
-  taxaMexida.value = false
   avatarNick.value = ''
   Object.assign(entrada, { forma: 'cambios', origem: 'estoque_usd', custoUsd: '', custoCambios: '', quantidadeEsmeraldas: '', usaTaxaPrata: true, valorPix: '', valorCambios: '' })
   Object.keys(fieldErrors).forEach((k) => delete fieldErrors[k])
   formError.value = null
 }
 
-watch(() => entrada.forma, (f) => {
-  if (!taxaMexida.value) entrada.usaTaxaPrata = taxaFeiraPadrao(f)
-})
 watch(nickname, (v) => {
   clearTimeout(avatarTimer)
   avatarTimer = setTimeout(() => (avatarNick.value = v.trim()), 400)
 })
 onBeforeUnmount(() => clearTimeout(avatarTimer))
+// Como na calculadora, a taxa de pratas (hoje 3 C) entra no custo; o preço dela vem do valor do K e das moedas por 1K.
+const taxaCambios = computed(() => regras.value?.configuracao.taxaPrata ?? null)
 const taxaBrl = computed(() => (regras.value ? taxaFeiraBrl(regras.value.configuracao) : null))
-function onTaxa(v: boolean) {
-  taxaMexida.value = true
-  entrada.usaTaxaPrata = v
-}
 
 onMounted(() => {
   reset()
@@ -126,7 +111,7 @@ const calc = computed(() =>
     ? calcularVendaManual(entrada, regras.value, { usdCustoMedio: usdCusto.value, esmeraldasCustoMedio: esmeraldasCusto.value })
     : null,
 )
-const valid = computed(() => !!regras.value && vendaManualValida(entrada, nomeItem.value) && !!day.value && !!time.value)
+const valid = computed(() => !!regras.value && vendaManualValida(entrada, nomeItem.value))
 const esmeraldasExcedem = computed(() => usaEsmeralda.value && (parseDecimal(entrada.quantidadeEsmeraldas) ?? 0) > esmeraldasSaldo.value)
 
 async function submit() {
@@ -136,7 +121,7 @@ async function submit() {
   Object.keys(fieldErrors).forEach((k) => delete fieldErrors[k])
   try {
     const body = montarVendaManual(entrada, {
-      dataHora: zonedToIso(day.value, time.value, currentTimeZone()),
+      dataHora: new Date().toISOString(),
       nickname: nickname.value,
       nomeItem: nomeItem.value,
       observacao: observacao.value,
@@ -166,8 +151,6 @@ async function submit() {
     </p>
 
     <section class="grid gap-3 sm:grid-cols-6" aria-label="Dados da venda">
-      <div class="sm:col-span-2"><UiDatePicker v-model="day" label="Data" :error="fieldErrors.dataHora" /></div>
-      <div class="sm:col-span-1"><UiTimePicker v-model="time" label="Hora" /></div>
       <div class="sm:col-span-3">
         <UiInput v-model="nomeItem" label="Nome do item" placeholder="Nome do item vendido" autocomplete="off" :error="fieldErrors.nomeItem" />
       </div>
@@ -175,49 +158,52 @@ async function submit() {
         <div class="min-w-0 flex-1">
           <UiInput v-model="nickname" label="Nickname do comprador" placeholder="Ex: ana" autocomplete="off" optional :error="fieldErrors.nicknameComprador" />
         </div>
-        <UiAvatar v-if="avatarNick" :name="avatarNick" :src="habboAvatarUrl(avatarNick)" class="mb-1" data-testid="nick-avatar" />
+        <UiAvatar v-if="avatarNick" :name="avatarNick" :src="habboAvatarUrl(avatarNick)" class="mb-0.5" data-testid="nick-avatar" />
       </div>
-      <div class="sm:col-span-3">
-        <UiChips v-model="entrada.forma" :options="formaOptions" label="Como o cliente pagou?" compact />
+      <div class="sm:col-span-2">
+        <UiChips v-model="entrada.forma" :options="formaOptions" label="Como pagou?" compact />
         <p v-if="fieldErrors.formaPagamento" class="mt-1 text-[13px] text-danger" role="alert">{{ fieldErrors.formaPagamento }}</p>
       </div>
-    </section>
-
-    <section class="grid gap-3 sm:grid-cols-3" aria-label="Custo e valores">
-      <UiSelect v-model="entrada.origem" label="De onde saiu o item?" :options="origemOptions" :error="fieldErrors.origemCusto" />
-
-      <div v-if="usaEsmeralda" class="flex flex-col gap-1">
-        <UiInput
-          v-model="entrada.quantidadeEsmeraldas"
-          :label="`Qtde. Esmeraldas${esmeraldasSaldo > 0 ? ` (saldo: ${formatDecimal(esmeraldasSaldo)})` : ''}`"
-          inputmode="decimal"
-          placeholder="0"
-          :error="fieldErrors.quantidadeEsmeraldas"
-        />
-        <p v-if="estoque && esmeraldasSaldo <= 0" class="text-xs text-warning">Sem saldo de esmeraldas no estoque.</p>
-        <p v-else-if="esmeraldasExcedem" class="text-xs text-warning">A quantidade passa do saldo disponível.</p>
-        <p v-else-if="estoque && esmeraldasCusto <= 0" class="text-xs text-warning">As esmeraldas em estoque estão sem custo.</p>
-        <p v-else-if="calc && calc.qtdEsmeraldas > 0" class="text-xs text-muted">≈ US$ {{ formatFixed(calc.custoUsd, 4) }} (US$ {{ formatFixed(esmeraldasCusto, 6) }} por esmeralda)</p>
-      </div>
-      <UiInput v-else-if="usaCambios" v-model="entrada.custoCambios" label="Custo em Câmbios" inputmode="numeric" placeholder="0" suffix="C" :error="fieldErrors.custoCambios" />
-      <div v-else class="flex flex-col gap-1">
-        <UiInput v-model="entrada.custoUsd" label="Custo USD" prefix="US$" inputmode="decimal" placeholder="0,00" :error="fieldErrors.custoUsd" />
-        <p v-if="entrada.origem === 'estoque_usd' && calc" class="text-xs text-muted">
-          Dólar: {{ formatMoney(calc.dolarCompra) }}{{ usdCusto > 0 ? ' (custo médio)' : ' (configuração)' }}
-        </p>
+      <div class="sm:col-span-2"><UiSelect v-model="entrada.origem" label="De onde saiu o item?" :options="origemOptions" :error="fieldErrors.origemCusto" /></div>
+      <div class="sm:col-span-2">
+        <div v-if="usaEsmeralda" class="flex flex-col gap-1">
+          <UiInput
+            v-model="entrada.quantidadeEsmeraldas"
+            :label="`Qtde. Esmeraldas${esmeraldasSaldo > 0 ? ` (saldo: ${formatDecimal(esmeraldasSaldo)})` : ''}`"
+            inputmode="decimal"
+            placeholder="0"
+            :error="fieldErrors.quantidadeEsmeraldas"
+          />
+          <p v-if="estoque && esmeraldasSaldo <= 0" class="text-xs text-warning">Sem saldo de esmeraldas no estoque.</p>
+          <p v-else-if="esmeraldasExcedem" class="text-xs text-warning">A quantidade passa do saldo disponível.</p>
+          <p v-else-if="estoque && esmeraldasCusto <= 0" class="text-xs text-warning">As esmeraldas em estoque estão sem custo.</p>
+          <p v-else-if="calc && calc.qtdEsmeraldas > 0" class="text-xs text-muted">≈ US$ {{ formatFixed(calc.custoUsd, 4) }}</p>
+        </div>
+        <UiInput v-else-if="usaCambios" v-model="entrada.custoCambios" label="Custo em Câmbios" inputmode="numeric" placeholder="0" suffix="C" :error="fieldErrors.custoCambios" />
+        <div v-else class="flex flex-col gap-1">
+          <UiInput v-model="entrada.custoUsd" label="Custo USD" prefix="US$" inputmode="decimal" placeholder="0,00" :error="fieldErrors.custoUsd" />
+          <p v-if="entrada.origem === 'estoque_usd' && calc" class="text-xs text-muted">
+            Dólar: {{ formatMoney(calc.dolarCompra) }}{{ usdCusto > 0 ? ' (custo médio)' : ' (configuração)' }}
+          </p>
+        </div>
       </div>
 
-      <div class="flex items-center self-end rounded-xl bg-surface-2 px-3 py-2.5">
-        <UiCheckbox :model-value="entrada.usaTaxaPrata" label="Taxa da feira (pratas)" @update:model-value="onTaxa" />
-        <span v-if="taxaBrl !== null" class="ml-auto pl-2 text-sm whitespace-nowrap text-muted tabular" data-testid="taxa-feira">{{ formatMoney(taxaBrl) }}</span>
+      <div v-if="showPix" :class="showCambios ? 'sm:col-span-2' : 'sm:col-span-3'">
+        <UiInput v-model="entrada.valorPix" label="Valor recebido em PIX" prefix="R$" inputmode="decimal" placeholder="0,00" :error="fieldErrors.valorVendaPix">
+          <template #prefix><PaymentIcon kind="pix" /></template>
+        </UiInput>
       </div>
-
-      <UiInput v-if="showPix" v-model="entrada.valorPix" label="Valor recebido em PIX" prefix="R$" inputmode="decimal" placeholder="0,00" :error="fieldErrors.valorVendaPix">
-        <template #prefix><PaymentIcon kind="pix" /></template>
-      </UiInput>
-      <UiInput v-if="showCambios" v-model="entrada.valorCambios" label="Valor recebido em Câmbios" suffix="C" inputmode="numeric" placeholder="0" :error="fieldErrors.valorVendaCambios">
-        <template #prefix><PaymentIcon kind="cambios" /></template>
-      </UiInput>
+      <div v-if="showCambios" :class="showPix ? 'sm:col-span-2' : 'sm:col-span-3'">
+        <UiInput v-model="entrada.valorCambios" label="Valor recebido em Câmbios" suffix="C" inputmode="numeric" placeholder="0" :error="fieldErrors.valorVendaCambios">
+          <template #prefix><PaymentIcon kind="cambios" /></template>
+        </UiInput>
+      </div>
+      <div :class="['flex items-center self-end rounded-xl bg-surface-2 px-3 py-2', showPix && showCambios ? 'sm:col-span-2' : 'sm:col-span-3']">
+        <UiCheckbox v-model="entrada.usaTaxaPrata" label="Taxa da feira (pratas)" />
+        <span v-if="taxaBrl !== null" class="ml-auto pl-2 text-right text-xs leading-tight whitespace-nowrap text-muted tabular" data-testid="taxa-feira">
+          {{ formatInt(taxaCambios ?? 0) }} C<br />{{ formatMoney(taxaBrl) }}
+        </span>
+      </div>
     </section>
 
     <section class="rounded-2xl border border-line bg-surface-2 px-4 py-3" aria-labelledby="sale-summary-title">
@@ -255,19 +241,15 @@ async function submit() {
       </template>
     </section>
 
-    <section class="grid gap-3 sm:grid-cols-2" aria-label="Entrega">
-      <div>
-        <UiCheckbox v-model="entregue" label="Já entregue" />
-        <p class="mt-1 pl-8 text-xs text-muted">Entregue entra no faturamento e debita o dólar do estoque. Sem marcar, fica pendente até você entregá-la.</p>
-      </div>
-      <UiTextarea v-model="observacao" label="Observação" optional placeholder="Alguma anotação sobre esta venda" :error="fieldErrors.observacao" />
-    </section>
-
     <p v-if="formError" class="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger" role="alert">{{ formError }}</p>
 
-    <div class="flex flex-wrap items-center justify-end gap-3">
-      <UiButton variant="subtle" @click="emit('cancel')">Voltar</UiButton>
-      <UiButton type="submit" :loading="submitting" :disabled="!valid">Confirmar venda</UiButton>
+    <div class="grid items-end gap-3 sm:grid-cols-[auto_1fr_auto]">
+      <UiCheckbox v-model="entregue" label="Já entregue" />
+      <UiTextarea v-model="observacao" label="Observação" optional placeholder="Alguma anotação sobre esta venda" :error="fieldErrors.observacao" />
+      <div class="flex items-center justify-end gap-2">
+        <UiButton variant="subtle" @click="emit('cancel')">Voltar</UiButton>
+        <UiButton type="submit" :loading="submitting" :disabled="!valid">Confirmar venda</UiButton>
+      </div>
     </div>
   </form>
 </template>
@@ -279,8 +261,9 @@ async function submit() {
   height: 2.5rem;
 }
 .sale-form :deep(textarea) {
-  height: 3.5rem;
+  height: 2.5rem;
   min-height: 0;
+  resize: none;
   padding-block: 0.5rem;
 }
 </style>

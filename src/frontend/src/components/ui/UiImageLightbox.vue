@@ -31,7 +31,7 @@ watch(() => props.src, () => (failed.value = false))
 
   <DialogRoot v-if="src" v-model:open="open">
     <DialogPortal>
-      <DialogOverlay class="ui-overlay fixed inset-0 z-[60] bg-overlay backdrop-blur-[2px]" />
+      <DialogOverlay class="ui-overlay fixed inset-0 z-[60] bg-overlay" />
       <DialogContent
         class="ui-dialog fixed top-1/2 left-1/2 z-[60] flex max-h-[90dvh] max-w-[90vw] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-3 focus:outline-none"
         @click="open = false"

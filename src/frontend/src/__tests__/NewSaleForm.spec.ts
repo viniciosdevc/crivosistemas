@@ -36,18 +36,12 @@ describe('NewSaleForm', () => {
     w.unmount()
   })
 
-  it('a taxa acompanha a forma até o usuário mexer nela', async () => {
+  it('a taxa vem marcada em qualquer forma, como na calculadora, e mostra as moedas e o preço', async () => {
     const w = await setup()
-    const pix = w.findAll('[role="radio"]').find((r) => r.text() === 'PIX')!
-    const cambios = w.findAll('[role="radio"]').find((r) => r.text() === 'Câmbios')!
-    await pix.trigger('click')
-    expect(checkbox(w, 'Taxa da feira').attributes('aria-checked')).toBe('false')
-    await cambios.trigger('click')
+    await w.findAll('[role="radio"]').find((r) => r.text() === 'PIX')!.trigger('click')
     expect(checkbox(w, 'Taxa da feira').attributes('aria-checked')).toBe('true')
-    await checkbox(w, 'Taxa da feira').trigger('click')
-    await pix.trigger('click')
-    await cambios.trigger('click')
-    expect(checkbox(w, 'Taxa da feira').attributes('aria-checked')).toBe('false')
+    expect(w.get('[data-testid="taxa-feira"]').text()).toContain('500 C')
+    expect(w.text()).not.toContain('Hora')
     w.unmount()
   })
 

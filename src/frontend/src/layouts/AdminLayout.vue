@@ -34,7 +34,6 @@ const items: NavItem[] = [
   { label: 'Painel', to: '/painel', icon: ChartColumn, exact: true },
   { label: 'Vendas', to: '/painel/vendas', icon: ReceiptText },
   { label: 'Clientes', to: '/painel/clientes', icon: Users },
-  { label: 'Calculadora', to: '/painel/calculadora', icon: Calculator },
   { label: 'Estoque', to: '/painel/estoque', icon: Boxes },
   { label: 'Venda de Câmbios', to: '/painel/cambios', icon: HandCoins },
   { label: 'Financeiro', to: '/painel/financeiro', icon: Wallet, adminOnly: true },

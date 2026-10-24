@@ -9,7 +9,7 @@ const open = defineModel<boolean>('open', { default: false })
 <template>
   <DialogRoot v-model:open="open">
     <DialogPortal>
-      <DialogOverlay class="ui-overlay fixed inset-0 z-50 bg-overlay backdrop-blur-[2px]" />
+      <DialogOverlay class="ui-overlay fixed inset-0 z-50 bg-overlay" />
       <DialogContent
         :class="[
           'ui-dialog flex max-h-[calc(100dvh-2rem)] w-full flex-col sm:w-[calc(100vw-2rem)]',
