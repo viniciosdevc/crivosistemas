@@ -53,3 +53,12 @@ Porta do livro-razão `financeiro_lancamentos` do crivonft, só para administrad
 - **Acompanha a origem.** Venda cancelada/removida, compra editada ou cancelada e venda de câmbios estornada reajustam ou cancelam o lançamento automático. Ele não é mexido à mão.
 - **Nada é editado ou apagado.** Lançamento manual errado é cancelado com motivo (fica no histórico, fora do saldo) e lançado de novo. Pendente só entra no saldo ao confirmar.
 - **Diferença do crivonft:** lá o PIX só entra na entrega e pode nascer pendente pela data prevista; aqui, vendas importadas já chegam concluídas e entram confirmadas. `POST /api/financeiro/sincronizar` (chamado ao abrir a tela) gera o que existia antes do financeiro.
+
+## Chaves de acesso (passkeys)
+Login sem senha com WebAuthn (Fido2NetLib), como alternativa à senha, que continua valendo (inclusive `--seed-admin`).
+
+- **Cada usuário cadastra as suas** em *Chaves de acesso* (menu do avatar): nome amigável, lista com último uso, remoção. Limite de 10 por conta. Só a chave pública fica no banco (`Passkeys`), com o contador de assinatura.
+- **Credencial descobrível + verificação obrigatória.** O login não pede e-mail (o navegador oferece as chaves do site), então não há como enumerar contas; biometria/PIN é exigida, e posse do aparelho + verificação já são dois fatores.
+- **Domínio fixo.** O Relying Party ID e a origem esperada saem de `App__PublicUrl` (produção: `https://dash.crivohb.com`). Mudar o domínio invalida as chaves já cadastradas.
+- **Challenge de uso único** no cache distribuído (Redis com prefixo `crivosistemas:`; memória sem Redis), expira em 3 minutos. Endpoints com o limite `auth` (10/min por IP). Conta desativada não entra. Cadastro e remoção entram na auditoria.
+- **Evolução possível:** exigir passkey dos administradores e pedir senha/passkey de novo antes de remover chaves.

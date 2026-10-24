@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import {
-  Boxes, Calculator, Search, HandCoins, ChartColumn, ChevronDown, Coins, KeyRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plug, Plus, ReceiptText, SlidersHorizontal, Sun, UserCog, Users, X,
+  Boxes, Calculator, Search, HandCoins, ChartColumn, ChevronDown, Coins, Fingerprint, KeyRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plug, Plus, ReceiptText, SlidersHorizontal, Sun, UserCog, Users, X,
   Building2, ClipboardCheck, Globe2, Layers, Mail, Wallet, ChartPie,
 } from 'lucide-vue-next'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, ref, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import BrandMark from '@/components/BrandMark.vue'
+import PasskeysModal from '@/components/admin/PasskeysModal.vue'
 import ChangePasswordModal from '@/components/admin/ChangePasswordModal.vue'
 import QuickActionsModal, { type QuickTab } from '@/components/admin/QuickActionsModal.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
@@ -22,6 +23,7 @@ const router = useRouter()
 const collapsed = ref(false)
 const mobileOpen = ref(false)
 const passwordOpen = ref(false)
+const passkeysOpen = ref(false)
 const quickOpen = ref(false)
 const quickTab = ref<QuickTab>('nft')
 function openQuick(t: QuickTab) {
@@ -248,6 +250,9 @@ async function logout() {
               <DropdownMenuItem class="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-text outline-none data-[highlighted]:bg-surface-3" @select="passwordOpen = true">
                 <KeyRound class="size-4" /> Alterar senha
               </DropdownMenuItem>
+              <DropdownMenuItem class="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-text outline-none data-[highlighted]:bg-surface-3" @select="passkeysOpen = true">
+                <Fingerprint class="size-4" /> Chaves de acesso
+              </DropdownMenuItem>
               <DropdownMenuItem class="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm text-text outline-none data-[highlighted]:bg-surface-3" @select="toggleTheme">
                 <Sun v-if="isDark" class="size-4" /><Moon v-else class="size-4" /> {{ isDark ? 'Tema claro' : 'Tema escuro' }}
               </DropdownMenuItem>
@@ -297,6 +302,7 @@ async function logout() {
     </div>
   </div>
   <ChangePasswordModal v-model:open="passwordOpen" />
+  <PasskeysModal v-model:open="passkeysOpen" />
   <QuickActionsModal v-model:open="quickOpen" v-model:tab="quickTab" @created="onSaleCreated" />
   </div>
 </template>

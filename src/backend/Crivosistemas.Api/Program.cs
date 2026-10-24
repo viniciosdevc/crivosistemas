@@ -46,6 +46,15 @@ builder.Services.Configure<AppOptions>(builder.Configuration.GetSection(AppOptio
 builder.Services.AddEmailDispatcher();
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 builder.Services.AddValidation();
+
+// Passkeys (WebAuthn): a chave só vale para o domínio e a origem do painel, derivados de App:PublicUrl.
+var publicUri = Uri.TryCreate(builder.Configuration["App:PublicUrl"], UriKind.Absolute, out var parsedUri) ? parsedUri : new Uri("http://localhost:5173");
+builder.Services.AddFido2(o =>
+{
+    o.RPID = publicUri.Host;
+    o.RPName = "Crivo Gestão";
+    o.Origins = new HashSet<string> { publicUri.GetLeftPart(UriPartial.Authority) };
+});
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddOpenApi();
@@ -166,6 +175,7 @@ app.MapHealthChecks("/health/live", new() { Predicate = _ => false });
 app.MapHealthChecks("/health/ready", new() { Predicate = c => c.Tags.Contains("ready") });
 
 app.MapAuthEndpoints();
+app.MapPasskeyEndpoints();
 app.MapUserEndpoints();
 app.MapIntegracoesEndpoints();
 app.MapVendasEndpoints();

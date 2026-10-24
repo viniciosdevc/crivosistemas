@@ -18,6 +18,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     public DbSet<User> Users => Set<User>();
     public DbSet<UserToken> UserTokens => Set<UserToken>();
+    public DbSet<Passkey> Passkeys => Set<Passkey>();
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
     public DbSet<Cliente> Clientes => Set<Cliente>();
     public DbSet<Venda> Vendas => Set<Venda>();

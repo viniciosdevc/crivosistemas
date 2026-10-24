@@ -35,6 +35,19 @@ internal sealed class UserTokenConfig : IEntityTypeConfiguration<UserToken>
     }
 }
 
+internal sealed class PasskeyConfig : IEntityTypeConfiguration<Passkey>
+{
+    public void Configure(EntityTypeBuilder<Passkey> b)
+    {
+        b.Property(x => x.CredentialId).HasMaxLength(1024);
+        b.Property(x => x.PublicKey).HasMaxLength(1024);
+        b.Property(x => x.Name).HasMaxLength(80);
+        b.HasIndex(x => x.CredentialId).IsUnique();
+        b.HasIndex(x => x.UserId);
+        b.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
 internal sealed class AuditEntryConfig : IEntityTypeConfiguration<AuditEntry>
 {
     public void Configure(EntityTypeBuilder<AuditEntry> b)

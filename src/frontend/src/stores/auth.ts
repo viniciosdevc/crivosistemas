@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { api } from '@/lib/api'
+import { loginWithPasskey } from '@/lib/passkey'
 import type { Me } from '@/lib/types'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -25,6 +26,10 @@ export const useAuthStore = defineStore('auth', () => {
     setMe(await api.post<Me>('/api/auth/login', { email, password }))
   }
 
+  async function loginPasskey() {
+    setMe(await loginWithPasskey())
+  }
+
   async function logout() {
     await api.post('/api/auth/logout').catch(() => undefined)
     me.value = null
@@ -35,5 +40,5 @@ export const useAuthStore = defineStore('auth', () => {
     me.value = null
   }
 
-  return { me, loaded, isAdmin, load, login, logout, expire }
+  return { me, loaded, isAdmin, load, login, loginPasskey, logout, expire }
 })
