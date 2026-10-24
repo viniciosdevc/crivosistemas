@@ -86,8 +86,21 @@ export async function registerPasskey(name: string): Promise<PasskeyItem> {
   })
 }
 
+type LoginOptions = { challengeId: string; options: RequestOptionsJson }
+const PREPARED_MAX_AGE_MS = 2 * 60 * 1000 // o servidor guarda o challenge por 3 minutos
+let prepared: { at: number; promise: Promise<LoginOptions> } | null = null
+
+/** Busca o challenge do login antes do clique: o prompt do navegador abre na hora (e o Safari exige que ele nasça do gesto do usuário). */
+export function prepareLoginPasskey() {
+  const promise = api.post<LoginOptions>('/api/auth/passkey-login/options')
+  prepared = { at: Date.now(), promise }
+  promise.catch(() => { if (prepared?.promise === promise) prepared = null })
+}
+
 export async function loginWithPasskey(): Promise<Me> {
-  const { challengeId, options } = await api.post<{ challengeId: string; options: RequestOptionsJson }>('/api/auth/passkey-login/options')
+  const fresh = prepared && Date.now() - prepared.at < PREPARED_MAX_AGE_MS ? prepared.promise : null
+  prepared = null // o challenge é de uso único
+  const { challengeId, options } = await (fresh ?? api.post<LoginOptions>('/api/auth/passkey-login/options'))
   const credential = (await navigator.credentials.get({
     publicKey: {
       challenge: fromB64Url(options.challenge),
