@@ -160,11 +160,46 @@ public sealed class PayloadParserTests
         Assert.Equal(end.ToLowerInvariant(), PayloadParser.ClienteUpsert(J($$"""{"chave":"k","carteira":"{{end}}"}""")).Valor!.Carteira);
         Assert.Null(PayloadParser.ClienteUpsert(J("""{"chave":"k"}""")).Valor!.Carteira);
         Assert.Null(PayloadParser.ClienteUpsert(J("""{"chave":"k","carteira":null}""")).Valor!.Carteira);
-        Assert.Null(PayloadParser.ClienteUpsert(J("""{"chave":"k","carteira":"0x123"}""")).Valor!.Carteira); // inválida: ignorada, evento aceito
+        Assert.Equal("0x123", PayloadParser.ClienteUpsert(J("""{"chave":"k","carteira":"0x123"}""")).Valor!.Carteira); // campo livre: mantida, só não é válida
         var vendaJson = """{"origem":"nft","origem_id":"1","data_hora":"2026-01-01T00:00:00Z","status":"x","status_normalizado":"concluido","atualizado_em":"2026-01-01T00:00:00Z","cliente":{"chave":"k","carteira":"CART"},"itens":[],"valores":{}}""".Replace("CART", end);
         Assert.Equal(end.ToLowerInvariant(), PayloadParser.VendaUpsert(J(vendaJson)).Valor?.Cliente?.Carteira);
         Assert.Equal(end.ToLowerInvariant(), ImportacaoMapper.Cliente(J($$"""{"nickname":"ana","carteira":"{{end}}"}""")).Valor!.Carteira);
-        Assert.Null(ImportacaoMapper.Cliente(J("""{"nickname":"ana","carteira":"texto livre"}""")).Valor!.Carteira);
+        Assert.Equal("texto livre", ImportacaoMapper.Cliente(J("""{"nickname":"ana","carteira":" texto livre "}""")).Valor!.Carteira);
+        Assert.True(ImportacaoMapper.Cliente(J("""{"nickname":"ana","favorito":true}""")).Valor!.Favorito);
+        Assert.Null(ImportacaoMapper.Cliente(J("""{"nickname":"ana"}""")).Valor!.Favorito);
+    }
+
+    [Fact]
+    public void Carteira_livre_favorito_e_carteira_da_loja_no_evento_de_cliente()
+    {
+        var lojaMaiuscula = "0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+        var p = PayloadParser.ClienteUpsert(J($$"""{"chave":"k","carteira":"  minha carteira  ","favorito":true,"carteira_loja":"{{lojaMaiuscula}}"}""")).Valor!;
+        Assert.Equal("minha carteira", p.Carteira);
+        Assert.True(p.Favorito);
+        Assert.Equal(lojaMaiuscula.ToLowerInvariant().Replace("0x", "0x"), p.CarteiraLoja);
+        // Ausente ou null: Favorito null (não apaga); carteira_loja que não é endereço é ignorada.
+        var vazio = PayloadParser.ClienteUpsert(J("""{"chave":"k","favorito":null,"carteira_loja":"lixo"}""")).Valor!;
+        Assert.Null(vazio.Favorito);
+        Assert.Null(vazio.CarteiraLoja);
+        Assert.False(PayloadParser.ClienteUpsert(J("""{"chave":"k","favorito":false}""")).Valor!.Favorito);
+        // Texto acima de 120 é cortado, não rejeitado.
+        Assert.Equal(120, PayloadParser.ClienteUpsert(J($$"""{"chave":"k","carteira":"{{new string('x', 200)}}"}""")).Valor!.Carteira!.Length);
+    }
+
+    [Theory]
+    [InlineData("0xAbCdEf0123456789abcdef0123456789ABCDEF01", true)]
+    [InlineData("0x123", false)]
+    [InlineData("texto livre", false)]
+    [InlineData("0xGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG", false)]
+    [InlineData(null, false)]
+    public void Carteira_valida_exige_0x_e_40_hexadecimais(string? valor, bool esperado) => Assert.Equal(esperado, PayloadParser.CarteiraValida(valor));
+
+    [Fact]
+    public void Texto_de_carteira_faz_trim_corta_em_120_e_so_minuscula_endereco_valido()
+    {
+        Assert.Null(PayloadParser.TextoCarteira("   "));
+        Assert.Equal("Abc DEF", PayloadParser.TextoCarteira("  Abc DEF "));
+        Assert.Equal("0x" + new string('a', 40), PayloadParser.TextoCarteira("0x" + new string('A', 40)));
     }
 }
 

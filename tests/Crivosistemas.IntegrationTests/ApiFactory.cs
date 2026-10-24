@@ -116,6 +116,10 @@ public static class HttpExtensions
     public static Task<HttpResponseMessage> Put(this HttpClient client, string url, object body) =>
         client.PutAsJsonAsync(url, body, ApiFactory.Json);
 
+    /// <summary>PATCH com JSON cru (permite distinguir campo ausente de null).</summary>
+    public static Task<HttpResponseMessage> Patch(this HttpClient client, string url, string json) =>
+        client.PatchAsync(url, new StringContent(json, System.Text.Encoding.UTF8, "application/json"));
+
     /// <summary>Lê o corpo como JSON mesmo em respostas de erro (Json() exige sucesso).</summary>
     public static async Task<JsonElement> Body(this HttpResponseMessage response) =>
         JsonSerializer.Deserialize<JsonElement>(await response.Content.ReadAsStringAsync(), ApiFactory.Json);

@@ -670,8 +670,7 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 8)
                         .HasColumnType("decimal(18,8)");
 
-                    
-b.HasKey("Id");
+                    b.HasKey("Id");
 
                     b.HasIndex("Data")
                         .IsUnique();
@@ -852,6 +851,10 @@ b.HasKey("Id");
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Carteira")
+                        .HasMaxLength(120)
+                        .HasColumnType("varchar(120)");
+
+                    b.Property<string>("CarteiraLoja")
                         .HasMaxLength(42)
                         .HasColumnType("varchar(42)");
 
@@ -870,6 +873,9 @@ b.HasKey("Id");
                         .HasMaxLength(254)
                         .HasColumnType("varchar(254)");
 
+                    b.Property<bool>("Favorito")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("IdentidadeId")
                         .HasMaxLength(120)
                         .HasColumnType("varchar(120)");
@@ -885,6 +891,8 @@ b.HasKey("Id");
 
                     b.HasIndex("Chave")
                         .IsUnique();
+
+                    b.HasIndex("Favorito");
 
                     b.HasIndex("Nickname");
 

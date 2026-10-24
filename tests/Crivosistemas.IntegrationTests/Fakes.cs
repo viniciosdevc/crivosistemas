@@ -107,10 +107,13 @@ public sealed class FakeCrivonftClient : Crivosistemas.Infrastructure.Integracoe
 
     public List<(HttpMethod Metodo, string Caminho, string? Corpo)> ChamadasGestao { get; } = [];
     public Crivosistemas.Infrastructure.Integracoes.GestaoResposta RespostaGestao { get; set; } = new(200, "{}");
+    /// <summary>Simula falha de rede (sem resposta) nas chamadas da gestão.</summary>
+    public bool RedeForaGestao { get; set; }
 
     public Task<Crivosistemas.Infrastructure.Integracoes.GestaoResposta> ChamarGestaoAsync(HttpMethod metodo, string caminho, object? corpo, CancellationToken ct)
     {
         ChamadasGestao.Add((metodo, caminho, corpo is null ? null : System.Text.Json.JsonSerializer.Serialize(corpo, System.Text.Json.JsonSerializerOptions.Web)));
+        if (RedeForaGestao) throw new Crivosistemas.Infrastructure.Integracoes.CrivonftException("tempo esgotado");
         return Task.FromResult(RespostaGestao);
     }
 }
