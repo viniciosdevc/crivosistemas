@@ -54,6 +54,13 @@ export const motivoMovimento: Record<string, { label: string; tone: Tone }> = {
   edicao: { label: 'Correção de compra', tone: 'neutral' },
 }
 
+export const tipoMovimentoCambios: Record<string, { label: string; tone: Tone }> = {
+  venda: { label: 'Venda de câmbios', tone: 'info' },
+  venda_manual: { label: 'Recebido em venda', tone: 'success' },
+  ajuste: { label: 'Ajuste de saldo', tone: 'warning' },
+  estorno: { label: 'Estorno', tone: 'neutral' },
+}
+
 export const tipoCupom: Record<string, string> = {
   percentual: 'Percentual',
   valor_fixo: 'Valor fixo',

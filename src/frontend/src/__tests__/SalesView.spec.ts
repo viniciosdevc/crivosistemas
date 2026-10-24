@@ -13,7 +13,7 @@ vi.mock('@/lib/api', async (orig) => ({
 
 const venda: VendaLista = {
   id: 'v1', origem: 'nft', origemId: 'o-1', pedidoId: '1001', dataHora: '2026-10-22T15:00:00Z', dia: '2026-10-22', status: 'paid', statusNormalizado: 'pago',
-  formaPagamento: 'pix', vendedor: null, item: 'Dragão Azul +2', cliente: { id: 'c1', nickname: 'Ana', email: 'ana@x.com' }, totalBrl: 150, lucroBrl: 30, margemPercent: 20, removida: false, faturavel: true,
+  formaPagamento: 'pix', vendedor: null, item: 'Dragão Azul +2', cliente: { id: 'c1', nickname: 'Ana', email: 'ana@x.com', carteira: null }, totalBrl: 150, lucroBrl: 30, margemPercent: 20, removida: false, faturavel: true,
 }
 
 async function setup(url = '/painel/vendas') {

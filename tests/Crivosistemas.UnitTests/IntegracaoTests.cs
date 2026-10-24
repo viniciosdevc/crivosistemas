@@ -152,6 +152,20 @@ public sealed class PayloadParserTests
         Assert.Equal("k", PayloadParser.ClienteUpsert(J("""{"chave":"k"}""")).Valor!.Nickname); // nickname cai para a chave
         Assert.False(PayloadParser.ClienteUpsert(J("{}")).Ok);
     }
+
+    [Fact]
+    public void Carteira_do_cliente_e_normalizada_e_opcional()
+    {
+        var end = "0xAbCdEf0123456789abcdef0123456789ABCDEF01";
+        Assert.Equal(end.ToLowerInvariant(), PayloadParser.ClienteUpsert(J($$"""{"chave":"k","carteira":"{{end}}"}""")).Valor!.Carteira);
+        Assert.Null(PayloadParser.ClienteUpsert(J("""{"chave":"k"}""")).Valor!.Carteira);
+        Assert.Null(PayloadParser.ClienteUpsert(J("""{"chave":"k","carteira":null}""")).Valor!.Carteira);
+        Assert.Null(PayloadParser.ClienteUpsert(J("""{"chave":"k","carteira":"0x123"}""")).Valor!.Carteira); // inválida: ignorada, evento aceito
+        var vendaJson = """{"origem":"nft","origem_id":"1","data_hora":"2026-01-01T00:00:00Z","status":"x","status_normalizado":"concluido","atualizado_em":"2026-01-01T00:00:00Z","cliente":{"chave":"k","carteira":"CART"},"itens":[],"valores":{}}""".Replace("CART", end);
+        Assert.Equal(end.ToLowerInvariant(), PayloadParser.VendaUpsert(J(vendaJson)).Valor?.Cliente?.Carteira);
+        Assert.Equal(end.ToLowerInvariant(), ImportacaoMapper.Cliente(J($$"""{"nickname":"ana","carteira":"{{end}}"}""")).Valor!.Carteira);
+        Assert.Null(ImportacaoMapper.Cliente(J("""{"nickname":"ana","carteira":"texto livre"}""")).Valor!.Carteira);
+    }
 }
 
 public sealed class RegraUpsertTests

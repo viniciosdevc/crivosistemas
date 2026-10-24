@@ -91,6 +91,8 @@ public class Cliente : Entity
     public required string Nickname { get; set; }
     public string? Email { get; set; }
     public string? IdentidadeId { get; set; }
+    /// <summary>Endereço da carteira (0x…, minúsculas, Immutable zkEVM), se a origem informou.</summary>
+    public string? Carteira { get; set; }
     /// <summary>Quando o cliente nasceu na origem (se informado).</summary>
     public DateTime? CriadoEmOrigem { get; set; }
     public DateTime CriadoEm { get; set; } = DateTime.UtcNow;

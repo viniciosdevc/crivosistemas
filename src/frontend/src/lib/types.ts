@@ -38,6 +38,8 @@ export interface ClienteResumo {
   id: string
   nickname: string
   email: string | null
+  /** Endereço 0x… (minúsculas) ou null. */
+  carteira: string | null
 }
 
 export interface VendaLista {
@@ -182,6 +184,7 @@ export interface ClienteLista {
   id: string
   nickname: string
   email: string | null
+  carteira: string | null
   totalGasto: number
   compras: number
   ultimaCompra: string | null
@@ -418,4 +421,31 @@ export interface ResultadoImportacaoEstoque {
 /** GET /api/vendas/imagens: URL absoluta da imagem por nome de item, ou null. */
 export interface ImagensItens {
   imagens: Record<string, string | null>
+}
+
+// ── Câmbios ─────────────────────────────────────────────────────────────────
+
+export type TipoMovimentoCambios = 'venda' | 'venda_manual' | 'ajuste' | 'estorno'
+
+export interface ResumoCambios {
+  saldo: number
+  totalVendidoQuantidade: number
+  totalVendidoBrl: number
+}
+
+export interface MovimentoCambios {
+  id: string
+  tipo: TipoMovimentoCambios
+  /** Positivo entra, negativo sai. */
+  quantidade: number
+  saldoAnterior: number
+  saldoNovo: number
+  valorBrl: number | null
+  clienteId: string | null
+  nickname: string | null
+  vendaId: string | null
+  estornado: boolean
+  observacao: string | null
+  usuario: string | null
+  dataHora: string
 }

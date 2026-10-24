@@ -217,4 +217,36 @@ public sealed class IntegracoesTests(ApiFactory factory)
         Assert.NotEqual(JsonValueKind.Null, s.GetProperty("ultimoEventoRecebidoEm").ValueKind);
         Assert.NotEmpty(s.GetProperty("ultimosErros").EnumerateArray());
     }
+
+    [Fact]
+    public async Task Cliente_com_carteira_e_gravado_buscavel_e_null_nao_apaga()
+    {
+        var maquina = factory.Maquina();
+        var chave = "carteira-" + Id();
+        var enderecoMaiusculo = "0xAbCdEf" + Guid.NewGuid().ToString("N")[..30] + "0123";
+        var endereco = enderecoMaiusculo.ToLowerInvariant();
+        object Cliente(string? carteira) => new { chave, nickname = "Cli " + chave[^6..], email = (string?)null, identidade_id = (string?)null, carteira, criado_em = "2026-01-01T00:00:00Z" };
+
+        Assert.Equal(HttpStatusCode.OK, (await maquina.Enviar(CrivoHelpers.Evento("cliente.upsert", Cliente(enderecoMaiusculo)))).Status);
+
+        var admin = await factory.SeedAndLoginAdminAsync();
+        var lista = await (await admin.GetAsync($"/api/clientes?busca={endereco[..20]}")).Json();
+        var cli = Assert.Single(lista.GetProperty("items").EnumerateArray());
+        Assert.Equal(endereco, cli.GetProperty("carteira").GetString());
+        var id = cli.GetProperty("id").GetGuid();
+
+        // Evento seguinte sem carteira (ou com valor que não é endereço) não apaga a conhecida.
+        Assert.Equal(HttpStatusCode.OK, (await maquina.Enviar(CrivoHelpers.Evento("cliente.upsert", Cliente(null)))).Status);
+        Assert.Equal(HttpStatusCode.OK, (await maquina.Enviar(CrivoHelpers.Evento("cliente.upsert", Cliente("lixo")))).Status);
+        var det = await (await admin.GetAsync($"/api/clientes/{id}")).Json();
+        Assert.Equal(endereco, det.GetProperty("cliente").GetProperty("carteira").GetString());
+
+        // A venda desse cliente mostra a carteira e é achada por ela.
+        var oid = Id();
+        var venda = CrivoHelpers.Venda(oid, DateTime.UtcNow.AddDays(-1), 80m, nick: chave);
+        Assert.Equal(HttpStatusCode.OK, (await maquina.Enviar(CrivoHelpers.Evento("venda.upsert", venda))).Status);
+        var vendas = await (await admin.GetAsync($"/api/vendas?busca={endereco[..20]}")).Json();
+        var v = Assert.Single(vendas.GetProperty("items").EnumerateArray());
+        Assert.Equal(endereco, v.GetProperty("cliente").GetProperty("carteira").GetString());
+    }
 }
