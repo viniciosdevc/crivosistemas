@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowDown, ArrowUp, Layers, Plus, RefreshCw, Send, TriangleAlert } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import HabboPanel from '@/components/admin/nfts/HabboPanel.vue'
 import NewCollectionModal from '@/components/admin/nfts/NewCollectionModal.vue'
 import DataTable, { type Column } from '@/components/ui/DataTable.vue'
 import PageCard from '@/components/ui/PageCard.vue'
@@ -19,10 +20,11 @@ import { toast } from '@/lib/toast'
 import type { NftCatalogo, NftColecao, NftItem, Precificacao } from '@/lib/types'
 import { useAsync } from '@/lib/useAsync'
 
-const tab = ref<'precos' | 'colecoes'>('precos')
+const tab = ref<'precos' | 'colecoes' | 'habbo'>('precos')
 const tabs = computed(() => [
   { value: 'precos' as const, label: 'Preços', count: data.value?.mudaram || null },
   { value: 'colecoes' as const, label: 'Coleções' },
+  { value: 'habbo' as const, label: 'Habbo' },
 ])
 
 const categoria = ref('')
@@ -197,6 +199,8 @@ const colColumns: Column[] = [
         </DataTable>
       </template>
     </template>
+
+    <HabboPanel v-else-if="tab === 'habbo'" />
 
     <template v-else>
       <UiEmptyState v-if="colecoes.error.value && !colecoes.data.value" :icon="TriangleAlert" title="Não foi possível carregar as coleções" :description="colecoes.error.value.message">

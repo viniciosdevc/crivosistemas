@@ -16,6 +16,12 @@ public sealed record NovaColecaoRequest(
     [RegularExpression("^(0x[0-9a-fA-F]{40})?$", ErrorMessage = "O contrato deve ser um endereço 0x com 40 hexadecimais.")] string? ContratoOverride,
     [Range(1, 500, ErrorMessage = "As posições devem ficar entre 1 e 500.")] int? TotalPosicoes);
 
+public sealed record EnviarHabboRequest(Guid? DestinoId);
+public sealed record ConfigHabboRequest(
+    string? Hotel,
+    [RegularExpression(@"^\d{0,19}$", ErrorMessage = "Use o número do quarto (só dígitos).")] string? RoomId,
+    bool? EnvioAutomatico);
+
 /// <summary>Catálogo de NFTs e coleções da loja. Os dados moram no crivonft: aqui é o painel, que repassa as chamadas assinadas e audita o que muda.</summary>
 public static class NftsEndpoints
 {
@@ -31,6 +37,10 @@ public static class NftsEndpoints
             .WithSummary("Até 8 NFTs do catálogo pelo nome (?q=), com imagem e custo em USD, para a busca rápida.");
         g.MapPost("/atualizar", AtualizarNfts).WithSummary("Pede ao crivonft para atualizar o catálogo (ou reindexar) em segundo plano.");
         g.MapGet("/colecoes", ListarColecoes).WithSummary("Coleções cadastradas no crivonft.");
+        g.MapGet("/habbo", HabboEstado).WithSummary("Integração do crivonft com a Web API do Habbo: chaves, quarto, destinos e últimos envios.");
+        g.MapPost("/habbo/testar", HabboTestar).WithSummary("Pede ao crivonft para testar a conexão com a Web API do Habbo.");
+        g.MapPost("/habbo/enviar", HabboEnviar).WithSummary("Pede ao crivonft para enviar os preços ao quarto do Habbo (um destino ou todos os ativos).");
+        g.MapPut("/habbo/config", HabboConfig).WithSummary("Altera hotel, quarto e envio automático da integração Habbo no crivonft.");
         g.MapPost("/colecoes", CriarColecao).WithSummary("Cadastra uma coleção no crivonft.");
     }
 
@@ -95,6 +105,32 @@ public static class NftsEndpoints
         var (r, ok) = await Chamar(o, crivonft, HttpMethod.Post, "/api/integracoes/gestao/nfts/colecoes", corpo, ct, StatusCodes.Status201Created);
         if (!ok) return r;
         db.Audit(http, "nfts.colecao_cadastrada", "Nfts", null, new { corpo.nome, corpo.categoria });
+        await db.SaveChangesAsync(ct);
+        return r;
+    }
+
+    private const string RotaHabbo = "/api/integracoes/gestao/habbo";
+
+    private static async Task<IResult> HabboEstado(IOptions<CrivonftOptions> o, ICrivonftClient crivonft, CancellationToken ct) =>
+        (await Chamar(o, crivonft, HttpMethod.Get, RotaHabbo, null, ct)).Resultado;
+
+    private static async Task<IResult> HabboTestar(IOptions<CrivonftOptions> o, ICrivonftClient crivonft, CancellationToken ct) =>
+        (await Chamar(o, crivonft, HttpMethod.Post, RotaHabbo, new { acao = "testar" }, ct)).Resultado;
+
+    private static async Task<IResult> HabboEnviar([FromBody] EnviarHabboRequest? req, AppDbContext db, IOptions<CrivonftOptions> o, ICrivonftClient crivonft, HttpContext http, CancellationToken ct)
+    {
+        var (r, ok) = await Chamar(o, crivonft, HttpMethod.Post, RotaHabbo, new { acao = "enviar", destinoId = req?.DestinoId }, ct);
+        if (!ok) return r;
+        db.Audit(http, "nfts.habbo_envio", "Nfts", null, new { destinoId = req?.DestinoId });
+        await db.SaveChangesAsync(ct);
+        return r;
+    }
+
+    private static async Task<IResult> HabboConfig([FromBody] ConfigHabboRequest req, AppDbContext db, IOptions<CrivonftOptions> o, ICrivonftClient crivonft, HttpContext http, CancellationToken ct)
+    {
+        var (r, ok) = await Chamar(o, crivonft, HttpMethod.Post, RotaHabbo, new { acao = "config", hotel = req.Hotel, roomId = req.RoomId, envioAutomatico = req.EnvioAutomatico }, ct);
+        if (!ok) return r;
+        db.Audit(http, "nfts.habbo_config", "Nfts", null, new { req.Hotel, req.RoomId, req.EnvioAutomatico });
         await db.SaveChangesAsync(ct);
         return r;
     }

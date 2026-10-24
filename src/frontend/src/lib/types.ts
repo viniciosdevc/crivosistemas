@@ -640,3 +640,28 @@ export interface OnlineAgora {
   clientes: { nickname: string; pagina: string; pais: string | null; regiao: string | null; cidade: string | null; desde: string }[]
   pontos: { pais: string; regiao: string; cidade: string; latitude: number | null; longitude: number | null; qtd: number }[]
 }
+
+// ── Habbo (Web API, via crivonft) ───────────────────────────────────────────
+
+export interface HabboDestino { id: string; nome: string; tipo: 'colecao' | 'furnis'; ativo: boolean; variavelId: string; variavelPreco: string }
+export interface HabboEnvio {
+  id: string
+  destino: string
+  origem: 'automatico' | 'manual'
+  status: 'executando' | 'ok' | 'parcial' | 'erro'
+  itens: number
+  gravados: number
+  iguais: number
+  falhas: number
+  semPiso: number
+  detalhe: string | null
+  iniciadoEm: string
+  concluidoEm: string | null
+}
+export interface HabboEstado {
+  chaves: { leitura: boolean; escrita: boolean }
+  config: { hotel: string; roomId: string | null; envioAutomatico: boolean }
+  destinos: HabboDestino[]
+  envios: HabboEnvio[]
+}
+
