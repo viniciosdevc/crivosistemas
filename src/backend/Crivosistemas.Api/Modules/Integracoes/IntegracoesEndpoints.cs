@@ -41,7 +41,27 @@ public static class IntegracoesEndpoints
         admin.MapPost("/eventos/{id:guid}/reprocessar", Reprocessar).WithSummary("Reaplica um evento gravado.");
         admin.MapGet("/reconciliacoes", ListarReconciliacoes).WithSummary("Últimas execuções de reconciliação.");
         admin.MapPost("/reconciliacoes", Reconciliar).WithSummary("Pede uma reconciliação de um período (o Worker executa).");
+        admin.MapGet("/vendas-manuais", StatusVendasManuais).WithSummary("Envio das vendas manuais ao crivonft: quantas por estado e os últimos erros.");
+        admin.MapPost("/vendas-manuais/reenviar", ReenviarVendasManuais).WithSummary("Recoloca todas as vendas manuais na fila de envio ao crivonft (carga inicial ou depois de uma falha).");
         admin.MapPost("/importar-historico", ImportarHistorico).WithSummary("Carga inicial: pede ao crivonft o reenvio de todo o histórico desde uma data (o Worker executa, em janelas de 1 mês).");
+    }
+
+    // ── vendas manuais → crivonft ───────────────────────────────────────────
+
+    private static async Task<IResult> StatusVendasManuais(AppDbContext db, CancellationToken ct)
+    {
+        var porEstado = await db.VendaEnvios.GroupBy(x => x.Estado).Select(g => new { g.Key, N = g.Count() }).ToListAsync(ct);
+        var erros = await db.VendaEnvios.Where(x => x.UltimoErro != null && x.Estado != EstadoEnvio.Enviado).OrderByDescending(x => x.UltimaTentativaEm).Take(10)
+            .Select(x => new { x.VendaId, estado = x.Estado.ToString().ToLower(), x.Tentativas, x.UltimoStatusHttp, x.UltimoErro }).ToListAsync(ct);
+        return Results.Ok(new { porEstado = porEstado.ToDictionary(x => x.Key.ToString().ToLower(), x => x.N), ultimosErros = erros });
+    }
+
+    private static async Task<IResult> ReenviarVendasManuais(HttpContext http, AppDbContext db, VendaEnvioService envio, CancellationToken ct)
+    {
+        var n = await envio.EnfileirarTodasAsync(ct);
+        db.Audit(http, "integracoes.vendas_manuais_reenviadas", "Venda", null, new { vendas = n });
+        await db.SaveChangesAsync(ct);
+        return Results.Ok(new { enfileiradas = n });
     }
 
     // ── recepção ────────────────────────────────────────────────────────────

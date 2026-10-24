@@ -13,5 +13,6 @@ builder.Services.AddHostedService<TokenCleanupJob>();
 builder.Services.AddEmailDispatcher();
 builder.Services.AddHostedService<ReconciliacaoJob>();
 builder.Services.AddHostedService<PrecificacaoEnvioJob>();
+builder.Services.AddHostedService<VendaEnvioJob>();
 
 builder.Build().Run();

@@ -63,6 +63,7 @@ public static class DependencyInjection
         services.AddScoped<Cambios.CambiosService>();
         services.AddScoped<Posicao.PosicaoService>();
         services.AddScoped<PrecificacaoEnvioService>();
+        services.AddScoped<VendaEnvioService>();
         return services;
     }
 
