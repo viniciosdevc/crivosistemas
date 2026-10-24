@@ -5,6 +5,7 @@ using Crivosistemas.Api.Common;
 using Crivosistemas.Api.Modules.Auth;
 using Crivosistemas.Api.Modules.Cambios;
 using Crivosistemas.Api.Modules.Clientes;
+using Crivosistemas.Api.Modules.Convites;
 using Crivosistemas.Api.Modules.Estoque;
 using Crivosistemas.Api.Modules.Financeiro;
 using Crivosistemas.Api.Modules.Integracoes;
