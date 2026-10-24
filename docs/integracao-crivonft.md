@@ -117,3 +117,6 @@ Caminho completo (crivonft com o PR #118): `POST {BaseUrl}/api/integracoes/gesta
 
 ### Regras de preço
 Salvar em `PUT /api/precificacao` grava a nova versão, o histórico e uma linha no outbox. O Worker envia o corpo da seção 3 assinado, com backoff de 5 s dobrando até 1 h (máximo de 20 tentativas); `401/403/408/429`, `5xx` e falha de rede repetem, os demais `4xx` encerram o envio como `falhou` (use `POST /api/precificacao/reenviar` depois de corrigir). Um envio novo substitui os pendentes. `POST /api/precificacao/importar-crivonft` lê `GET /api/integracoes/gestao/precificacao` na primeira vez.
+
+## Convites da loja (gestão → crivonft)
+`GET|POST {crivonft}/api/integracoes/gestao/convites` (mesma autenticação). GET devolve `{ links, nicks }`; POST recebe `{ acao: "criar_link" | "convidar_nick" | "revogar_link" | "revogar_nick", nota?, nickname?, id? }`. `criar_link` devolve a `url` (o token só existe nessa resposta). A tela **Loja → Convites** do painel (`/api/convites`, só admin) usa essa rota; a nota leva o nome de quem convidou.
