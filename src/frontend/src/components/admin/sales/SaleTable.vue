@@ -10,7 +10,7 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiEmptyState from '@/components/ui/UiEmptyState.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import { habboAvatarUrl } from '@/lib/habbo'
-import { formatDate, formatMoney, formatTime } from '@/lib/format'
+import { formatDate, formatInt, formatMoney, formatTime } from '@/lib/format'
 import { carregarImagens, imagemDoItem, nomeBaseItem } from '@/lib/imagens'
 import { statusVenda } from '@/lib/labels'
 import type { VendaLista } from '@/lib/types'
@@ -50,6 +50,10 @@ const sortColumn = computed(() => (props.sort ? (reverse[props.sort] ?? props.so
 
 // Imagens dos itens em lote, só dos nomes ainda não vistos.
 watch(() => props.rows, (rows) => void carregarImagens((rows ?? []).map((r) => r.item)), { immediate: true })
+// Vendas antigas sem os valores separados: pix/sem forma mostram o total em PIX.
+const pixBrl = (v: VendaLista) => (v.valorPixBrl > 0 ? v.valorPixBrl : v.formaPagamento === 'pix' || !v.formaPagamento ? v.totalBrl : 0)
+// R$ equivalente ao que foi cobrado em câmbios: o total menos a parte em PIX.
+const cambiosBrl = (v: VendaLista) => Math.max(v.totalBrl - v.valorPixBrl, 0)
 const tituloItem = (v: VendaLista) => v.item ?? `Venda ${v.origemId.slice(0, 8)}`
 const nomeImagem = (v: VendaLista) => nomeBaseItem(v.item) ?? tituloItem(v)
 </script>
@@ -96,14 +100,18 @@ const nomeImagem = (v: VendaLista) => nomeBaseItem(v.item) ?? tituloItem(v)
       <span v-else class="text-faint">Sem cliente</span>
     </template>
     <template #cell-pix="{ row }">
-      <template v-if="row.formaPagamento === 'pix' || row.formaPagamento === 'hibrido' || !row.formaPagamento">
-        <span class="font-medium whitespace-nowrap text-ink tabular">{{ formatMoney(row.totalBrl) }}</span>
-        <span v-if="row.formaPagamento === 'hibrido'" class="block text-xs text-muted">híbrido (total)</span>
+      <template v-if="pixBrl(row) > 0">
+        <span class="font-medium whitespace-nowrap text-ink tabular">{{ formatMoney(pixBrl(row)) }}</span>
+        <span v-if="row.formaPagamento === 'hibrido'" class="block text-xs text-muted">híbrido</span>
       </template>
       <span v-else class="text-faint">—</span>
     </template>
     <template #cell-cambios="{ row }">
-      <span v-if="row.formaPagamento === 'cambios'" class="font-medium whitespace-nowrap text-ink tabular">{{ formatMoney(row.totalBrl) }}</span>
+      <template v-if="row.valorCambios > 0">
+        <span class="font-medium whitespace-nowrap text-ink tabular">{{ formatInt(row.valorCambios) }} C</span>
+        <span class="block text-xs whitespace-nowrap text-muted tabular">{{ formatMoney(cambiosBrl(row)) }}</span>
+      </template>
+      <span v-else-if="row.formaPagamento === 'cambios'" class="font-medium whitespace-nowrap text-ink tabular">{{ formatMoney(row.totalBrl) }}</span>
       <span v-else class="text-faint">—</span>
     </template>
     <template #cell-status="{ row }"><StatusBadge :map="statusVenda" :value="row.statusNormalizado" /></template>

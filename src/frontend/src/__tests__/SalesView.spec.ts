@@ -14,7 +14,7 @@ vi.mock('@/lib/api', async (orig) => ({
 
 const venda: VendaLista = {
   id: 'v1', origem: 'nft', origemId: 'o-1', pedidoId: '1001', dataHora: '2026-10-22T15:00:00Z', dia: '2026-10-22', status: 'paid', statusNormalizado: 'pago',
-  formaPagamento: 'pix', vendedor: null, item: 'Dragão Azul +2', cliente: { id: 'c1', nickname: 'Ana', email: 'ana@x.com', carteira: null }, totalBrl: 150, lucroBrl: 30, margemPercent: 20, removida: false, faturavel: true,
+  formaPagamento: 'pix', vendedor: null, item: 'Dragão Azul +2', cliente: { id: 'c1', nickname: 'Ana', email: 'ana@x.com', carteira: null }, totalBrl: 150, lucroBrl: 30, margemPercent: 20, removida: false, faturavel: true, valorPixBrl: 150, valorCambios: 0,
 }
 
 const subtotal = { quantidade: 14, totalBrl: 900, lucroBrl: 120 }
@@ -56,6 +56,14 @@ describe('SalesView', () => {
     expect(sub).toContain('14 vendas')
     expect(sub).toContain('R$ 900,00')
     expect(sub).toContain('R$ 120,00')
+  })
+
+  it('mostra câmbios cobrados com o R$ equivalente embaixo', async () => {
+    get.mockResolvedValue({ items: [{ ...venda, formaPagamento: 'cambios', valorPixBrl: 0, valorCambios: 415, totalBrl: 5.4 }], page: 1, pageSize: 6, total: 1, subtotal })
+    const { wrapper } = await setup()
+    const row = wrapper.get('tbody tr').text()
+    expect(row).toContain('415 C')
+    expect(row).toContain('R$ 5,40')
   })
 
   it('aplica na API os filtros que vêm da URL', async () => {

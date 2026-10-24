@@ -10,7 +10,7 @@ namespace Crivosistemas.Api.Modules.Vendas;
 
 public sealed record ClienteResumoDto(Guid Id, string Nickname, string? Email, string? Carteira);
 public sealed record VendaListaDto(Guid Id, string Origem, string OrigemId, string? PedidoId, DateTime DataHora, DateOnly Dia, string Status, string StatusNormalizado,
-    string? FormaPagamento, string? Vendedor, ClienteResumoDto? Cliente, decimal TotalBrl, decimal LucroBrl, decimal MargemPercent, bool Removida, bool Faturavel, string? Item);
+    string? FormaPagamento, string? Vendedor, ClienteResumoDto? Cliente, decimal TotalBrl, decimal LucroBrl, decimal MargemPercent, bool Removida, bool Faturavel, string? Item, decimal ValorPixBrl, decimal ValorCambios);
 /// <summary>Soma de todas as vendas faturáveis (pagas/concluídas, não removidas) do filtro, em todas as páginas.</summary>
 public sealed record SubtotalVendasDto(int Quantidade, decimal TotalBrl, decimal LucroBrl);
 public sealed record VendasPaginaDto(IReadOnlyList<VendaListaDto> Items, int Page, int PageSize, int Total, SubtotalVendasDto Subtotal);
@@ -49,7 +49,7 @@ public static class VendasEndpoints
     internal static VendaListaDto ToLista(Venda v) => new(v.Id, Nomes.Origem(v.Origem), v.OrigemId, v.PedidoId, v.DataHora, FusoSp.Dia(v.DataHora), v.Status,
         Nomes.Status(v.StatusNormalizado), v.FormaPagamento is { } f ? Nomes.Forma(f) : null, v.Vendedor,
         v.Cliente is null ? null : new ClienteResumoDto(v.Cliente.Id, v.Cliente.Nickname, v.Cliente.Email, v.Cliente.Carteira),
-        v.TotalBrl, v.LucroBrl, v.MargemPercent, v.Removida, v.Faturavel, NomeItem(v));
+        v.TotalBrl, v.LucroBrl, v.MargemPercent, v.Removida, v.Faturavel, NomeItem(v), v.ValorPixBrl, v.ValorCambios);
 
     /// <summary>Nome para identificar a venda: o primeiro item e "+N" quando houver mais. Null se os itens não foram carregados.</summary>
     internal static string? NomeItem(Venda v)

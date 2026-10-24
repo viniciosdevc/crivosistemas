@@ -68,6 +68,9 @@ export interface VendaLista {
   cliente: ClienteResumo | null
   /** Nome do primeiro item ("+N" se houver mais). */
   item: string | null
+  /** Parte paga em PIX (R$) e em câmbios (quantidade de C); 0 quando não houve. */
+  valorPixBrl: number
+  valorCambios: number
   totalBrl: number
   lucroBrl: number
   margemPercent: number
