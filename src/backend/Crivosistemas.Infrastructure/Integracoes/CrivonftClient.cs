@@ -41,6 +41,8 @@ public interface ICrivonftClient
     Task<ReenvioResposta> ReenviarPeriodoAsync(DateOnly de, DateOnly ate, CancellationToken ct);
     Task<PrecificacaoContrato.PayloadDto> LerPrecificacaoAsync(CancellationToken ct);
     Task<EnvioResposta> EnviarPrecificacaoAsync(string corpoJson, CancellationToken ct);
+    /// <summary>Convites da loja (<c>/api/integracoes/gestao/convites</c>): GET lista (corpo null), POST executa uma ação. Devolve o JSON do crivonft; qualquer não-2xx lança <see cref="CrivonftException"/>.</summary>
+    Task<string> ConvitesAsync(string? corpoJson, CancellationToken ct);
 }
 
 public sealed class CrivonftClient(HttpClient http, IOptions<CrivonftOptions> options) : ICrivonftClient
@@ -159,6 +161,15 @@ public sealed class CrivonftClient(HttpClient http, IOptions<CrivonftOptions> op
             catch (JsonException) { /* corpo fora do padrão: o status 2xx basta */ }
         }
         return new EnvioResposta(status, aplicada, versao, corpo);
+    }
+
+    public async Task<string> ConvitesAsync(string? corpoJson, CancellationToken ct)
+    {
+        ExigirEnvio();
+        using var req = Assinada(corpoJson is null ? HttpMethod.Get : HttpMethod.Post, "/api/integracoes/gestao/convites", corpoJson is null ? [] : Encoding.UTF8.GetBytes(corpoJson));
+        var (status, corpo) = await EnviarAsync(req, ct);
+        if (status is < 200 or >= 300) throw new CrivonftException($"O crivonft respondeu {status} em /api/integracoes/gestao/convites: {Resumo(corpo)}", status);
+        return corpo;
     }
 
     private void ExigirEnvio()

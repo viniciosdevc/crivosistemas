@@ -170,6 +170,7 @@ app.MapFinanceiroEndpoints();
 app.MapCambiosEndpoints();
 app.MapClientesEndpoints();
 app.MapPrecificacaoEndpoints();
+app.MapConvitesEndpoints();
 
 await app.RunAsync();
 return 0;

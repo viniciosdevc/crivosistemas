@@ -90,6 +90,14 @@ public sealed class FakeCrivonftClient : Crivosistemas.Infrastructure.Integracoe
     public Task<Crivosistemas.Domain.Precificacao.PrecificacaoContrato.PayloadDto> LerPrecificacaoAsync(CancellationToken ct) =>
         Task.FromResult(Remota ?? throw new Crivosistemas.Infrastructure.Integracoes.CrivonftException("sem estado remoto", 404));
 
+    public List<string?> Convites { get; } = [];
+
+    public Task<string> ConvitesAsync(string? corpoJson, CancellationToken ct)
+    {
+        Convites.Add(corpoJson);
+        return Task.FromResult(corpoJson is null ? "{\"links\":[],\"nicks\":[]}" : "{\"ok\":true,\"url\":\"https://loja.test/convite/abc\"}");
+    }
+
     public Task<Crivosistemas.Infrastructure.Integracoes.EnvioResposta> EnviarPrecificacaoAsync(string corpoJson, CancellationToken ct)
     {
         Enviados.Add(corpoJson);

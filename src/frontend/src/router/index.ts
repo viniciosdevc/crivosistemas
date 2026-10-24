@@ -23,7 +23,8 @@ const admin: RouteRecordRaw[] = [
   { path: 'estoque', name: 'stock', component: () => import('@/views/admin/StockView.vue'), meta: { section: 'Comercial', title: 'Estoque' } },
   { path: 'cambios', name: 'cambios', component: () => import('@/views/admin/CambiosView.vue'), meta: { section: 'Comercial', title: 'Venda de Câmbios' } },
   { path: 'financeiro', name: 'finance', component: () => import('@/views/admin/FinanceView.vue'), meta: { section: 'Gestão', title: 'Financeiro', adminOnly: true } },
-  { path: 'precos', name: 'pricing', component: () => import('@/views/admin/PricingView.vue'), meta: { section: 'Configurações', title: 'Preços e regras', adminOnly: true } },
+  { path: 'convites', name: 'invites', component: () => import('@/views/admin/ConvitesView.vue'), meta: { section: 'Gestão', title: 'Convites', adminOnly: true } },
+  { path: 'precos', name: 'pricing', component: () => import('@/views/admin/PricingView.vue'), meta: { section: 'Gestão', title: 'Preços e regras', adminOnly: true } },
   { path: 'integracoes', name: 'integrations', component: () => import('@/views/admin/IntegrationsView.vue'), meta: { section: 'Configurações', title: 'Integrações', adminOnly: true } },
   { path: 'usuarios', name: 'users', component: () => import('@/views/admin/users/UsersView.vue'), meta: { section: 'Administração', title: 'Usuários', adminOnly: true } },
 ]
