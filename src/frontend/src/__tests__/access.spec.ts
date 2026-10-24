@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { heat, toMapPoints, totalsByCountry } from '@/lib/access'
+import { heat, onlineToMapPoints, pageLabel, toMapPoints, totalsByCountry } from '@/lib/access'
 import type { AcessoLocal } from '@/lib/types'
 
 const locais: AcessoLocal[] = [
@@ -22,5 +22,11 @@ describe('acessos por local', () => {
     expect(heat(0, 10)).toBe(0)
     expect(heat(10, 10)).toBe(1)
     expect(heat(1, 0)).toBe(0)
+  })
+  it('posiciona quem está online e nomeia a página', () => {
+    const pts = onlineToMapPoints([{ pais: 'PT', regiao: '', cidade: '', latitude: null, longitude: null, qtd: 3 }])
+    expect(pts[0]?.acessos).toBe(3)
+    expect(pageLabel('/clothes/Cartola', { clothes: 'Roupas' })).toBe('Cartola (Roupas)')
+    expect(pageLabel('/ranking', {})).toBe('/ranking')
   })
 })

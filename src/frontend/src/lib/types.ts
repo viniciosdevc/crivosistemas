@@ -627,3 +627,11 @@ export interface ResumoAcessos {
   itens: { categoria: string; item: string; visualizacoes: number; carrinho: number; desejo: number }[]
   clientes: AcessoCliente[]
 }
+
+export interface OnlineAgora {
+  total: number
+  /** Visitantes sem conta conectada: só contagem. */
+  anonimos: number
+  clientes: { nickname: string; pagina: string; pais: string | null; regiao: string | null; cidade: string | null; desde: string }[]
+  pontos: { pais: string; regiao: string; cidade: string; latitude: number | null; longitude: number | null; qtd: number }[]
+}

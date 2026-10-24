@@ -1,5 +1,5 @@
 import { countryCentroids } from './countryCentroids'
-import type { AcessoLocal } from './types'
+import type { AcessoLocal, OnlineAgora } from './types'
 
 export interface CountryTotal { pais: string; nome: string; acessos: number }
 export interface MapPoint { lat: number; lng: number; acessos: number; label: string; pais: string }
@@ -48,4 +48,25 @@ export function toMapPoints(locais: AcessoLocal[]): MapPoint[] {
 /** Destaque 0..1 de um valor entre 0 e o máximo, em escala de raiz para os menores não sumirem. */
 export function heat(value: number, max: number) {
   return max > 0 ? Math.sqrt(value / max) : 0
+}
+
+/** Pontos de quem está online agora (mesma regra de posição dos acessos: cidade, ou centro do país). */
+export function onlineToMapPoints(pontos: OnlineAgora['pontos']): MapPoint[] {
+  return toMapPoints(pontos.map((p) => ({ ...p, acessos: p.qtd })))
+}
+
+/** "/clothes/Cartola" → "Cartola (Roupas)"; páginas fixas ficam como o caminho. */
+export function pageLabel(path: string, categories: Record<string, string>) {
+  const [, cat, item] = path.split('/')
+  if (cat && item) return `${decodeURIComponentSafe(item)} (${categories[cat] ?? cat})`
+  if (cat && categories[cat]) return categories[cat]
+  return path || '/'
+}
+
+function decodeURIComponentSafe(v: string) {
+  try {
+    return decodeURIComponent(v)
+  } catch {
+    return v
+  }
 }

@@ -32,3 +32,17 @@ describe('api: mensagens de erro', () => {
     expect(e.code).toBe('updating')
   })
 })
+
+describe('erro de gateway (Cloudflare/nginx)', () => {
+  it('troca o texto cru da Cloudflare por uma mensagem útil', async () => {
+    vi.useFakeTimers()
+    respond(520, { title: 'Error 520', detail: 'The origin web server returned an invalid or incomplete response to Cloudflare.' })
+    const result = failure(api.get('/api/acessos'))
+    await vi.runAllTimersAsync()
+    const e = await result
+    vi.useRealTimers()
+    expect(e.status).toBe(520)
+    expect(e.message).toContain('reiniciando')
+    expect(e.message).not.toContain('Cloudflare')
+  })
+})
