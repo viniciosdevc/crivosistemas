@@ -527,3 +527,46 @@ export interface PosicaoDiaria {
   criadoPorNome: string | null
   atualizadoEm: string
 }
+
+// ── NFTs e coleções (dados do crivonft) ─────────────────────────────────────
+
+export interface NftCategoria { categoria: string; rotulo: string; total: number; atualizadoEm: string | null }
+export interface NftStatus {
+  estado: 'nunca_executado' | 'executando' | 'concluido' | 'erro'
+  itensTotal: number
+  aviso: string | null
+  iniciadoEm: string | null
+  concluidoEm: string | null
+}
+export interface NftItem {
+  categoria: string
+  nome: string
+  imagemUrl: string | null
+  raridade: string | null
+  custoUsd: number
+  precoVendaBrl: number
+  precoAnteriorBrl: number | null
+  anteriorEm: string | null
+  variacaoPercent: number | null
+  quantidade: number
+  atualizadoEm: string
+}
+export interface NftCatalogo {
+  status: NftStatus
+  mudaram: number
+  categorias: NftCategoria[]
+  page: number
+  pageSize: number
+  total: number
+  itens: NftItem[]
+}
+export interface NftColecao {
+  id: string
+  nome: string
+  categoria: string | null
+  contratoOverride: string | null
+  totalPosicoes: number
+  preenchidas: number
+  criadoEm: string
+}
+

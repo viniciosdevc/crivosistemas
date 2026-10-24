@@ -104,4 +104,13 @@ public sealed class FakeCrivonftClient : Crivosistemas.Infrastructure.Integracoe
         if (StatusDoPut == 0) throw new Crivosistemas.Infrastructure.Integracoes.CrivonftException("rede fora");
         return Task.FromResult(new Crivosistemas.Infrastructure.Integracoes.EnvioResposta(StatusDoPut, StatusDoPut is >= 200 and < 300, null, null));
     }
+
+    public List<(HttpMethod Metodo, string Caminho, string? Corpo)> ChamadasGestao { get; } = [];
+    public Crivosistemas.Infrastructure.Integracoes.GestaoResposta RespostaGestao { get; set; } = new(200, "{}");
+
+    public Task<Crivosistemas.Infrastructure.Integracoes.GestaoResposta> ChamarGestaoAsync(HttpMethod metodo, string caminho, object? corpo, CancellationToken ct)
+    {
+        ChamadasGestao.Add((metodo, caminho, corpo is null ? null : System.Text.Json.JsonSerializer.Serialize(corpo, System.Text.Json.JsonSerializerOptions.Web)));
+        return Task.FromResult(RespostaGestao);
+    }
 }

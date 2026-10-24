@@ -22,6 +22,12 @@ public sealed record ReenvioResposta(int Nft, int Cambios, int Site, bool Trunca
     public int Total => Nft + Cambios + Site;
 }
 
+/// <summary>Resposta crua de uma rota <c>/api/integracoes/gestao/*</c> do crivonft (status HTTP e corpo JSON como texto).</summary>
+public sealed record GestaoResposta(int StatusHttp, string Corpo)
+{
+    public bool Sucesso => StatusHttp is >= 200 and < 300;
+}
+
 public sealed class CrivonftException(string message, int? statusHttp = null, Exception? inner = null) : Exception(message, inner)
 {
     public int? StatusHttp { get; } = statusHttp;
@@ -43,6 +49,9 @@ public interface ICrivonftClient
     Task<EnvioResposta> EnviarPrecificacaoAsync(string corpoJson, CancellationToken ct);
     /// <summary>Convites da loja (<c>/api/integracoes/gestao/convites</c>): GET lista (corpo null), POST executa uma ação. Devolve o JSON do crivonft; qualquer não-2xx lança <see cref="CrivonftException"/>.</summary>
     Task<string> ConvitesAsync(string? corpoJson, CancellationToken ct);
+    /// <summary>Chama uma rota assinada da gestão (hoje: NFTs e coleções). <paramref name="caminho"/> inclui a query; <paramref name="corpo"/> é serializado em camelCase.
+    /// Falha de rede lança <see cref="CrivonftException"/>; qualquer status HTTP volta na resposta.</summary>
+    Task<GestaoResposta> ChamarGestaoAsync(HttpMethod metodo, string caminho, object? corpo, CancellationToken ct);
 }
 
 public sealed class CrivonftClient(HttpClient http, IOptions<CrivonftOptions> options) : ICrivonftClient
@@ -170,6 +179,15 @@ public sealed class CrivonftClient(HttpClient http, IOptions<CrivonftOptions> op
         var (status, corpo) = await EnviarAsync(req, ct);
         if (status is < 200 or >= 300) throw new CrivonftException($"O crivonft respondeu {status} em /api/integracoes/gestao/convites: {Resumo(corpo)}", status);
         return corpo;
+    }
+
+    public async Task<GestaoResposta> ChamarGestaoAsync(HttpMethod metodo, string caminho, object? corpo, CancellationToken ct)
+    {
+        ExigirEnvio();
+        var bytes = corpo is null ? [] : JsonSerializer.SerializeToUtf8Bytes(corpo, JsonSerializerOptions.Web);
+        using var req = Assinada(metodo, caminho, bytes);
+        var (status, resp) = await EnviarAsync(req, ct);
+        return new GestaoResposta(status, resp);
     }
 
     private void ExigirEnvio()

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
   Boxes, Calculator, HandCoins, ChartColumn, ChevronDown, Coins, KeyRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plug, Plus, ReceiptText, SlidersHorizontal, Sun, UserCog, Users, X,
-  Building2, ClipboardCheck, Mail, Wallet,
+  Building2, ClipboardCheck, Layers, Mail, Wallet,
 } from 'lucide-vue-next'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, ref, watch, type Component } from 'vue'
@@ -44,6 +44,7 @@ const groups: NavGroup[] = [
   {
     key: 'ativos', label: 'Ativos', icon: Boxes, items: [
       { label: 'Estoque', to: '/painel/estoque', icon: Boxes },
+      { label: 'NFTs', to: '/painel/nfts', icon: Layers, adminOnly: true },
     ],
   },
   {
