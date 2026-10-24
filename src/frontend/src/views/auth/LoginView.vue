@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { Fingerprint } from 'lucide-vue-next'
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import { ApiError } from '@/lib/api'
-import { passkeyErrorMessage, passkeysSupported } from '@/lib/passkey'
+import { passkeyErrorMessage, passkeysSupported, prepareLoginPasskey } from '@/lib/passkey'
 import { useAuthStore } from '@/stores/auth'
 import AuthShell from './AuthShell.vue'
 
@@ -18,6 +18,7 @@ const loading = ref(false)
 const ready = computed(() => form.email.includes('@') && form.password.length > 0)
 
 const passkeyLoading = ref(false)
+onMounted(() => { if (passkeysSupported()) prepareLoginPasskey() })
 
 function goNext() {
   // Só aceita destino dentro do painel: evita redirecionamento aberto.
@@ -33,6 +34,7 @@ async function submitPasskey() {
     goNext()
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : passkeyErrorMessage(e, 'Não foi possível entrar com a chave de acesso.')
+    prepareLoginPasskey() // o challenge anterior foi gasto; já deixa o próximo pronto
   } finally {
     passkeyLoading.value = false
   }
