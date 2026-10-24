@@ -64,4 +64,29 @@ public sealed class NftsTests(ApiFactory factory)
         Assert.Contains("publique a atualização", (await antigo.Body()).GetProperty("detail").GetString());
         f.RespostaGestao = new GestaoResposta(200, "{}");
     }
+
+    [Fact]
+    public async Task Habbo_repassa_estado_testar_enviar_e_config_so_para_admin()
+    {
+        var f = factory.Crivonft;
+        var admin = await factory.SeedAndLoginAdminAsync();
+        var operador = await factory.CreateAndLoginAsync(admin, "operator");
+        Assert.Equal(HttpStatusCode.Forbidden, (await operador.GetAsync("/api/nfts/habbo")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await operador.Post("/api/nfts/habbo/enviar", new { })).StatusCode);
+
+        f.ChamadasGestao.Clear();
+        f.RespostaGestao = new GestaoResposta(200, """{"chaves":{"leitura":true,"escrita":true},"destinos":[],"envios":[]}""");
+        Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync("/api/nfts/habbo")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await admin.Post("/api/nfts/habbo/testar")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await admin.Put("/api/nfts/habbo/config", new { roomId = "12345", envioAutomatico = false })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await admin.Put("/api/nfts/habbo/config", new { roomId = "r-hhes-1" })).StatusCode);
+        f.RespostaGestao = new GestaoResposta(202, """{"ok":true,"iniciado":2}""");
+        Assert.Equal(HttpStatusCode.Accepted, (await admin.Post("/api/nfts/habbo/enviar", new { })).StatusCode);
+
+        Assert.Equal(4, f.ChamadasGestao.Count);
+        Assert.Equal("""{"acao":"config","hotel":null,"roomId":"12345","envioAutomatico":false}""", f.ChamadasGestao[2].Corpo);
+        Assert.Equal("""{"acao":"enviar","destinoId":null}""", f.ChamadasGestao[3].Corpo);
+        f.RespostaGestao = new GestaoResposta(200, "{}");
+    }
 }
+
