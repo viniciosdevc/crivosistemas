@@ -3,6 +3,7 @@
 import { RefreshCw, TriangleAlert } from 'lucide-vue-next'
 import { computed, reactive, watch } from 'vue'
 import NewSaleForm from '@/components/admin/sales/NewSaleForm.vue'
+import NftSearch from '@/components/calculator/NftSearch.vue'
 import CalculatorPanel from '@/components/calculator/CalculatorPanel.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiChips from '@/components/ui/UiChips.vue'
@@ -13,7 +14,7 @@ import { api } from '@/lib/api'
 import type { RegrasPrecificacao, VendaLista } from '@/lib/types'
 import { useAsync } from '@/lib/useAsync'
 
-export type QuickTab = 'nft' | 'moedas' | 'venda'
+export type QuickTab = 'nft' | 'busca' | 'moedas' | 'venda'
 
 const open = defineModel<boolean>('open', { default: false })
 const tab = defineModel<QuickTab>('tab', { default: 'nft' })
@@ -21,11 +22,13 @@ const emit = defineEmits<{ created: [venda: VendaLista] }>()
 
 const tabs: { value: QuickTab; label: string }[] = [
   { value: 'nft', label: 'Calc NFT' },
+  { value: 'busca', label: 'Buscar NFT' },
   { value: 'moedas', label: 'Moedas' },
   { value: 'venda', label: 'Nova venda' },
 ]
 const heads: Record<QuickTab, { title: string; description: string }> = {
   nft: { title: 'Calculadora NFT', description: 'Custo e venda sugerida em Câmbios e PIX.' },
+  busca: { title: 'Buscar NFT', description: 'Digite o nome e veja foto, preços, lucro e margem.' },
   moedas: { title: 'Conversor de moedas', description: 'Converta entre dólar, real, câmbios e esmeraldas.' },
   venda: { title: 'Nova venda', description: 'Lance uma venda feita fora do site. O custo, o lucro e a margem são recalculados pelo servidor.' },
 }
@@ -64,7 +67,8 @@ function onCreated(venda: VendaLista) {
           <UiButton variant="secondary" @click="run"><RefreshCw class="size-4" /> Tentar de novo</UiButton>
         </UiEmptyState>
         <UiSkeleton v-else-if="!data" class="h-56" />
-        <CalculatorPanel v-else :mode="tab" :regras="data" />
+        <NftSearch v-else-if="tab === 'busca'" :regras="data" />
+        <CalculatorPanel v-else :mode="tab === 'moedas' ? 'moedas' : 'nft'" :regras="data" />
       </template>
 
       <NewSaleForm v-if="open && visited.venda" v-show="tab === 'venda'" @created="onCreated" @cancel="open = false" />

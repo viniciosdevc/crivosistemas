@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {
-  Boxes, Calculator, HandCoins, ChartColumn, ChevronDown, Coins, KeyRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plug, Plus, ReceiptText, SlidersHorizontal, Sun, UserCog, Users, X,
+  Boxes, Calculator, Search, HandCoins, ChartColumn, ChevronDown, Coins, KeyRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plug, Plus, ReceiptText, SlidersHorizontal, Sun, UserCog, Users, X,
   Building2, ClipboardCheck, Globe2, Layers, Mail, Wallet, ChartPie,
 } from 'lucide-vue-next'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
@@ -130,6 +130,9 @@ async function logout() {
       <div class="-mr-2 flex items-center">
         <button type="button" class="rounded-full p-2 text-ink hover:bg-surface-3" aria-label="Calculadora" @click="openQuick('nft')">
           <Calculator class="size-5" />
+        </button>
+        <button type="button" class="rounded-full p-2 text-ink hover:bg-surface-3" aria-label="Buscar NFT" @click="openQuick('busca')">
+          <Search class="size-5" />
         </button>
         <button type="button" class="rounded-full p-2 text-ink hover:bg-surface-3" aria-label="Moedas" @click="openQuick('moedas')">
           <Coins class="size-5" />
@@ -269,6 +272,9 @@ async function logout() {
         <div class="flex items-center gap-1">
           <button type="button" class="rounded-full p-2.5 text-ink hover:bg-surface-3" aria-label="Calculadora" title="Calculadora" @click="openQuick('nft')">
             <Calculator class="size-5" stroke-width="1.7" />
+          </button>
+          <button type="button" class="rounded-full p-2.5 text-ink hover:bg-surface-3" aria-label="Buscar NFT" title="Buscar NFT" @click="openQuick('busca')">
+            <Search class="size-5" stroke-width="1.7" />
           </button>
           <button type="button" class="rounded-full p-2.5 text-ink hover:bg-surface-3" aria-label="Moedas" title="Moedas" @click="openQuick('moedas')">
             <Coins class="size-5" stroke-width="1.7" />
