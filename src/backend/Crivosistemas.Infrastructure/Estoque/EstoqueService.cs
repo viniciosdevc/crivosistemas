@@ -3,6 +3,7 @@ using System.Text.Json;
 using Crivosistemas.Domain.Common;
 using Crivosistemas.Domain.Estoque;
 using Crivosistemas.Domain.Vendas;
+using Crivosistemas.Infrastructure.Financeiro;
 using Crivosistemas.Infrastructure.Integracoes;
 using Crivosistemas.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -16,7 +17,7 @@ public sealed record ResultadoImportacaoEstoque(int UsdImportados, int Esmeralda
 /// <summary>Estoque de dólar e de esmeraldas em lotes, com custo médio ponderado (mesmas regras do crivonft, src/lib/inventory.ts).
 /// Toda escrita deve rodar dentro de uma transação (InTransactionAsync) e chamar <see cref="TravarAsync"/> antes de ler saldos:
 /// a linha de configuração funciona como trava, então duas saídas simultâneas nunca gastam o mesmo saldo.</summary>
-public sealed class EstoqueService(AppDbContext db, ICrivonftClient crivonft)
+public sealed class EstoqueService(AppDbContext db, ICrivonftClient crivonft, FinanceiroService financeiro)
 {
     public static string Nome(TipoEstoque t) => t == TipoEstoque.Usd ? "usd" : "esmeraldas";
     public static bool TentarTipo(string? s, out TipoEstoque t)
@@ -84,6 +85,8 @@ public sealed class EstoqueService(AppDbContext db, ICrivonftClient crivonft)
         };
         db.LotesEstoque.Add(lote);
         Movimento(tipo, lote.Id, quantidade, lote.CustoUnitario, MotivoMovimento.Compra, userId);
+        // A compra de dólar sai do caixa em R$ ("Compra de USD" no financeiro), como no crivonft.
+        await financeiro.SincronizarCompraUsdAsync(lote, ct);
         await db.SaveChangesAsync(ct);
         return lote;
     }
@@ -113,6 +116,7 @@ public sealed class EstoqueService(AppDbContext db, ICrivonftClient crivonft)
         l.CustoUnitario = RegrasEstoque.CustoUnitario(custoTotal, quantidade);
         l.Observacao = Limpar(obs);
         if (delta != 0) Movimento(tipo, l.Id, delta, l.CustoUnitario, MotivoMovimento.Edicao, userId);
+        await financeiro.SincronizarCompraUsdAsync(l, ct);
         await db.SaveChangesAsync(ct);
         return l;
     }
@@ -126,6 +130,7 @@ public sealed class EstoqueService(AppDbContext db, ICrivonftClient crivonft)
         l.Saldo = 0;
         l.CanceladoEm = DateTime.UtcNow;
         l.MotivoCancelamento = Limpar(motivo);
+        await financeiro.SincronizarCompraUsdAsync(l, ct);
         await db.SaveChangesAsync(ct);
         return l;
     }

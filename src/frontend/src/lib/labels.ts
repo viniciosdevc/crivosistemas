@@ -110,3 +110,16 @@ export function labelOf(map: Record<string, { label: string; tone: Tone }>, valu
   if (!value) return { label: '—', tone: 'neutral' as Tone }
   return map[value] ?? { label: value, tone: 'neutral' as Tone }
 }
+
+export const statusLancamento: Record<string, { label: string; tone: Tone }> = {
+  pendente: { label: 'Pendente', tone: 'warning' },
+  confirmado: { label: 'Confirmado', tone: 'success' },
+  cancelado: { label: 'Cancelado', tone: 'danger' },
+}
+
+export const origemLancamento: Record<string, { label: string; tone: Tone }> = {
+  manual: { label: 'Manual', tone: 'neutral' },
+  venda: { label: 'Venda PIX', tone: 'brand' },
+  venda_cambios: { label: 'Venda de câmbios', tone: 'info' },
+  compra_usd: { label: 'Compra de dólar', tone: 'warning' },
+}

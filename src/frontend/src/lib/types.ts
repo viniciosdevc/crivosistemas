@@ -449,3 +449,50 @@ export interface MovimentoCambios {
   usuario: string | null
   dataHora: string
 }
+
+// ── Financeiro ──────────────────────────────────────────────────────────────
+export type TipoLancamento = 'entrada' | 'saida'
+export type StatusLancamento = 'pendente' | 'confirmado' | 'cancelado'
+
+export interface Lancamento {
+  id: string
+  tipo: TipoLancamento
+  status: StatusLancamento
+  origem: 'manual' | 'venda' | 'venda_cambios' | 'compra_usd'
+  categoria: string
+  descricao: string | null
+  valorBrl: number
+  data: string
+  vendaId: string | null
+  loteEstoqueId: string | null
+  movimentoCambiosId: string | null
+  motivoCancelamento: string | null
+  criadoPorNome: string | null
+  criadoEm: string
+  confirmadoEm: string | null
+  canceladoEm: string | null
+  automatico: boolean
+}
+
+export interface TotaisFinanceiro { entradas: number; saidas: number; resultado: number }
+export interface CategoriaTotal { categoria: string; tipo: TipoLancamento; total: number; quantidade: number }
+export interface ResumoFinanceiro {
+  saldo: number
+  hoje: TotaisFinanceiro
+  mes: TotaisFinanceiro
+  de: string
+  ate: string
+  periodo: TotaisFinanceiro
+  pendenteReceber: number
+  pendentePagar: number
+  pendentes: number
+  porCategoria: CategoriaTotal[]
+}
+export interface NovoLancamento {
+  tipo: TipoLancamento
+  categoria: string
+  descricao: string
+  valorBrl: number
+  data: string
+  pendente: boolean
+}

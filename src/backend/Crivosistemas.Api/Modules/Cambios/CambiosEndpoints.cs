@@ -5,6 +5,7 @@ using Crivosistemas.Domain.Common;
 using Crivosistemas.Domain.Integracoes;
 using Crivosistemas.Domain.Vendas;
 using Crivosistemas.Infrastructure.Cambios;
+using Crivosistemas.Infrastructure.Financeiro;
 using Crivosistemas.Infrastructure.Integracoes;
 using Crivosistemas.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
@@ -67,7 +68,7 @@ public static class CambiosEndpoints
             m.UserId is { } u && nomes.TryGetValue(u, out var un) ? un : null, m.DataHora)).ToList(), r.Page, r.PageSize, r.Total));
     }
 
-    private static async Task<IResult> Vender([FromBody] VendaCambiosRequest req, AppDbContext db, CambiosService svc, IngestaoService ingestao, HttpContext http, CancellationToken ct)
+    private static async Task<IResult> Vender([FromBody] VendaCambiosRequest req, AppDbContext db, CambiosService svc, IngestaoService ingestao, FinanceiroService financeiro, HttpContext http, CancellationToken ct)
     {
         var qtd = Math.Round(req.Quantidade, 2, MidpointRounding.AwayFromZero);
         var m = await db.InTransactionAsync(async () =>
@@ -77,6 +78,7 @@ public static class CambiosEndpoints
             var nick = req.Nickname?.Trim();
             if (!string.IsNullOrEmpty(nick)) cliente = await ingestao.AplicarClienteAsync(new ClientePayload(nick, nick, null, null, null), sobrescrever: false, ct);
             var mov = await svc.LancarAsync(TipoMovimentoCambios.Venda, -qtd, http.User.Id(), req.DataHora?.ToUniversalTime(), req.ValorBrl, cliente?.Id, observacao: req.Observacao, ct: ct);
+            await financeiro.SincronizarVendaCambiosAsync(mov, ct);
             db.Audit(http, "cambios.venda", "MovimentoCambios", mov.Id, new { qtd, req.ValorBrl, nickname = nick });
             await db.SaveChangesAsync(ct);
             return mov;
@@ -100,7 +102,7 @@ public static class CambiosEndpoints
         return Results.Ok(new { m.SaldoAnterior, m.SaldoNovo });
     }
 
-    private static async Task<IResult> Estornar(Guid id, [FromBody] EstornarCambiosRequest? req, AppDbContext db, CambiosService svc, HttpContext http, CancellationToken ct)
+    private static async Task<IResult> Estornar(Guid id, [FromBody] EstornarCambiosRequest? req, AppDbContext db, CambiosService svc, FinanceiroService financeiro, HttpContext http, CancellationToken ct)
     {
         var e = await db.InTransactionAsync(async () =>
         {
@@ -109,6 +111,7 @@ public static class CambiosEndpoints
             if (o.Tipo is not (TipoMovimentoCambios.Venda or TipoMovimentoCambios.Ajuste))
                 throw new DomainException("estorno_invalido", "Só vendas de câmbios e ajustes podem ser estornados. Venda manual se desfaz cancelando a venda.");
             var mov = await svc.EstornarAsync(o, http.User.Id(), req?.Motivo, ct);
+            await financeiro.SincronizarVendaCambiosAsync(o, ct);
             db.Audit(http, "cambios.estorno", "MovimentoCambios", o.Id, new { req?.Motivo });
             await db.SaveChangesAsync(ct);
             return mov;

@@ -2,6 +2,7 @@ using System.Text.Json;
 using Crivosistemas.Domain.Audit;
 using Crivosistemas.Domain.Integracoes;
 using Crivosistemas.Domain.Vendas;
+using Crivosistemas.Infrastructure.Financeiro;
 using Crivosistemas.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -26,7 +27,7 @@ public enum ResultadoVenda { Aplicada, IgnoradaMaisAntiga, IgnoradaRemovida }
 
 /// <summary>Recebe os eventos do crivonft: grava o corpo bruto (único por id) e aplica vendas e clientes. Também é usado pela
 /// reconciliação, que converte as linhas exportadas no mesmo payload e passa pela mesma regra de upsert.</summary>
-public sealed class IngestaoService(AppDbContext db, ILogger<IngestaoService> logger)
+public sealed class IngestaoService(AppDbContext db, FinanceiroService financeiro, ILogger<IngestaoService> logger)
 {
     private const int MaxCorpoTexto = 1_000_000;
 
@@ -218,6 +219,8 @@ public sealed class IngestaoService(AppDbContext db, ILogger<IngestaoService> lo
         var ordem = 0;
         foreach (var i in p.Itens)
             venda.Itens.Add(new VendaItem { Ordem = ordem++, Descricao = i.Descricao, Quantidade = i.Quantidade, PrecoUsd = i.PrecoUsd, PrecoBrl = i.PrecoBrl, Referencia = i.Referencia });
+        // O PIX da venda entra (ou sai, se ela foi cancelada) direto no financeiro.
+        await financeiro.SincronizarVendaAsync(venda, ct);
         return ResultadoVenda.Aplicada;
     }
 
@@ -237,6 +240,7 @@ public sealed class IngestaoService(AppDbContext db, ILogger<IngestaoService> lo
         venda.RemovidaEm ??= ocorridoEm;
         if (ocorridoEm > venda.AtualizadoEmOrigem) venda.AtualizadoEmOrigem = ocorridoEm;
         venda.AtualizadoEm = DateTime.UtcNow;
+        await financeiro.SincronizarVendaAsync(venda, ct);
     }
 
     /// <summary>Cria ou atualiza o cliente pela chave. Com <paramref name="sobrescrever"/> falso (linhas exportadas) só cria: os eventos são mais completos.</summary>
