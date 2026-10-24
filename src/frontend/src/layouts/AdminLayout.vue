@@ -189,24 +189,24 @@ async function logout() {
           :title="collapsed ? top.label : undefined"
           :aria-current="isActive(top) ? 'page' : undefined"
           :class="[
-            'flex h-11 items-center gap-3 rounded-xl text-[15px] transition-colors',
+            'flex h-12 cursor-pointer items-center gap-3 rounded-xl text-base transition-colors',
             collapsed ? 'justify-center' : 'px-3',
             isActive(top) ? 'bg-brand font-medium text-brand-ink' : 'text-text hover:bg-surface-3 hover:text-ink',
           ]"
         >
-          <component :is="top.icon" class="size-[18px] shrink-0" stroke-width="1.7" />
+          <component :is="top.icon" class="size-5 shrink-0" stroke-width="1.7" />
           <span v-if="!collapsed" class="flex-1 truncate">{{ top.label }}</span>
         </RouterLink>
         <template v-for="g in visibleGroups" :key="g.key">
           <button
             v-if="!collapsed"
             type="button"
-            class="mt-2 flex h-9 items-center justify-between rounded-xl px-3 text-xs font-medium uppercase tracking-wide text-muted hover:text-ink"
+            class="mt-2 flex h-10 w-full cursor-pointer items-center justify-between rounded-xl px-3 text-[13px] font-semibold uppercase tracking-wide text-text transition-colors hover:bg-surface-3 hover:text-ink"
             :aria-expanded="isOpen(g)"
             @click="toggle(g)"
           >
             {{ g.label }}
-            <ChevronDown :class="['size-4 transition-transform', !isOpen(g) && '-rotate-90']" />
+            <ChevronDown :class="['size-5 shrink-0 transition-transform', !isOpen(g) && '-rotate-90']" />
           </button>
           <div v-else class="mx-2 my-1 border-t border-line" />
           <template v-if="collapsed || isOpen(g)">
@@ -216,12 +216,12 @@ async function logout() {
             :title="collapsed ? item.label : undefined"
             :aria-current="isActive(item) ? 'page' : undefined"
             :class="[
-              'flex h-11 items-center gap-3 rounded-xl text-[15px] transition-colors',
+              'flex h-12 cursor-pointer items-center gap-3 rounded-xl text-base transition-colors',
               collapsed ? 'justify-center' : 'pl-5 pr-3',
               isActive(item) ? 'bg-brand font-medium text-brand-ink' : 'text-text hover:bg-surface-3 hover:text-ink',
             ]"
           >
-            <component :is="item.icon" class="size-[18px] shrink-0" stroke-width="1.7" />
+            <component :is="item.icon" class="size-5 shrink-0" stroke-width="1.7" />
             <span v-if="!collapsed" class="flex-1 truncate">{{ item.label }}</span>
           </RouterLink>
             </template>
