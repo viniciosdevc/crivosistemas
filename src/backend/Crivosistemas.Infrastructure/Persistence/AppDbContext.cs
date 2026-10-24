@@ -1,4 +1,5 @@
 using Crivosistemas.Domain.Audit;
+using Crivosistemas.Domain.Cambios;
 using Crivosistemas.Domain.Common;
 using Crivosistemas.Domain.Estoque;
 using Crivosistemas.Domain.Identity;
@@ -28,6 +29,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<LoteEstoque> LotesEstoque => Set<LoteEstoque>();
     public DbSet<MovimentoEstoque> MovimentosEstoque => Set<MovimentoEstoque>();
     public DbSet<ConfiguracaoEstoque> ConfiguracoesEstoque => Set<ConfiguracaoEstoque>();
+    public DbSet<SaldoCambios> SaldosCambios => Set<SaldoCambios>();
+    public DbSet<MovimentoCambios> MovimentosCambios => Set<MovimentoCambios>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {

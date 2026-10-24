@@ -1,3 +1,4 @@
+using Crivosistemas.Domain.Cambios;
 using Crivosistemas.Domain.Estoque;
 using Crivosistemas.Domain.Integracoes;
 using Crivosistemas.Domain.Precificacao;
@@ -193,5 +194,32 @@ internal sealed class ConfiguracaoEstoqueConfig : IEntityTypeConfiguration<Confi
     {
         b.ToTable("ConfiguracoesEstoque");
         b.Property(x => x.CustoMedioUsdFixo).HasPrecision(18, 8);
+    }
+}
+
+internal sealed class SaldoCambiosConfig : IEntityTypeConfiguration<SaldoCambios>
+{
+    public void Configure(EntityTypeBuilder<SaldoCambios> b)
+    {
+        b.ToTable("SaldosCambios");
+        b.Property(x => x.Saldo).HasPrecision(18, 2);
+    }
+}
+
+internal sealed class MovimentoCambiosConfig : IEntityTypeConfiguration<MovimentoCambios>
+{
+    public void Configure(EntityTypeBuilder<MovimentoCambios> b)
+    {
+        b.ToTable("MovimentosCambios");
+        b.Property(x => x.Tipo).HasConversion<string>().HasMaxLength(20);
+        b.Property(x => x.Quantidade).HasPrecision(18, 2);
+        b.Property(x => x.SaldoAnterior).HasPrecision(18, 2);
+        b.Property(x => x.SaldoNovo).HasPrecision(18, 2);
+        b.Property(x => x.ValorBrl).HasPrecision(18, 2);
+        b.Property(x => x.Observacao).HasMaxLength(300);
+        b.HasOne<Cliente>().WithMany().HasForeignKey(x => x.ClienteId).OnDelete(DeleteBehavior.Restrict);
+        b.HasIndex(x => x.DataHora);
+        b.HasIndex(x => x.ClienteId);
+        b.HasIndex(x => x.VendaId);
     }
 }

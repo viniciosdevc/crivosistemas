@@ -415,3 +415,30 @@ export interface ResultadoImportacaoEstoque {
   esmeraldasImportados: number
   ignorados: number
 }
+
+// ── Câmbios ─────────────────────────────────────────────────────────────────
+
+export type TipoMovimentoCambios = 'venda' | 'venda_manual' | 'ajuste' | 'estorno'
+
+export interface ResumoCambios {
+  saldo: number
+  totalVendidoQuantidade: number
+  totalVendidoBrl: number
+}
+
+export interface MovimentoCambios {
+  id: string
+  tipo: TipoMovimentoCambios
+  /** Positivo entra, negativo sai. */
+  quantidade: number
+  saldoAnterior: number
+  saldoNovo: number
+  valorBrl: number | null
+  clienteId: string | null
+  nickname: string | null
+  vendaId: string | null
+  estornado: boolean
+  observacao: string | null
+  usuario: string | null
+  dataHora: string
+}

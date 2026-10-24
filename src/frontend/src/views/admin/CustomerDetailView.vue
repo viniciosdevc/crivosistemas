@@ -2,6 +2,7 @@
 import { ArrowLeft, RefreshCw, TriangleAlert } from 'lucide-vue-next'
 import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import CambiosHistory from '@/components/admin/cambios/CambiosHistory.vue'
 import SaleTable from '@/components/admin/sales/SaleTable.vue'
 import WalletAddress from '@/components/admin/WalletAddress.vue'
 import PageCard from '@/components/ui/PageCard.vue'
@@ -76,6 +77,12 @@ const ticket = computed(() => (c.value && c.value.compras > 0 ? c.value.totalGas
           empty-description="Quando este cliente comprar, as vendas aparecem aqui."
           @retry="run"
         />
+      </section>
+
+      <section class="mt-8" aria-labelledby="cambios-title">
+        <h2 id="cambios-title" class="mb-1 text-lg font-semibold text-ink">Câmbios</h2>
+        <p class="mb-3 text-[13px] text-muted">Câmbios comprados e pagos por este cliente.</p>
+        <CambiosHistory :cliente-id="c.id" />
       </section>
     </template>
   </PageCard>
