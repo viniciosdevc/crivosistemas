@@ -6,11 +6,13 @@ import UiDatePicker from '@/components/ui/UiDatePicker.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiModal from '@/components/ui/UiModal.vue'
 import { ApiError, api } from '@/lib/api'
-import { formatMoney, parseDecimal, todayIso } from '@/lib/format'
+import { formatInt, formatMoney, formatUsd, parseDecimal, todayIso } from '@/lib/format'
+import { analisarItem } from '@/lib/itens'
 import { toast } from '@/lib/toast'
-import type { ItemEstoque, NftCatalogo, NftItem } from '@/lib/types'
+import type { ItemEstoque, NftCatalogo, NftItem, RegrasPrecificacao } from '@/lib/types'
 
 /** Cadastra um item: busca o nome no catálogo (foto e preço de mercado), informa quanto pagou e quantas unidades. */
+const props = defineProps<{ regras: RegrasPrecificacao | null }>()
 const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{ saved: [item: ItemEstoque] }>()
 
@@ -61,9 +63,10 @@ function escolher(item: NftItem) {
 const quantidade = computed(() => Math.trunc(parseDecimal(form.quantidade) ?? 0))
 const custo = computed(() => parseDecimal(form.custo))
 const ready = computed(() => busca.value.trim().length > 0 && !!form.data && quantidade.value >= 1 && custo.value != null && custo.value >= 0)
-const lucro = computed(() => {
-  const p = escolhido.value?.precoVendaBrl
-  return p != null && custo.value != null ? (p - custo.value) * quantidade.value : null
+const analise = computed(() => {
+  const item = escolhido.value
+  if (!props.regras || custo.value == null || quantidade.value < 1) return null
+  return analisarItem({ custoUnitario: custo.value, precoMercadoUsd: item?.custoUsd ?? null, quantidade: quantidade.value }, props.regras)
 })
 
 async function submit() {
@@ -107,23 +110,32 @@ async function submit() {
               <img v-if="s.imagemUrl" :src="s.imagemUrl" :alt="s.nome" class="size-8 shrink-0 rounded-lg bg-surface-3 object-contain" loading="lazy" />
               <span v-else class="size-8 shrink-0 rounded-lg bg-surface-3" />
               <span class="min-w-0 flex-1 truncate text-sm font-medium text-ink">{{ s.nome }}</span>
-              <span class="text-xs text-muted tabular">{{ formatMoney(s.precoVendaBrl) }}</span>
+              <span class="text-xs text-muted tabular">{{ formatUsd(s.custoUsd) }}</span>
             </button>
           </li>
         </ul>
         <div v-if="escolhido" class="mt-3 flex items-center gap-3 text-sm">
           <img v-if="escolhido.imagemUrl" :src="escolhido.imagemUrl" :alt="escolhido.nome" class="size-12 shrink-0 rounded-xl bg-surface-3 object-contain" />
-          <p class="text-muted">Mercado <span class="font-semibold text-ink tabular">{{ formatMoney(escolhido.precoVendaBrl) }}</span> por unidade</p>
+          <p class="text-muted">Mercado <span class="font-semibold text-ink tabular">{{ formatUsd(escolhido.custoUsd) }}</span> por unidade</p>
         </div>
       </div>
       <div class="grid grid-cols-2 gap-3">
-        <UiInput v-model="form.custo" label="Valor pago (cada)" prefix="R$" inputmode="decimal" placeholder="0,00" :error="fieldErrors.custoUnitario" />
+        <UiInput v-model="form.custo" label="Valor pago (cada)" prefix="US$" inputmode="decimal" placeholder="0,00" :error="fieldErrors.custoUnitario" />
         <UiInput v-model="form.quantidade" label="Quantidade" inputmode="numeric" :error="fieldErrors.quantidade" />
       </div>
       <UiDatePicker v-model="form.data" label="Data da compra" :max="todayIso()" :error="fieldErrors.data" />
-      <p v-if="lucro != null" class="text-sm text-muted">
-        Lucro potencial <span :class="['font-semibold tabular', lucro >= 0 ? 'text-success' : 'text-danger']">{{ formatMoney(lucro) }}</span>
-      </p>
+      <div v-if="analise" class="grid gap-1 text-sm text-muted">
+        <p>Custo <span class="font-semibold text-ink tabular">{{ formatInt(analise.custoCambios) }} C</span> · <span class="tabular">{{ formatMoney(analise.custoBrl) }}</span></p>
+        <template v-if="analise.mercado">
+          <p>Diferença vs mercado <span :class="['font-semibold tabular', analise.mercado.diferencaUsd >= 0 ? 'text-success' : 'text-danger']">{{ formatUsd(analise.mercado.diferencaUsd) }}</span></p>
+          <p>
+            Lucro potencial
+            <span :class="['font-semibold tabular', analise.mercado.lucroPix >= 0 ? 'text-success' : 'text-danger']">{{ formatMoney(analise.mercado.lucroPix) }} no PIX</span>
+            ·
+            <span :class="['font-semibold tabular', analise.mercado.lucroCambios >= 0 ? 'text-success' : 'text-danger']">{{ formatInt(analise.mercado.lucroCambios) }} C</span>
+          </p>
+        </template>
+      </div>
       <p v-if="error" class="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{{ error }}</p>
     </form>
     <template #footer>

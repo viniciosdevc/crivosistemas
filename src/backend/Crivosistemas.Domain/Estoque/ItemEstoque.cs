@@ -4,7 +4,7 @@ namespace Crivosistemas.Domain.Estoque;
 
 public enum StatusItem { EmEstoque = 1, Vendido = 2, Cancelado = 3 }
 
-/// <summary>Um item (NFT) comprado para revenda. O custo é o que foi pago por unidade, em reais; o preço de mercado vem do catálogo do crivonft.
+/// <summary>Um item (NFT) comprado para revenda. O custo é o que foi pago por unidade, em dólares (USD); o preço de mercado vem do catálogo do crivonft (custo em USD e preço de venda em R$).
 /// Vender fecha o registro inteiro com o valor recebido; cancelar só vale enquanto está em estoque.</summary>
 public class ItemEstoque : Entity
 {
@@ -15,10 +15,12 @@ public class ItemEstoque : Entity
     public decimal CustoUnitario { get; set; }
     public DateOnly DataCompra { get; set; }
     public decimal? PrecoMercadoBrl { get; set; }
+    /// <summary>Custo de mercado em USD por unidade (o mesmo valor-base da calculadora).</summary>
+    public decimal? PrecoMercadoUsd { get; set; }
     public DateTime? PrecoAtualizadoEm { get; set; }
     public string? Observacao { get; set; }
     public StatusItem Status { get; set; } = StatusItem.EmEstoque;
-    /// <summary>Total recebido na venda (todas as unidades).</summary>
+    /// <summary>Total recebido na venda em R$ (todas as unidades).</summary>
     public decimal? ValorVenda { get; set; }
     public DateOnly? DataVenda { get; set; }
     public string? MotivoCancelamento { get; set; }

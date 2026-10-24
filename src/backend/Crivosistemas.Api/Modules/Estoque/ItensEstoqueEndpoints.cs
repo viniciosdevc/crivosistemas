@@ -12,15 +12,14 @@ using Microsoft.Extensions.Options;
 namespace Crivosistemas.Api.Modules.Estoque;
 
 public sealed record ItemEstoqueDto(Guid Id, string? Categoria, string Nome, string? ImagemUrl, int Quantidade, decimal CustoUnitario, decimal CustoTotal, DateOnly DataCompra,
-    decimal? PrecoMercadoBrl, DateTime? PrecoAtualizadoEm, decimal? LucroPotencial, string Status, decimal? ValorVenda, DateOnly? DataVenda, decimal? LucroRealizado,
+    decimal? PrecoMercadoBrl, decimal? PrecoMercadoUsd, DateTime? PrecoAtualizadoEm, string Status, decimal? ValorVenda, DateOnly? DataVenda,
     string? Observacao, string? MotivoCancelamento);
-public sealed record ResumoItensDto(int Itens, int Unidades, decimal CustoTotal, decimal? ValorMercado, decimal? LucroPotencial, int SemPreco, int Vendidos, decimal LucroRealizado);
 
 public sealed record NovoItemRequest(
     [Required(ErrorMessage = "Informe o nome do item."), StringLength(200, ErrorMessage = "O nome pode ter até 200 caracteres.")] string Nome,
     [StringLength(100, ErrorMessage = "Categoria muito longa.")] string? Categoria,
     [Range(1, 100000, ErrorMessage = "A quantidade deve ser de 1 a 100000.")] int Quantidade,
-    [Range(typeof(decimal), "0", "1000000000", ParseLimitsInInvariantCulture = true, ConvertValueInInvariantCulture = true, ErrorMessage = "O valor pago não pode ser negativo.")] decimal CustoUnitario,
+    [Range(typeof(decimal), "0", "1000000000", ParseLimitsInInvariantCulture = true, ConvertValueInInvariantCulture = true, ErrorMessage = "O valor pago (US$) não pode ser negativo.")] decimal CustoUnitario,
     [Required(ErrorMessage = "Informe a data da compra.")] DateOnly? Data,
     [StringLength(300, ErrorMessage = "Observação muito longa.")] string? Observacao);
 public sealed record VenderItemRequest(
@@ -34,8 +33,7 @@ public static class ItensEstoqueEndpoints
     public static void MapItensEstoqueEndpoints(this IEndpointRouteBuilder app)
     {
         var g = app.MapGroup("/api/estoque/itens").WithTags("Estoque").RequireAuthorization();
-        g.MapGet("", Listar).WithSummary("Itens do estoque (?status=estoque|vendido|cancelado), mais recentes primeiro.");
-        g.MapGet("/resumo", Resumo).WithSummary("Custo, valor de mercado e lucro potencial do que está em estoque, e lucro do que foi vendido.");
+        g.MapGet("", Listar).WithSummary("Itens do estoque (?status=estoque|vendido|cancelado; sem status vêm todos), mais recentes primeiro.");
         g.MapPost("", Criar).WithSummary("Cadastra um item pelo nome e pelo valor pago; foto e preço de mercado vêm do catálogo.");
         g.MapPost("/{id:guid}/vender", Vender).WithSummary("Marca o item como vendido com o valor recebido.");
         g.MapPost("/{id:guid}/cancelar", Cancelar).WithSummary("Cancela um item ainda em estoque (fica no histórico).");
@@ -45,27 +43,15 @@ public static class ItensEstoqueEndpoints
     private static string Nome(StatusItem s) => s switch { StatusItem.EmEstoque => "estoque", StatusItem.Vendido => "vendido", _ => "cancelado" };
 
     private static ItemEstoqueDto ToDto(ItemEstoque i) => new(i.Id, i.Categoria, i.Nome, i.ImagemUrl, i.Quantidade, i.CustoUnitario, i.CustoTotal, i.DataCompra,
-        i.PrecoMercadoBrl, i.PrecoAtualizadoEm, i.Status == StatusItem.EmEstoque && i.PrecoMercadoBrl is { } p ? p * i.Quantidade - i.CustoTotal : null,
-        Nome(i.Status), i.ValorVenda, i.DataVenda, i.ValorVenda is { } v ? v - i.CustoTotal : null, i.Observacao, i.MotivoCancelamento);
+        i.PrecoMercadoBrl, i.PrecoMercadoUsd, i.PrecoAtualizadoEm,
+        Nome(i.Status), i.ValorVenda, i.DataVenda, i.Observacao, i.MotivoCancelamento);
 
     private static async Task<IResult> Listar(AppDbContext db, string? status, int? page, int? pageSize, CancellationToken ct)
     {
-        var s = status switch { "vendido" => StatusItem.Vendido, "cancelado" => StatusItem.Cancelado, _ => StatusItem.EmEstoque };
-        var r = await db.ItensEstoque.AsNoTracking().Where(i => i.Status == s)
+        StatusItem? s = status switch { "estoque" => StatusItem.EmEstoque, "vendido" => StatusItem.Vendido, "cancelado" => StatusItem.Cancelado, _ => null };
+        var r = await db.ItensEstoque.AsNoTracking().Where(i => s == null || i.Status == s)
             .OrderByDescending(i => i.DataCompra).ThenByDescending(i => i.CriadoEm).ToPageAsync(page, pageSize, ct);
         return Results.Ok(new PagedResult<ItemEstoqueDto>(r.Items.Select(ToDto).ToList(), r.Page, r.PageSize, r.Total));
-    }
-
-    private static async Task<IResult> Resumo(AppDbContext db, CancellationToken ct)
-    {
-        var itens = await db.ItensEstoque.AsNoTracking().Where(i => i.Status != StatusItem.Cancelado).ToListAsync(ct);
-        var emEstoque = itens.Where(i => i.Status == StatusItem.EmEstoque).ToList();
-        var comPreco = emEstoque.Where(i => i.PrecoMercadoBrl != null).ToList();
-        var vendidos = itens.Where(i => i.Status == StatusItem.Vendido).ToList();
-        var mercado = comPreco.Sum(i => i.PrecoMercadoBrl!.Value * i.Quantidade);
-        return Results.Ok(new ResumoItensDto(emEstoque.Count, emEstoque.Sum(i => i.Quantidade), emEstoque.Sum(i => i.CustoTotal),
-            comPreco.Count > 0 ? mercado : null, comPreco.Count > 0 ? mercado - comPreco.Sum(i => i.CustoTotal) : null,
-            emEstoque.Count - comPreco.Count, vendidos.Count, vendidos.Sum(i => i.ValorVenda!.Value - i.CustoTotal)));
     }
 
     /// <summary>Acha o item no catálogo pelo nome (e categoria, quando informada). Nulo se o crivonft não estiver configurado, não achar ou falhar.</summary>
@@ -86,14 +72,15 @@ public static class ItensEstoqueEndpoints
                 if (!string.IsNullOrWhiteSpace(categoria) && !string.Equals(c, categoria, StringComparison.OrdinalIgnoreCase)) continue;
                 var img = e.TryGetProperty("imagemUrl", out var pi) && pi.ValueKind == JsonValueKind.String ? pi.GetString() : null;
                 decimal? preco = e.TryGetProperty("precoVendaBrl", out var pp) && pp.ValueKind == JsonValueKind.Number ? pp.GetDecimal() : null;
-                return new CatalogoItem(n!, c, img, preco);
+                decimal? usd = e.TryGetProperty("custoUsd", out var pu) && pu.ValueKind == JsonValueKind.Number ? pu.GetDecimal() : null;
+                return new CatalogoItem(n!, c, img, preco, usd);
             }
         }
         catch (Exception e) when (e is CrivonftException or JsonException or HttpRequestException or TaskCanceledException) { /* catálogo fora do ar: o item entra sem foto e sem preço */ }
         return null;
     }
 
-    private sealed record CatalogoItem(string Nome, string? Categoria, string? ImagemUrl, decimal? PrecoBrl);
+    private sealed record CatalogoItem(string Nome, string? Categoria, string? ImagemUrl, decimal? PrecoBrl, decimal? PrecoUsd);
 
     private static async Task<IResult> Criar([FromBody] NovoItemRequest req, AppDbContext db, IOptions<CrivonftOptions> o, ICrivonftClient crivonft, HttpContext http, CancellationToken ct)
     {
@@ -108,7 +95,8 @@ public static class ItensEstoqueEndpoints
             CustoUnitario = req.CustoUnitario,
             DataCompra = req.Data!.Value,
             PrecoMercadoBrl = cat?.PrecoBrl,
-            PrecoAtualizadoEm = cat?.PrecoBrl is null ? null : DateTime.UtcNow,
+            PrecoMercadoUsd = cat?.PrecoUsd,
+            PrecoAtualizadoEm = cat?.PrecoUsd is null ? null : DateTime.UtcNow,
             Observacao = string.IsNullOrWhiteSpace(req.Observacao) ? null : req.Observacao.Trim(),
             CriadoPor = http.User.Id(),
         };
@@ -157,10 +145,11 @@ public static class ItensEstoqueEndpoints
         foreach (var grupo in itens.GroupBy(i => (i.Nome.ToLowerInvariant(), i.Categoria?.ToLowerInvariant())))
         {
             var cat = await BuscarNoCatalogo(o, crivonft, grupo.First().Nome, grupo.First().Categoria, ct);
-            if (cat?.PrecoBrl is null) continue;
+            if (cat?.PrecoUsd is null) continue;
             foreach (var i in grupo)
             {
                 i.PrecoMercadoBrl = cat.PrecoBrl;
+                i.PrecoMercadoUsd = cat.PrecoUsd;
                 i.PrecoAtualizadoEm = DateTime.UtcNow;
                 i.ImagemUrl ??= cat.ImagemUrl;
                 atualizados++;

@@ -201,7 +201,8 @@ internal sealed class ItemEstoqueConfig : IEntityTypeConfiguration<ItemEstoque>
         b.Property(x => x.Nome).HasMaxLength(200);
         b.Property(x => x.ImagemUrl).HasMaxLength(500);
         b.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
-        b.Property(x => x.CustoUnitario).HasPrecision(18, 2);
+        b.Property(x => x.CustoUnitario).HasPrecision(18, 4);
+        b.Property(x => x.PrecoMercadoUsd).HasPrecision(18, 4);
         b.Property(x => x.PrecoMercadoBrl).HasPrecision(18, 2);
         b.Property(x => x.ValorVenda).HasPrecision(18, 2);
         b.Property(x => x.Observacao).HasMaxLength(300);
