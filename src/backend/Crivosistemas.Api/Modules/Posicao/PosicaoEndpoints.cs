@@ -5,6 +5,7 @@ using Crivosistemas.Domain.Common;
 using Crivosistemas.Domain.Estoque;
 using Crivosistemas.Domain.Financeiro;
 using Crivosistemas.Domain.Posicao;
+using Crivosistemas.Domain.Vendas;
 using Crivosistemas.Infrastructure.Cambios;
 using Crivosistemas.Infrastructure.Estoque;
 using Crivosistemas.Infrastructure.Persistence;
@@ -75,7 +76,7 @@ public static class PosicaoEndpoints
             return Results.ValidationProblem(new Dictionary<string, string[]> { ["brl"] = ["Informe ao menos um saldo."] });
         var hoje = FusoSp.Hoje();
         var userId = http.User.Id();
-        var p = await db.InTransactionAsync(async () =>
+        var salva = await db.InTransactionAsync(async () =>
         {
             var s = await SaldosAsync(db, estoque, cambios, ct);
             var agora = DateTime.UtcNow;
@@ -97,7 +98,7 @@ public static class PosicaoEndpoints
             await db.SaveChangesAsync(ct);
             return p;
         }, ct);
-        var nome = userId is { } id ? await db.Users.AsNoTracking().Where(u => u.Id == id).Select(u => u.Name).FirstOrDefaultAsync(ct) : null;
-        return Results.Ok(ToDto(p, nome));
+        var nome = await db.Users.AsNoTracking().Where(u => u.Id == userId).Select(u => u.Name).FirstOrDefaultAsync(ct);
+        return Results.Ok(ToDto(salva, nome));
     }
 }
