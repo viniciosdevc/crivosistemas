@@ -37,3 +37,28 @@ public sealed class RegrasProjecaoTests
         Assert.Contains("dataFinal", RegrasProjecao.Validar(new DateOnly(2026, 2, 1), new DateOnly(2026, 2, 28), new DateOnly(2030, 1, 1), hoje).Keys);
     }
 }
+
+public sealed class RegrasResumoDiarioTests
+{
+    [Fact]
+    public void Granularidade_cresce_com_o_periodo()
+    {
+        Assert.Equal("dia", Crivosistemas.Domain.Financeiro.RegrasResumoDiario.Granularidade(30));
+        Assert.Equal("semana", Crivosistemas.Domain.Financeiro.RegrasResumoDiario.Granularidade(90));
+        Assert.Equal("mes", Crivosistemas.Domain.Financeiro.RegrasResumoDiario.Granularidade(365));
+    }
+
+    [Fact]
+    public void Agrupar_acumula_o_saldo_e_junta_por_semana()
+    {
+        // 2026-10-26 é segunda-feira
+        var dias = Enumerable.Range(0, 9).Select(i => (new DateOnly(2026, 10, 26).AddDays(i), 100m, 40m));
+        var linhas = Crivosistemas.Domain.Financeiro.RegrasResumoDiario.Agrupar(dias, 1000m, "semana", true);
+        Assert.Equal(2, linhas.Count);
+        Assert.Equal(420m, linhas[0].Saldo);
+        Assert.Equal(1420m, linhas[0].SaldoAcumulado);
+        Assert.Equal(120m, linhas[1].Saldo);
+        Assert.Equal(1540m, linhas[1].SaldoAcumulado);
+        Assert.All(linhas, x => Assert.True(x.Projetado));
+    }
+}
