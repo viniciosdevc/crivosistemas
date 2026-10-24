@@ -120,3 +120,11 @@ Salvar em `PUT /api/precificacao` grava a nova versão, o histórico e uma linha
 
 ## Convites da loja (gestão → crivonft)
 `GET|POST {crivonft}/api/integracoes/gestao/convites` (mesma autenticação). GET devolve `{ links, nicks }`; POST recebe `{ acao: "criar_link" | "convidar_nick" | "revogar_link" | "revogar_nick", nota?, nickname?, id? }`. `criar_link` devolve a `url` (o token só existe nessa resposta). A tela **Loja → Convites** do painel (`/api/convites`, só admin) usa essa rota; a nota leva o nome de quem convidou.
+
+### NFTs e coleções (tela NFTs)
+Rotas assinadas que o crivonft expõe em `/api/integracoes/gestao/`: `GET nfts`, `POST nfts/atualizar` e `GET|POST nfts/colecoes` (formato em `crivonft/docs/API.md`). O crivosistemas só repassa: `GET /api/nfts`, `POST /api/nfts/atualizar`, `GET|POST /api/nfts/colecoes`, todas só para admin; o que muda algo grava auditoria.
+
+- **Preços:** o catálogo e o preço de venda continuam sendo calculados pelo crivonft, com as regras enviadas daqui. A tela mostra o preço atual, o do último dia anterior registrado e a variação, o estado do catálogo e o do envio das regras. "Atualizar preços agora" manda o crivonft buscar os valores no mercado e recalcular em segundo plano (a tela acompanha até terminar). Mudou a regra? Salvar em Preços e regras já enfileira o envio; "Enviar agora" reenvia o que ficou na fila ou falhou.
+- **Coleções:** cadastradas no crivonft (`nft_colecoes`) com as posições vazias; o preenchimento dos itens continua no painel do crivonft.
+- Crivonft desatualizado (sem as rotas) responde 404 e a tela mostra "publique a atualização da loja".
+

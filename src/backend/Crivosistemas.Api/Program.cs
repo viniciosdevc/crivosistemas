@@ -8,6 +8,7 @@ using Crivosistemas.Api.Modules.Clientes;
 using Crivosistemas.Api.Modules.Estoque;
 using Crivosistemas.Api.Modules.Financeiro;
 using Crivosistemas.Api.Modules.Integracoes;
+using Crivosistemas.Api.Modules.Nfts;
 using Crivosistemas.Api.Modules.Precificacao;
 using Crivosistemas.Api.Modules.Vendas;
 using Crivosistemas.Api.Modules.Users;
@@ -171,6 +172,7 @@ app.MapCambiosEndpoints();
 app.MapClientesEndpoints();
 app.MapPrecificacaoEndpoints();
 app.MapConvitesEndpoints();
+app.MapNftsEndpoints();
 
 await app.RunAsync();
 return 0;
