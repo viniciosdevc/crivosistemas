@@ -569,6 +569,71 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                     b.ToTable("Reconciliacoes");
                 });
 
+            modelBuilder.Entity("Crivosistemas.Domain.Posicao.PosicaoDiaria", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("AtualizadoEm")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal?>("BrlInformado")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("decimal(14,2)");
+
+                    b.Property<decimal>("BrlSistema")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("decimal(14,2)");
+
+                    b.Property<decimal?>("CambiosInformado")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("CambiosSistema")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("CriadoPor")
+                        .HasColumnType("char(36)");
+
+                    b.Property<decimal>("CustoMedioUsd")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("decimal(18,8)");
+
+                    b.Property<DateTime>("Data")
+                        .HasColumnType("date");
+
+                    b.Property<decimal?>("EsmeraldasInformado")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("decimal(18,8)");
+
+                    b.Property<decimal>("EsmeraldasSistema")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("decimal(18,8)");
+
+                    b.Property<string>("Observacao")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<decimal?>("UsdInformado")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("decimal(18,8)");
+
+                    b.Property<decimal>("UsdSistema")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("decimal(18,8)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Data")
+                        .IsUnique();
+
+                    b.ToTable("PosicoesDiarias", (string)null);
+                });
+
             modelBuilder.Entity("Crivosistemas.Domain.Precificacao.FaixaPix", b =>
                 {
                     b.Property<Guid>("Id")
