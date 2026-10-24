@@ -6,11 +6,11 @@ import FixedCostModal from '@/components/admin/stock/FixedCostModal.vue'
 import PurchaseModal from '@/components/admin/stock/PurchaseModal.vue'
 import DataTable, { type Column } from '@/components/ui/DataTable.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
+import StatBlocks, { type Stat } from '@/components/ui/StatBlocks.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiEmptyState from '@/components/ui/UiEmptyState.vue'
 import UiPagination from '@/components/ui/UiPagination.vue'
-import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import UiSwitch from '@/components/ui/UiSwitch.vue'
 import { ApiError, api } from '@/lib/api'
 import { confirmWithReason } from '@/lib/confirm'
@@ -56,18 +56,18 @@ const money = (v: number) => (usd.value ? formatMoney(v) : formatUsd(v))
 const qty = (v: number) => (usd.value ? formatUsd(v) : formatDecimal(v))
 const unit = (v: number) => (usd.value ? `R$ ${formatFixed(v, 4)}` : `US$ ${formatFixed(v, 6)}`)
 
-const cards = computed(() => {
+const stats = computed<Stat[]>(() => {
   const r = current.value
   if (!r) return []
+  const fixo = usd.value && r.custoMedioFixo != null
   return [
-    { label: 'Saldo', value: usd.value ? formatUsd(r.saldo) : `${formatDecimal(r.saldo)} esmeraldas`, hint: `${r.lotes} ${r.lotes === 1 ? 'lote' : 'lotes'} com saldo` },
+    { label: 'Saldo', text: usd.value ? formatUsd(r.saldo) : `${formatDecimal(r.saldo)} esmeraldas`, note: `${r.lotes} ${r.lotes === 1 ? 'lote' : 'lotes'} com saldo` },
     {
-      label: 'Custo médio',
-      value: usd.value ? `R$ ${formatFixed(r.custoMedio, 4)} / US$` : `US$ ${formatFixed(r.custoMedio, 6)} / esm.`,
-      fixed: usd.value && r.custoMedioFixo != null,
-      hint: usd.value && r.custoMedioFixo != null ? `Calculado: R$ ${formatFixed(r.custoMedioCalculado, 4)}` : undefined,
+      label: fixo ? 'Custo médio (fixado)' : 'Custo médio',
+      text: usd.value ? `R$ ${formatFixed(r.custoMedio, 4)} / US$` : `US$ ${formatFixed(r.custoMedio, 6)} / esm.`,
+      note: fixo ? `Calculado: R$ ${formatFixed(r.custoMedioCalculado, 4)}` : undefined,
     },
-    { label: 'Valor em estoque', value: usd.value ? formatMoney(r.valorEmEstoque) : formatUsd(r.valorEmEstoque) },
+    usd.value ? { label: 'Valor em estoque', value: r.valorEmEstoque } : { label: 'Valor em estoque', text: formatUsd(r.valorEmEstoque) },
   ]
 })
 
@@ -149,17 +149,7 @@ async function importFromCrivonft() {
         <UiButton variant="secondary" @click="resumo.run">Tentar de novo</UiButton>
       </UiEmptyState>
     </div>
-    <div v-else-if="!current" class="grid gap-4 sm:grid-cols-3"><UiSkeleton v-for="i in 3" :key="i" class="h-28" /></div>
-    <dl v-else class="grid gap-4 sm:grid-cols-3">
-      <div v-for="c in cards" :key="c.label" class="rounded-2xl border border-line p-5">
-        <dt class="flex items-center gap-2 text-sm text-muted">
-          {{ c.label }}
-          <UiBadge v-if="c.fixed" tone="brand">fixado</UiBadge>
-        </dt>
-        <dd class="mt-1 text-2xl font-semibold tracking-tight text-ink tabular">{{ c.value }}</dd>
-        <dd v-if="c.hint" class="mt-1 text-[13px] text-muted">{{ c.hint }}</dd>
-      </div>
-    </dl>
+    <StatBlocks v-else :stats="stats" :loading="!current" :skeletons="3" />
 
     <section aria-labelledby="lots-title">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">

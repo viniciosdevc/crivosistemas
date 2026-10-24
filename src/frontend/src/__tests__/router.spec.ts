@@ -27,7 +27,7 @@ describe('router', () => {
   it('o painel tem as telas (e os detalhes) com seção e título', () => {
     const panel = router.getRoutes().filter((r) => r.path.startsWith('/painel') && r.meta.title)
     const titles = panel.map((r) => r.meta.title).sort()
-    expect(titles).toEqual(['Calculadora', 'Cliente', 'Clientes', 'Convites', 'Estoque', 'Financeiro', 'Integrações', 'NFTs', 'Painel', 'Preços e regras', 'Usuários', 'Venda', 'Venda de Câmbios', 'Vendas'])
+    expect(titles).toEqual(['Calculadora', 'Cliente', 'Clientes', 'Convites', 'Estoque', 'Financeiro', 'Financeiro', 'Integrações', 'NFTs', 'Painel', 'Preços e regras', 'Usuários', 'Venda', 'Venda de Câmbios', 'Vendas', 'Vendas'])
     for (const r of panel) {
       expect(r.meta.section, `seção de ${r.meta.title}`).toBeTruthy()
     }
