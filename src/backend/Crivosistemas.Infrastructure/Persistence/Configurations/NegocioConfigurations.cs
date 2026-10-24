@@ -271,6 +271,17 @@ internal sealed class PosicaoDiariaConfig : IEntityTypeConfiguration<PosicaoDiar
         b.Property(x => x.CambiosInformado).HasPrecision(18, 2);
         b.Property(x => x.CambiosSistema).HasPrecision(18, 2);
         b.Property(x => x.CustoMedioUsd).HasPrecision(18, 8);
+        b.Property(x => x.AjusteBrl).HasPrecision(14, 2);
+        b.Property(x => x.AjusteUsd).HasPrecision(18, 8);
+        b.Property(x => x.AjusteCambios).HasPrecision(18, 2);
+        b.Property(x => x.AjusteEsmeraldas).HasPrecision(18, 8);
+        b.Property(x => x.BrlFinal).HasPrecision(14, 2);
+        b.Property(x => x.UsdFinal).HasPrecision(18, 8);
+        b.Property(x => x.CambiosFinal).HasPrecision(18, 2);
+        b.Property(x => x.EsmeraldasFinal).HasPrecision(18, 8);
+        b.Property(x => x.PrecoUsd).HasPrecision(18, 8);
+        b.Property(x => x.BrlPorCambio).HasPrecision(18, 8);
+        b.Property(x => x.BrlPorEsmeralda).HasPrecision(18, 8);
         b.Property(x => x.Observacao).HasMaxLength(300);
         b.HasIndex(x => x.Data).IsUnique();
     }

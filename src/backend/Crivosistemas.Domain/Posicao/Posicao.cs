@@ -15,7 +15,21 @@ public class PosicaoDiaria : Entity
     public decimal UsdSistema { get; set; }
     public decimal CambiosSistema { get; set; }
     public decimal EsmeraldasSistema { get; set; }
-    /// <summary>Custo médio do dólar (R$/US$) no momento; serve para somar o dólar ao caixa no total operacional.</summary>
+    /// <summary>Quanto o ajuste do dia mexeu em cada saldo (acumulado se a posição foi informada mais de uma vez). Nulo = não ajustado.</summary>
+    public decimal? AjusteBrl { get; set; }
+    public decimal? AjusteUsd { get; set; }
+    public decimal? AjusteCambios { get; set; }
+    public decimal? AjusteEsmeraldas { get; set; }
+    /// <summary>Saldos depois do ajuste (o que vale para o total do dia).</summary>
+    public decimal BrlFinal { get; set; }
+    public decimal UsdFinal { get; set; }
+    public decimal CambiosFinal { get; set; }
+    public decimal EsmeraldasFinal { get; set; }
+    /// <summary>Valoração do dia: preço médio de venda do dólar (R$/US$), R$ por câmbio e R$ por esmeralda.</summary>
+    public decimal PrecoUsd { get; set; }
+    public decimal BrlPorCambio { get; set; }
+    public decimal BrlPorEsmeralda { get; set; }
+    /// <summary>Custo médio de compra do dólar (R$/US$) no momento.</summary>
     public decimal CustoMedioUsd { get; set; }
     public string? Observacao { get; set; }
     public Guid? CriadoPor { get; set; }
@@ -25,10 +39,7 @@ public class PosicaoDiaria : Entity
 
 public static class RegrasPosicao
 {
-    /// <summary>Diferença informado − sistema; nula quando o saldo não foi conferido.</summary>
-    public static decimal? Diferenca(decimal? informado, decimal sistema) => informado is null ? null : informado.Value - sistema;
-
-    /// <summary>Caixa em R$ mais o dólar ao custo médio. Usa o valor conferido; sem conferência, o do sistema. Câmbios e esmeraldas ficam de fora (outra unidade).</summary>
-    public static decimal TotalOperacionalBrl(decimal? brlInformado, decimal brlSistema, decimal? usdInformado, decimal usdSistema, decimal custoMedioUsd) =>
-        Math.Round((brlInformado ?? brlSistema) + (usdInformado ?? usdSistema) * custoMedioUsd, 2, MidpointRounding.AwayFromZero);
+    /// <summary>Total em R$ de um dia: conta + dólar ao preço médio de venda + câmbios ao valor do K + esmeraldas ao custo em R$.</summary>
+    public static decimal TotalBrl(decimal brl, decimal usd, decimal cambios, decimal esmeraldas, decimal precoUsd, decimal brlPorCambio, decimal brlPorEsmeralda) =>
+        Math.Round(brl + usd * precoUsd + cambios * brlPorCambio + esmeraldas * brlPorEsmeralda, 2, MidpointRounding.AwayFromZero);
 }
