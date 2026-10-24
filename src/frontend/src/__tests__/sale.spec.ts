@@ -105,3 +105,13 @@ describe('zonedToIso', () => {
     expect(zonedToIso('2026-01-10', '08:00', 'UTC')).toBe('2026-01-10T08:00:00.000Z')
   })
 })
+
+describe('taxa da feira', () => {
+  it('converte a taxa de câmbios para R$ pelo K da feira', async () => {
+    const { taxaFeiraBrl, taxaFeiraPadrao } = await import('@/lib/sale')
+    expect(taxaFeiraBrl({ taxaPrata: 500, valorKFeira: 13, moedasPorK: 1000 })).toBeCloseTo(6.5)
+    expect(taxaFeiraPadrao('pix')).toBe(false)
+    expect(taxaFeiraPadrao('cambios')).toBe(true)
+    expect(taxaFeiraPadrao('hibrido')).toBe(true)
+  })
+})

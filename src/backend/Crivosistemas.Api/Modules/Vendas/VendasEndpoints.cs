@@ -2,13 +2,15 @@ using Crivosistemas.Api.Common;
 using Crivosistemas.Api.Modules.Integracoes;
 using Crivosistemas.Domain.Vendas;
 using Crivosistemas.Infrastructure.Persistence;
+using Crivosistemas.Infrastructure.Integracoes;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace Crivosistemas.Api.Modules.Vendas;
 
 public sealed record ClienteResumoDto(Guid Id, string Nickname, string? Email, string? Carteira);
 public sealed record VendaListaDto(Guid Id, string Origem, string OrigemId, string? PedidoId, DateTime DataHora, DateOnly Dia, string Status, string StatusNormalizado,
-    string? FormaPagamento, string? Vendedor, ClienteResumoDto? Cliente, decimal TotalBrl, decimal LucroBrl, decimal MargemPercent, bool Removida, bool Faturavel);
+    string? FormaPagamento, string? Vendedor, ClienteResumoDto? Cliente, decimal TotalBrl, decimal LucroBrl, decimal MargemPercent, bool Removida, bool Faturavel, string? Item);
 public sealed record VendaItemDto(int Ordem, string Descricao, decimal Quantidade, decimal PrecoUsd, decimal PrecoBrl, string? Referencia);
 public sealed record CupomDto(string Codigo, string? Tipo);
 public sealed record ValoresDto(decimal TotalBrl, decimal DescontoBrl, decimal TaxaBrl, decimal ValorPixBrl, decimal ValorCambios, decimal CustoBrl, decimal CustoUsd,
@@ -25,6 +27,9 @@ public sealed record ResumoOrigemDto(string Origem, decimal Faturamento, decimal
 public sealed record ResumoDiaDto(DateOnly Dia, decimal Faturamento, decimal Lucro, int Quantidade);
 public sealed record ResumoVendasDto(DateOnly De, DateOnly Ate, TotaisDto Totais, IReadOnlyList<ResumoOrigemDto> PorOrigem, IReadOnlyList<ResumoDiaDto> PorDia);
 
+/// <summary>Categoria de log das vendas.</summary>
+public sealed class VendasLog;
+
 /// <summary>Vendas consolidadas (nft, câmbios e site). Datas e dias seguem America/Sao_Paulo; removidas e canceladas ficam fora do faturamento.
 /// Qualquer pessoa autenticada (admin ou operador) lê.</summary>
 public static class VendasEndpoints
@@ -34,13 +39,22 @@ public static class VendasEndpoints
         var g = app.MapGroup("/api/vendas").WithTags("Vendas").RequireAuthorization();
         g.MapGet("", Listar).WithSummary("Lista paginada com filtros: de, ate, origem, statusNormalizado, formaPagamento, clienteId, busca, incluirRemovidas.");
         g.MapGet("/resumo", Resumo).WithSummary("Resumo para o Painel: faturamento, lucro, ticket médio, quantidade, por origem e por dia.");
+        g.MapGet("/imagens", Imagens).WithSummary("Imagem dos itens pelo nome (?nome=A&nome=B, até 50), vinda do crivonft e guardada em cache. Sem imagem ou sem integração: null.");
         g.MapGet("/{id:guid}", Detalhe).WithSummary("Detalhe: itens, valores, cupom e histórico de eventos.");
     }
 
     internal static VendaListaDto ToLista(Venda v) => new(v.Id, Nomes.Origem(v.Origem), v.OrigemId, v.PedidoId, v.DataHora, FusoSp.Dia(v.DataHora), v.Status,
         Nomes.Status(v.StatusNormalizado), v.FormaPagamento is { } f ? Nomes.Forma(f) : null, v.Vendedor,
         v.Cliente is null ? null : new ClienteResumoDto(v.Cliente.Id, v.Cliente.Nickname, v.Cliente.Email, v.Cliente.Carteira),
-        v.TotalBrl, v.LucroBrl, v.MargemPercent, v.Removida, v.Faturavel);
+        v.TotalBrl, v.LucroBrl, v.MargemPercent, v.Removida, v.Faturavel, NomeItem(v));
+
+    /// <summary>Nome para identificar a venda: o primeiro item e "+N" quando houver mais. Null se os itens não foram carregados.</summary>
+    internal static string? NomeItem(Venda v)
+    {
+        if (v.Itens.Count == 0) return null;
+        var primeiro = v.Itens.OrderBy(i => i.Ordem).First().Descricao;
+        return v.Itens.Count == 1 ? primeiro : $"{primeiro} +{v.Itens.Count - 1}";
+    }
 
     /// <summary>Período padrão: últimos 30 dias até hoje (SP). Devolve null e o erro quando inválido.</summary>
     internal static (DateOnly De, DateOnly Ate, IResult? Erro) Periodo(DateOnly? de, DateOnly? ate, int diasPadrao = 30, int maxDias = 800)
@@ -96,8 +110,37 @@ public static class VendasEndpoints
             "lucro" => desc ? q.OrderByDescending(v => v.LucroBrl) : q.OrderBy(v => v.LucroBrl),
             _ => desc ? q.OrderByDescending(v => v.DataHora) : q.OrderBy(v => v.DataHora),
         };
-        var r = await ordenado.ThenBy(v => v.Id).Include(v => v.Cliente).ToPageAsync(page, pageSize, ct);
+        var r = await ordenado.ThenBy(v => v.Id).Include(v => v.Cliente).Include(v => v.Itens).AsSplitQuery().ToPageAsync(page, pageSize, ct);
         return Results.Ok(new PagedResult<VendaListaDto>(r.Items.Select(ToLista).ToList(), r.Page, r.PageSize, r.Total));
+    }
+
+    private static async Task<IResult> Imagens(string[]? nome, ICrivonftClient crivonft, IMemoryCache cache, ILogger<VendasLog> log, CancellationToken ct)
+    {
+        var nomes = (nome ?? []).Select(n => n.Trim()).Where(n => n.Length is > 0 and <= 200).Distinct(StringComparer.OrdinalIgnoreCase).Take(50).ToList();
+        var imagens = new Dictionary<string, string?>();
+        var faltam = new List<string>();
+        foreach (var n in nomes)
+        {
+            if (cache.TryGetValue("imagem-item:" + n.ToLowerInvariant(), out string? url)) imagens[n] = url; else faltam.Add(n);
+        }
+        if (faltam.Count > 0)
+        {
+            try
+            {
+                foreach (var (n, url) in await crivonft.ImagensDeItensAsync(faltam, ct))
+                {
+                    imagens[n] = url;
+                    // Achou: guarda por 6h. Não achou: 5 min, para a foto aparecer logo depois de cadastrada.
+                    cache.Set("imagem-item:" + n.ToLowerInvariant(), url, url is null ? TimeSpan.FromMinutes(5) : TimeSpan.FromHours(6));
+                }
+            }
+            catch (CrivonftException e)
+            {
+                log.LogWarning("Imagens dos itens indisponíveis: {Mensagem}", e.Message);
+                foreach (var n in faltam) imagens.TryAdd(n, null);
+            }
+        }
+        return Results.Ok(new { imagens });
     }
 
     private static async Task<IResult> Detalhe(Guid id, AppDbContext db, CancellationToken ct)

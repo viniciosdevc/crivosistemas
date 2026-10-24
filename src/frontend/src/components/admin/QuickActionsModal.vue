@@ -55,15 +55,15 @@ function onCreated(venda: VendaLista) {
 </script>
 
 <template>
-  <UiModal v-model:open="open" :title="head.title" :description="head.description" :size="tab === 'venda' ? 'lg' : 'md'">
-    <div class="flex flex-col gap-6">
-      <UiChips v-model="tab" :options="tabs" label="Ação" />
+  <UiModal v-model:open="open" :title="head.title" :description="head.description" :size="tab === 'venda' ? 'xl' : 'lg'" compact>
+    <div class="flex flex-col gap-4">
+      <UiChips v-model="tab" :options="tabs" label="Ação" compact />
 
       <template v-if="tab !== 'venda'">
         <UiEmptyState v-if="error && !data" :icon="TriangleAlert" title="Não foi possível carregar as regras" :description="error.message">
           <UiButton variant="secondary" @click="run"><RefreshCw class="size-4" /> Tentar de novo</UiButton>
         </UiEmptyState>
-        <UiSkeleton v-else-if="!data" class="h-72" />
+        <UiSkeleton v-else-if="!data" class="h-56" />
         <CalculatorPanel v-else :mode="tab" :regras="data" />
       </template>
 

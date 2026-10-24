@@ -32,10 +32,10 @@ const helpOpen = ref(false)
       <UiButton variant="secondary" @click="run"><RefreshCw class="size-4" /> Tentar de novo</UiButton>
     </UiEmptyState>
 
-    <UiSkeleton v-else-if="loading && !data" class="h-80 max-w-xl" />
+    <UiSkeleton v-else-if="loading && !data" class="h-80 max-w-3xl" />
 
-    <div v-else-if="data" class="max-w-xl">
-      <UiTabs v-model="tab" :tabs="tabs" class="mb-6" />
+    <div v-else-if="data" class="max-w-3xl">
+      <UiTabs v-model="tab" :tabs="tabs" class="mb-4" />
       <CalculatorPanel :mode="tab" :regras="data" :show-help="helpOpen" />
     </div>
   </PageCard>

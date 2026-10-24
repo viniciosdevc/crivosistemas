@@ -61,6 +61,15 @@ public sealed class FakeCrivonftClient : Crivosistemas.Infrastructure.Integracoe
     public Task<Crivosistemas.Infrastructure.Integracoes.ExportPagina> ExportarClientesAsync(int limit, int offset, CancellationToken ct) =>
         Task.FromResult(new Crivosistemas.Infrastructure.Integracoes.ExportPagina(Clientes.Count, limit, offset, Clientes.Skip(offset).Take(limit).ToList()));
 
+    public Dictionary<string, string> Imagens { get; } = new(StringComparer.OrdinalIgnoreCase);
+    public int ConsultasImagens { get; set; }
+
+    public Task<IReadOnlyDictionary<string, string?>> ImagensDeItensAsync(IReadOnlyList<string> nomes, CancellationToken ct)
+    {
+        ConsultasImagens++;
+        return Task.FromResult<IReadOnlyDictionary<string, string?>>(nomes.Distinct().ToDictionary(n => n, n => Imagens.TryGetValue(n, out var u) ? u : null));
+    }
+
     public List<System.Text.Json.JsonElement> EstoqueUsd { get; } = [];
     public List<System.Text.Json.JsonElement> EstoqueEsmeralda { get; } = [];
 

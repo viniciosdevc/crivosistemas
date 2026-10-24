@@ -55,6 +55,8 @@ export interface VendaLista {
   formaPagamento: FormaPagamento | null
   vendedor: string | null
   cliente: ClienteResumo | null
+  /** Nome do primeiro item ("+N" se houver mais). */
+  item: string | null
   totalBrl: number
   lucroBrl: number
   margemPercent: number
@@ -414,6 +416,11 @@ export interface ResultadoImportacaoEstoque {
   usdImportados: number
   esmeraldasImportados: number
   ignorados: number
+}
+
+/** GET /api/vendas/imagens: URL absoluta da imagem por nome de item, ou null. */
+export interface ImagensItens {
+  imagens: Record<string, string | null>
 }
 
 // ── Câmbios ─────────────────────────────────────────────────────────────────
