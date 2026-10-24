@@ -65,16 +65,28 @@ const visibleGroups = computed(() =>
     .map((g) => ({ ...g, items: g.items.filter((i) => !i.adminOnly || auth.isAdmin) }))
     .filter((g) => g.items.length > 0),
 )
-// Grupos fechados à mão; o grupo da rota atual fica sempre aberto.
-const closed = ref<Set<string>>(new Set())
+// Grupos começam fechados; abre o da rota atual e lembra o que foi aberto à mão.
+const STORAGE_KEY = 'crivosistemas:nav-open'
+function loadOpen(): Set<string> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]')
+    return new Set(Array.isArray(raw) ? raw.filter((k) => typeof k === 'string') : [])
+  } catch {
+    return new Set()
+  }
+}
+const opened = ref<Set<string>>(loadOpen())
 function isOpen(g: NavGroup) {
-  return !closed.value.has(g.key) || g.items.some(isActive)
+  return opened.value.has(g.key) || g.items.some(isActive)
 }
 function toggle(g: NavGroup) {
-  const next = new Set(closed.value)
-  if (next.has(g.key)) next.delete(g.key)
+  const next = new Set(opened.value)
+  if (isOpen(g)) next.delete(g.key)
   else next.add(g.key)
-  closed.value = next
+  opened.value = next
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]))
+  } catch { /* sem storage: só não lembra */ }
 }
 
 function isActive(item: NavItem) {
