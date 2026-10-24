@@ -14,6 +14,7 @@ export const origemVenda: Record<string, { label: string; tone: Tone }> = {
   site: { label: 'Site', tone: 'info' },
   nft: { label: 'NFT', tone: 'brand' },
   cambios: { label: 'Câmbios', tone: 'neutral' },
+  manual: { label: 'Manual', tone: 'warning' },
 }
 
 export const statusVenda: Record<string, { label: string; tone: Tone }> = {
@@ -28,6 +29,29 @@ export const formaPagamento: Record<string, { label: string; tone: Tone }> = {
   pix: { label: 'PIX', tone: 'neutral' },
   cambios: { label: 'Câmbios', tone: 'neutral' },
   hibrido: { label: 'Híbrido', tone: 'neutral' },
+}
+
+export const origemCusto: Record<string, string> = {
+  estoque_usd: 'Estoque em USD',
+  cambios: 'Comprado em Câmbios',
+  estoque_esmeralda: 'Estoque de Esmeraldas',
+  manual: 'Custo Manual',
+}
+
+export const origemLote: Record<string, { label: string; tone: Tone }> = {
+  compra: { label: 'Compra', tone: 'success' },
+  ajuste: { label: 'Ajuste', tone: 'warning' },
+  importacao_crivonft: { label: 'Importado do crivonft', tone: 'info' },
+}
+
+export const motivoMovimento: Record<string, { label: string; tone: Tone }> = {
+  compra: { label: 'Compra', tone: 'success' },
+  venda: { label: 'Venda', tone: 'info' },
+  estorno_venda: { label: 'Estorno de venda', tone: 'neutral' },
+  ajuste: { label: 'Ajuste', tone: 'warning' },
+  cancelamento: { label: 'Cancelamento', tone: 'danger' },
+  importacao: { label: 'Importação', tone: 'info' },
+  edicao: { label: 'Correção de compra', tone: 'neutral' },
 }
 
 export const tipoCupom: Record<string, string> = {

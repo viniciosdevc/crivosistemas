@@ -72,7 +72,7 @@ public static class PayloadParser
         var e = new List<string>();
         var origem = default(OrigemVenda);
         var origemTexto = Texto(d, "origem", e, "origem");
-        if (origemTexto is not null && !Nomes.TentarOrigem(origemTexto, out origem)) e.Add("origem deve ser nft, cambios ou site.");
+        if (origemTexto is not null && (!Nomes.TentarOrigem(origemTexto, out origem) || origem == OrigemVenda.Manual)) e.Add("origem deve ser nft, cambios ou site.");
         var origemId = Texto(d, "origem_id", e, "origem_id", max: 64);
         var pedidoId = Texto(d, "pedido_id", e, "pedido_id", obrigatorio: false, max: 64);
         var dataHora = Data(d, "data_hora", e, "data_hora", obrigatorio: true);
@@ -149,7 +149,7 @@ public static class PayloadParser
         var e = new List<string>();
         var origem = default(OrigemVenda);
         var origemTexto = Texto(d, "origem", e, "origem");
-        if (origemTexto is not null && !Nomes.TentarOrigem(origemTexto, out origem)) e.Add("origem deve ser nft, cambios ou site.");
+        if (origemTexto is not null && (!Nomes.TentarOrigem(origemTexto, out origem) || origem == OrigemVenda.Manual)) e.Add("origem deve ser nft, cambios ou site.");
         var origemId = Texto(d, "origem_id", e, "origem_id", max: 64);
         return e.Count > 0 ? new(null, e) : new(new VendaRemovidaPayload(origem, origemId!), []);
     }

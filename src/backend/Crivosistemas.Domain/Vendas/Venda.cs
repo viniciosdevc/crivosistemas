@@ -2,7 +2,9 @@ using Crivosistemas.Domain.Common;
 
 namespace Crivosistemas.Domain.Vendas;
 
-public enum OrigemVenda { Nft = 1, Cambios = 2, Site = 3 }
+public enum OrigemVenda { Nft = 1, Cambios = 2, Site = 3, Manual = 4 }
+/// <summary>De onde saiu o custo de uma venda manual (mesmas opções do crivonft, menos o estoque de itens).</summary>
+public enum OrigemCusto { EstoqueUsd = 1, Cambios = 2, EstoqueEsmeralda = 3, Manual = 4 }
 public enum StatusVenda { Pendente = 1, Pago = 2, Concluido = 3, Cancelado = 4, Reembolsado = 5 }
 public enum FormaPagamento { Pix = 1, Cambios = 2, Hibrido = 3 }
 public enum TipoCupom { Percentual = 1, ValorFixo = 2, TaxaGratis = 3 }
@@ -10,7 +12,7 @@ public enum TipoCupom { Percentual = 1, ValorFixo = 2, TaxaGratis = 3 }
 /// <summary>Nomes de cada enum como trafegam no contrato com o crivonft e na API (minúsculos, sem acento).</summary>
 public static class Nomes
 {
-    public static string Origem(OrigemVenda o) => o switch { OrigemVenda.Nft => "nft", OrigemVenda.Cambios => "cambios", _ => "site" };
+    public static string Origem(OrigemVenda o) => o switch { OrigemVenda.Nft => "nft", OrigemVenda.Cambios => "cambios", OrigemVenda.Manual => "manual", _ => "site" };
     public static bool TentarOrigem(string? s, out OrigemVenda o)
     {
         switch (s?.Trim().ToLowerInvariant())
@@ -18,6 +20,7 @@ public static class Nomes
             case "nft": o = OrigemVenda.Nft; return true;
             case "cambios": o = OrigemVenda.Cambios; return true;
             case "site": o = OrigemVenda.Site; return true;
+            case "manual": o = OrigemVenda.Manual; return true;
             default: o = default; return false;
         }
     }
@@ -49,6 +52,22 @@ public static class Nomes
             case "cambios": f = FormaPagamento.Cambios; return true;
             case "hibrido": f = FormaPagamento.Hibrido; return true;
             default: f = default; return false;
+        }
+    }
+
+    public static string Custo(OrigemCusto c) => c switch
+    {
+        OrigemCusto.EstoqueUsd => "estoque_usd", OrigemCusto.Cambios => "cambios", OrigemCusto.EstoqueEsmeralda => "estoque_esmeralda", _ => "manual",
+    };
+    public static bool TentarCusto(string? s, out OrigemCusto c)
+    {
+        switch (s?.Trim().ToLowerInvariant())
+        {
+            case "estoque_usd": c = OrigemCusto.EstoqueUsd; return true;
+            case "cambios": c = OrigemCusto.Cambios; return true;
+            case "estoque_esmeralda": c = OrigemCusto.EstoqueEsmeralda; return true;
+            case "manual": c = OrigemCusto.Manual; return true;
+            default: c = default; return false;
         }
     }
 
@@ -108,6 +127,14 @@ public class Venda : Entity
     public string? CupomCodigo { get; set; }
     public TipoCupom? CupomTipo { get; set; }
 
+    // Só vendas manuais (lançadas aqui): de onde veio o custo e o que foi usado no cálculo.
+    public OrigemCusto? OrigemCusto { get; set; }
+    public decimal? QuantidadeEsmeraldas { get; set; }
+    public bool UsaTaxaPrata { get; set; }
+    public decimal? DolarCompraUsado { get; set; }
+    public string? Observacao { get; set; }
+    public Guid? CriadoPor { get; set; }
+
     /// <summary>Última atualização na origem; regra de upsert: evento mais antigo que isto é ignorado.</summary>
     public DateTime AtualizadoEmOrigem { get; set; }
     public DateTime? RemovidaEm { get; set; }
@@ -117,6 +144,7 @@ public class Venda : Entity
     public List<VendaItem> Itens { get; set; } = [];
 
     public bool Removida => RemovidaEm is not null;
+    public bool Manual => Origem == OrigemVenda.Manual;
 
     /// <summary>Entra no faturamento? Só vendas pagas ou concluídas e não removidas. Pendente ainda não foi recebida; cancelada e reembolsada não valem.</summary>
     public bool Faturavel => !Removida && StatusNormalizado is StatusVenda.Pago or StatusVenda.Concluido;

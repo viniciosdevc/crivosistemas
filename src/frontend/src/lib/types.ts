@@ -30,7 +30,7 @@ export interface Paged<T> {
 
 // ── Vendas e clientes ───────────────────────────────────────────────────────
 
-export type Origem = 'nft' | 'cambios' | 'site'
+export type Origem = 'nft' | 'cambios' | 'site' | 'manual'
 export type StatusVenda = 'pendente' | 'pago' | 'concluido' | 'cancelado' | 'reembolsado'
 export type FormaPagamento = 'pix' | 'cambios' | 'hibrido'
 
@@ -110,6 +110,43 @@ export interface VendaDetalhe {
   atualizadoEmOrigem: string
   removidaEm: string | null
   eventos: VendaEvento[]
+  /** Só em vendas de origem 'manual'. */
+  manual: VendaManual | null
+}
+
+export type OrigemCusto = 'estoque_usd' | 'cambios' | 'estoque_esmeralda' | 'manual'
+
+export interface MovimentoVenda {
+  tipo: TipoEstoque
+  quantidade: number
+  custoUnitario: number
+  motivo: MotivoMovimento
+  criadoEm: string
+}
+
+export interface VendaManual {
+  origemCusto: OrigemCusto | null
+  quantidadeEsmeraldas: number | null
+  usaTaxaPrata: boolean
+  dolarCompraUsado: number | null
+  observacao: string | null
+  movimentos: MovimentoVenda[]
+}
+
+export interface NovaVenda {
+  dataHora: string
+  nicknameComprador: string
+  nomeItem: string
+  formaPagamento: FormaPagamento
+  origemCusto: OrigemCusto
+  custoUsd: number
+  custoCambios: number
+  quantidadeEsmeraldas: number
+  usaTaxaPrata: boolean
+  valorVendaPix: number
+  valorVendaCambios: number
+  observacao: string
+  entregue: boolean
 }
 
 export interface ResumoTotais {
@@ -303,4 +340,78 @@ export interface RegrasPrecificacao {
   versao: number
   configuracao: ConfigCalculo
   faixasPix: FaixaPix[]
+}
+
+// ── Estoque ─────────────────────────────────────────────────────────────────
+
+export type TipoEstoque = 'usd' | 'esmeraldas'
+export type OrigemLote = 'compra' | 'ajuste' | 'importacao_crivonft'
+export type MotivoMovimento = 'compra' | 'venda' | 'estorno_venda' | 'ajuste' | 'cancelamento' | 'importacao' | 'edicao'
+
+/** USD: custoMedio em R$ por US$. Esmeraldas: custoMedio em US$ por esmeralda. */
+export interface ResumoEstoque {
+  tipo: TipoEstoque
+  saldo: number
+  custoMedio: number
+  custoMedioCalculado: number
+  custoMedioFixo: number | null
+  valorEmEstoque: number
+  lotes: number
+}
+
+export interface ResumoEstoques {
+  usd: ResumoEstoque
+  esmeraldas: ResumoEstoque
+}
+
+export interface LoteEstoque {
+  id: string
+  tipo: TipoEstoque
+  origem: OrigemLote
+  /** AAAA-MM-DD */
+  dataCompra: string
+  quantidade: number
+  saldo: number
+  custoTotal: number
+  custoUnitario: number
+  observacao: string | null
+  criadoEm: string
+  canceladoEm: string | null
+  motivoCancelamento: string | null
+  editavel: boolean
+}
+
+export interface MovimentoEstoque {
+  id: string
+  tipo: TipoEstoque
+  loteId: string
+  /** Positivo entra, negativo sai. */
+  quantidade: number
+  custoUnitario: number
+  motivo: MotivoMovimento
+  vendaId: string | null
+  estornado: boolean
+  observacao: string | null
+  usuario: string | null
+  criadoEm: string
+}
+
+export interface CompraEstoque {
+  data: string
+  quantidade: number
+  custoTotal: number
+  observacao: string
+}
+
+export interface AjusteEstoque {
+  direcao: 'entrada' | 'saida'
+  quantidade: number
+  custoUnitario: number | null
+  motivo: string
+}
+
+export interface ResultadoImportacaoEstoque {
+  usdImportados: number
+  esmeraldasImportados: number
+  ignorados: number
 }

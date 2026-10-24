@@ -5,6 +5,7 @@ import DataTable, { type Column } from '@/components/ui/DataTable.vue'
 import WalletAddress from '@/components/admin/WalletAddress.vue'
 import PageCard from '@/components/ui/PageCard.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
+import { habboAvatarUrl } from '@/lib/habbo'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiEmptyState from '@/components/ui/UiEmptyState.vue'
 import UiPagination from '@/components/ui/UiPagination.vue'
@@ -64,7 +65,7 @@ function onSort(key: string, dir: 'asc' | 'desc') {
     >
       <template #cell-nickname="{ row }">
         <div class="flex items-center gap-3">
-          <UiAvatar :name="row.nickname" />
+          <UiAvatar :name="row.nickname" :src="habboAvatarUrl(row.nickname)" />
           <div class="min-w-0">
             <RouterLink :to="{ name: 'customer', params: { id: row.id } }" class="block truncate font-medium text-ink hover:underline">{{ row.nickname }}</RouterLink>
             <p v-if="row.email" class="truncate text-sm text-muted">{{ row.email }}</p>

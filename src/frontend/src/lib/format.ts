@@ -168,3 +168,8 @@ export function shortWallet(address: string | null | undefined) {
 export function walletExplorerUrl(address: string) {
   return `https://explorer.immutable.com/address/${encodeURIComponent(address.trim())}`
 }
+
+/** Número com até `digits` casas (custos unitários pequenos, como US$ por esmeralda). */
+export function formatFixed(value: number | null | undefined, digits = 6) {
+  return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: digits }).format(value ?? 0)
+}
