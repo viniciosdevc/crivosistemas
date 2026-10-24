@@ -46,26 +46,28 @@ const custoUsd = computed(() => (modo.value === 'dolar' ? custoUsdDolar.value : 
 
 <template>
   <div>
-    <p v-if="showHelp" class="mb-5 rounded-2xl bg-info-soft px-4 py-3 text-[14px] leading-relaxed text-info">
+    <p v-if="showHelp" class="mb-3 rounded-xl bg-info-soft px-3 py-2 text-[13px] leading-relaxed text-info">
       O custo usa sempre o dólar de compra fixo de Preços e regras ({{ formatMoney(dolarCompraParaCalculo(props.regras.configuracao)) }}), não a cotação ao vivo nem o custo médio do estoque.
     </p>
-    <p v-if="regras.versao === 0" class="mb-5 rounded-2xl bg-warning-soft px-4 py-3 text-[14px] text-warning">
+    <p v-if="regras.versao === 0" class="mb-3 rounded-xl bg-warning-soft px-3 py-2 text-[13px] text-warning">
       As regras ainda não foram salvas: os valores abaixo são os padrões.
     </p>
 
-    <div v-if="mode === 'nft'" class="grid gap-5">
-      <UiChips v-model="modo" :options="modos" label="Modo de cálculo" />
+    <div v-if="mode === 'nft'" class="grid items-start gap-3 md:grid-cols-2 md:gap-5">
+      <div class="grid gap-3">
+      <UiChips v-model="modo" :options="modos" label="Modo de cálculo" compact />
 
       <UiInput v-if="modo === 'dolar'" v-model="rawUsd" label="Custo USD" prefix="$" inputmode="decimal" placeholder="0,00" />
       <template v-else>
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="grid gap-3 sm:grid-cols-2 md:grid-cols-1">
           <UiInput v-model="rawK" :label="`Valor do K ($ / ${formatInt(ESMERALDAS_POR_K)})`" prefix="$" inputmode="decimal" placeholder="Ex: 9,44" />
           <UiInput v-model="rawQtd" label="Esmeraldas" inputmode="numeric" placeholder="Ex: 300" />
         </div>
-        <div class="flex items-center justify-between gap-2 rounded-2xl border border-line px-5 py-4 text-[15px]">
+        <div class="flex items-center justify-between gap-2 rounded-xl border border-line px-4 py-2.5 text-sm">
           <span class="text-muted">Custo USD</span><span class="font-medium text-ink tabular">$ {{ formatDecimal(Math.round(custoUsdEsmeralda * 100) / 100) }}</span>
         </div>
       </template>
+      </div>
 
       <NftResult :custo-usd="custoUsd" :config="regras.configuracao" :faixas="regras.faixasPix" />
     </div>

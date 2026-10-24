@@ -10,6 +10,8 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiEmptyState from '@/components/ui/UiEmptyState.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { ApiError, api } from '@/lib/api'
+import UiImageLightbox from '@/components/ui/UiImageLightbox.vue'
+import { carregarImagens, imagemDoItem } from '@/lib/imagens'
 import { habboAvatarUrl } from '@/lib/habbo'
 import { confirm, confirmWithReason } from '@/lib/confirm'
 import { formatDateTime, formatDecimal, formatFixed, formatMoney, formatPercent, formatUsd } from '@/lib/format'
@@ -68,7 +70,13 @@ async function cancelSale() {
     acting.value = null
   }
 }
-const title = computed(() => (venda.value ? (venda.value.pedidoId ? `Pedido ${venda.value.pedidoId}` : `Venda ${venda.value.origemId.slice(0, 8)}`) : 'Venda'))
+const title = computed(() => {
+  const v = venda.value
+  if (!v) return 'Venda'
+  return v.item ?? (v.pedidoId ? `Pedido ${v.pedidoId}` : `Venda ${v.origemId.slice(0, 8)}`)
+})
+const imagem = computed(() => imagemDoItem(venda.value?.item))
+watch(venda, (v) => v && void carregarImagens([v.item]), { immediate: true })
 const values = computed(() => {
   const v = data.value?.valores
   if (!v) return []
@@ -95,13 +103,16 @@ const values = computed(() => {
     </template>
     <template #title>
       <UiButton variant="ghost" size="sm" to="/painel/vendas" class="-ml-3 mb-2"><ArrowLeft class="size-4" /> Vendas</UiButton>
-      <div class="flex flex-wrap items-center gap-3">
-        <h1 class="text-2xl font-semibold tracking-tight text-ink lg:text-[28px]">{{ title }}</h1>
-        <template v-if="venda">
-          <StatusBadge :map="statusVenda" :value="venda.statusNormalizado" />
-          <StatusBadge :map="origemVenda" :value="venda.origem" />
-          <UiBadge v-if="venda.removida" tone="danger">Removida na origem</UiBadge>
-        </template>
+      <div class="flex items-center gap-4">
+        <UiImageLightbox v-if="venda" :src="imagem" :alt="title" size="lg" />
+        <div class="flex min-w-0 flex-wrap items-center gap-3">
+          <h1 class="text-2xl font-semibold tracking-tight text-ink lg:text-[28px]">{{ title }}</h1>
+          <template v-if="venda">
+            <StatusBadge :map="statusVenda" :value="venda.statusNormalizado" />
+            <StatusBadge :map="origemVenda" :value="venda.origem" />
+            <UiBadge v-if="venda.removida" tone="danger">Removida na origem</UiBadge>
+          </template>
+        </div>
       </div>
       <p v-if="venda" class="mt-1 text-[15px] text-muted">{{ formatDateTime(venda.dataHora) }}</p>
     </template>

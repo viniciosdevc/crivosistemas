@@ -90,6 +90,18 @@ public sealed class EstoqueTests(ApiFactory factory)
         Assert.Equal("estoque_usd", detalhe.GetProperty("manual").GetProperty("origemCusto").GetString());
         Assert.Equal(2, detalhe.GetProperty("manual").GetProperty("movimentos").GetArrayLength());
         Assert.True(detalhe.GetProperty("venda").GetProperty("faturavel").GetBoolean());
+        Assert.Equal("Trono Dourado", detalhe.GetProperty("venda").GetProperty("item").GetString());
+        var lista = (await (await op.GetAsync($"/api/vendas?busca={nick}")).Json()).GetProperty("items")[0];
+        Assert.Equal("Trono Dourado", lista.GetProperty("item").GetString());
+
+        // Imagem do item vem do crivonft, com cache: a segunda chamada não consulta de novo.
+        factory.Crivonft.Imagens["Trono Dourado"] = "https://img.example/trono.png";
+        var antes = factory.Crivonft.ConsultasImagens;
+        var img = (await (await op.GetAsync("/api/vendas/imagens?nome=Trono%20Dourado&nome=Sem%20Foto")).Json()).GetProperty("imagens");
+        Assert.Equal("https://img.example/trono.png", img.GetProperty("Trono Dourado").GetString());
+        Assert.Equal(JsonValueKind.Null, img.GetProperty("Sem Foto").ValueKind);
+        await op.GetAsync("/api/vendas/imagens?nome=Trono%20Dourado");
+        Assert.Equal(antes + 1, factory.Crivonft.ConsultasImagens);
 
         // Cancelar devolve aos mesmos lotes: custo médio volta a 5,375.
         (await op.Post($"/api/vendas/{vid}/cancelar", new { motivo = "desistiu" })).EnsureSuccessStatusCode();

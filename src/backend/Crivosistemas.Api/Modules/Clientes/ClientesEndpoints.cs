@@ -49,7 +49,7 @@ public static class ClientesEndpoints
     private static async Task<IResult> Detalhe(Guid id, AppDbContext db, CancellationToken ct)
     {
         var c = await db.Clientes.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct) ?? throw new NotFoundException("Cliente não encontrado.");
-        var vendas = await db.Vendas.AsNoTracking().Include(v => v.Cliente).Where(v => v.ClienteId == id && v.RemovidaEm == null)
+        var vendas = await db.Vendas.AsNoTracking().Include(v => v.Cliente).Include(v => v.Itens).AsSplitQuery().Where(v => v.ClienteId == id && v.RemovidaEm == null)
             .OrderByDescending(v => v.DataHora).Take(500).ToListAsync(ct);
         var fat = vendas.Where(v => v.Faturavel).ToList();
         var resumo = new ClienteListaDto(c.Id, c.Nickname, c.Email, fat.Sum(v => v.TotalBrl), fat.Count, fat.Count == 0 ? null : fat.Max(v => v.DataHora));

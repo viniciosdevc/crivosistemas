@@ -36,6 +36,8 @@ public interface ICrivonftClient
     Task<ExportPagina> ExportarClientesAsync(int limit, int offset, CancellationToken ct);
     /// <summary>Lotes do estoque do crivonft: <paramref name="tipo"/> "usd" ou "esmeralda".</summary>
     Task<ExportPagina> ExportarEstoqueAsync(string tipo, int limit, int offset, CancellationToken ct);
+    /// <summary>Imagem dos itens pelo nome (estoque normal e catálogo do crivonft); nome sem imagem vem com null. Até 100 nomes.</summary>
+    Task<IReadOnlyDictionary<string, string?>> ImagensDeItensAsync(IReadOnlyList<string> nomes, CancellationToken ct);
     Task<ReenvioResposta> ReenviarPeriodoAsync(DateOnly de, DateOnly ate, CancellationToken ct);
     Task<PrecificacaoContrato.PayloadDto> LerPrecificacaoAsync(CancellationToken ct);
     Task<EnvioResposta> EnviarPrecificacaoAsync(string corpoJson, CancellationToken ct);
@@ -62,6 +64,29 @@ public sealed class CrivonftClient(HttpClient http, IOptions<CrivonftOptions> op
 
     public Task<ExportPagina> ExportarEstoqueAsync(string tipo, int limit, int offset, CancellationToken ct) =>
         ExportarAsync($"/api/export/estoque/{(tipo == "usd" ? "usd" : "esmeralda")}?limit={limit}&offset={offset}", ct);
+
+    public async Task<IReadOnlyDictionary<string, string?>> ImagensDeItensAsync(IReadOnlyList<string> nomes, CancellationToken ct)
+    {
+        var vazio = nomes.Distinct().ToDictionary(n => n, _ => (string?)null);
+        if (!O.Exporta || nomes.Count == 0) return vazio;
+        var caminho = "/api/export/nft/imagens?" + string.Join('&', nomes.Take(100).Select(n => "nome=" + Uri.EscapeDataString(n)));
+        using var req = new HttpRequestMessage(HttpMethod.Get, Url(caminho));
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", O.ExportToken);
+        var (status, corpo) = await EnviarAsync(req, ct);
+        if (status is < 200 or >= 300) throw new CrivonftException($"O crivonft respondeu {status} em /api/export/nft/imagens: {Resumo(corpo)}", status);
+        try
+        {
+            using var doc = JsonDocument.Parse(corpo);
+            if (doc.RootElement.TryGetProperty("imagens", out var img) && img.ValueKind == JsonValueKind.Object)
+                foreach (var p in img.EnumerateObject())
+                    vazio[p.Name] = p.Value.ValueKind == JsonValueKind.String && Uri.TryCreate(p.Value.GetString(), UriKind.Absolute, out var u) && u.Scheme is "https" or "http" ? p.Value.GetString() : null;
+            return vazio;
+        }
+        catch (JsonException e)
+        {
+            throw new CrivonftException("Resposta de imagens do crivonft não é um JSON válido.", status, e);
+        }
+    }
 
     private async Task<ExportPagina> ExportarAsync(string caminho, CancellationToken ct)
     {

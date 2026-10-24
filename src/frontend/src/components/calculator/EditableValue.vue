@@ -27,7 +27,7 @@ async function start() {
       :inputmode="inputmode ?? 'decimal'"
       :placeholder="placeholder"
       :aria-label="`Simular ${label}`"
-      class="h-10 w-32 shrink-0 rounded-xl border border-line-strong bg-surface px-3 text-right text-[15px] text-ink tabular outline-none focus:border-sel-ring"
+      class="h-9 w-28 shrink-0 rounded-xl border border-line-strong bg-surface px-3 text-right text-[15px] text-ink tabular outline-none focus:border-sel-ring"
       @blur="editing = false"
       @keydown.enter.prevent="editing = false"
       @keydown.esc.prevent="editing = false"

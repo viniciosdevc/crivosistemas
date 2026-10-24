@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, h, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import PaymentIcon from '@/components/ui/PaymentIcon.vue'
+import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCheckbox from '@/components/ui/UiCheckbox.vue'
 import UiChips from '@/components/ui/UiChips.vue'
@@ -11,17 +13,20 @@ import UiTextarea from '@/components/ui/UiTextarea.vue'
 import UiTimePicker from '@/components/ui/UiTimePicker.vue'
 import { ApiError, api } from '@/lib/api'
 import { currentTimeZone, formatDecimal, formatFixed, formatInt, formatMoney, formatPercent, formatTime, parseDecimal, todayIso } from '@/lib/format'
-import { calcularVendaManual, montarVendaManual, vendaManualValida, zonedToIso, type EntradaVendaManual } from '@/lib/sale'
+import { habboAvatarUrl } from '@/lib/habbo'
+import { calcularVendaManual, montarVendaManual, taxaFeiraBrl, taxaFeiraPadrao, vendaManualValida, zonedToIso, type EntradaVendaManual } from '@/lib/sale'
 import { toast } from '@/lib/toast'
 import type { FormaPagamento, OrigemCusto, RegrasPrecificacao, ResumoEstoques, VendaLista } from '@/lib/types'
 
 /** Formulário de venda manual. O servidor recalcula custo, lucro e margem; o resumo aqui é só uma estimativa. Carrega regras e estoque ao montar. */
 const emit = defineEmits<{ created: [venda: VendaLista]; cancel: [] }>()
 
-const formaOptions: { value: FormaPagamento; label: string }[] = [
-  { value: 'pix', label: 'PIX' },
-  { value: 'cambios', label: 'Câmbios' },
-  { value: 'hibrido', label: 'Híbrido' },
+const PixIcon = () => h(PaymentIcon, { kind: 'pix' })
+const CambiosIcon = () => h(PaymentIcon, { kind: 'cambios' })
+const formaOptions = [
+  { value: 'pix' as FormaPagamento, label: 'PIX', icon: PixIcon },
+  { value: 'cambios' as FormaPagamento, label: 'Câmbios', icon: CambiosIcon },
+  { value: 'hibrido' as FormaPagamento, label: 'Híbrido' },
 ]
 const origemOptions: { value: OrigemCusto; label: string }[] = [
   { value: 'estoque_usd', label: 'Estoque em USD' },
@@ -40,14 +45,18 @@ const time = ref('')
 const nomeItem = ref('')
 const nickname = ref('')
 const observacao = ref('')
-const entregue = ref(false)
+const entregue = ref(true)
+// Enquanto o usuário não mexer na taxa da feira, ela acompanha a forma de pagamento.
+const taxaMexida = ref(false)
+const avatarNick = ref('')
+let avatarTimer: ReturnType<typeof setTimeout> | undefined
 const entrada = reactive<EntradaVendaManual>({
   forma: 'cambios',
   origem: 'estoque_usd',
   custoUsd: '',
   custoCambios: '',
   quantidadeEsmeraldas: '',
-  usaTaxaPrata: false,
+  usaTaxaPrata: true,
   valorPix: '',
   valorCambios: '',
 })
@@ -77,10 +86,26 @@ function reset() {
   nomeItem.value = ''
   nickname.value = ''
   observacao.value = ''
-  entregue.value = false
-  Object.assign(entrada, { forma: 'cambios', origem: 'estoque_usd', custoUsd: '', custoCambios: '', quantidadeEsmeraldas: '', usaTaxaPrata: false, valorPix: '', valorCambios: '' })
+  entregue.value = true
+  taxaMexida.value = false
+  avatarNick.value = ''
+  Object.assign(entrada, { forma: 'cambios', origem: 'estoque_usd', custoUsd: '', custoCambios: '', quantidadeEsmeraldas: '', usaTaxaPrata: true, valorPix: '', valorCambios: '' })
   Object.keys(fieldErrors).forEach((k) => delete fieldErrors[k])
   formError.value = null
+}
+
+watch(() => entrada.forma, (f) => {
+  if (!taxaMexida.value) entrada.usaTaxaPrata = taxaFeiraPadrao(f)
+})
+watch(nickname, (v) => {
+  clearTimeout(avatarTimer)
+  avatarTimer = setTimeout(() => (avatarNick.value = v.trim()), 400)
+})
+onBeforeUnmount(() => clearTimeout(avatarTimer))
+const taxaBrl = computed(() => (regras.value ? taxaFeiraBrl(regras.value.configuracao) : null))
+function onTaxa(v: boolean) {
+  taxaMexida.value = true
+  entrada.usaTaxaPrata = v
 }
 
 onMounted(() => {
@@ -135,115 +160,127 @@ async function submit() {
 </script>
 
 <template>
-  <form class="flex flex-col gap-6" novalidate @submit.prevent="submit">
-      <p v-if="loadError" class="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">
-        {{ loadError }} <button type="button" class="font-medium underline" @click="loadData">Tentar de novo</button>
-      </p>
+  <form class="sale-form flex flex-col gap-3" novalidate @submit.prevent="submit">
+    <p v-if="loadError" class="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger" role="alert">
+      {{ loadError }} <button type="button" class="font-medium underline" @click="loadData">Tentar de novo</button>
+    </p>
 
-      <section class="grid gap-4 sm:grid-cols-2" aria-label="Dados da venda">
-        <UiDatePicker v-model="day" label="Data" :error="fieldErrors.dataHora" />
-        <UiTimePicker v-model="time" label="Hora" />
+    <section class="grid gap-3 sm:grid-cols-6" aria-label="Dados da venda">
+      <div class="sm:col-span-2"><UiDatePicker v-model="day" label="Data" :error="fieldErrors.dataHora" /></div>
+      <div class="sm:col-span-1"><UiTimePicker v-model="time" label="Hora" /></div>
+      <div class="sm:col-span-3">
         <UiInput v-model="nomeItem" label="Nome do item" placeholder="Nome do item vendido" autocomplete="off" :error="fieldErrors.nomeItem" />
-        <UiInput v-model="nickname" label="Nickname do comprador" placeholder="Ex: ana" autocomplete="off" optional :error="fieldErrors.nicknameComprador" />
-      </section>
-
-      <section class="flex flex-col gap-4" aria-label="Pagamento e custo">
-        <UiChips v-model="entrada.forma" :options="formaOptions" label="Como o cliente pagou?" />
-        <p v-if="fieldErrors.formaPagamento" class="text-[13px] text-danger" role="alert">{{ fieldErrors.formaPagamento }}</p>
-
-        <div class="grid gap-4 sm:grid-cols-2">
-          <UiSelect v-model="entrada.origem" label="De onde saiu o item?" :options="origemOptions" :error="fieldErrors.origemCusto" />
-
-          <div v-if="usaEsmeralda" class="flex flex-col gap-2">
-            <UiInput
-              v-model="entrada.quantidadeEsmeraldas"
-              :label="`Qtde. Esmeraldas${esmeraldasSaldo > 0 ? ` (saldo: ${formatDecimal(esmeraldasSaldo)})` : ''}`"
-              inputmode="decimal"
-              placeholder="0"
-              :error="fieldErrors.quantidadeEsmeraldas"
-            />
-            <p v-if="estoque && esmeraldasSaldo <= 0" class="text-[13px] text-warning">Sem saldo de esmeraldas no estoque.</p>
-            <p v-else-if="esmeraldasExcedem" class="text-[13px] text-warning">A quantidade passa do saldo disponível.</p>
-            <p v-else-if="estoque && esmeraldasCusto <= 0" class="text-[13px] text-warning">As esmeraldas em estoque estão sem custo.</p>
-            <p v-else-if="calc && calc.qtdEsmeraldas > 0" class="text-[13px] text-muted">
-              ≈ US$ {{ formatFixed(calc.custoUsd, 4) }} (custo médio US$ {{ formatFixed(esmeraldasCusto, 6) }} por esmeralda)
-            </p>
-          </div>
-          <UiInput
-            v-else-if="usaCambios"
-            v-model="entrada.custoCambios"
-            label="Custo em Câmbios"
-            inputmode="numeric"
-            placeholder="0"
-            suffix="C"
-            :error="fieldErrors.custoCambios"
-          />
-          <div v-else class="flex flex-col gap-2">
-            <UiInput v-model="entrada.custoUsd" label="Custo USD" prefix="US$" inputmode="decimal" placeholder="0,00" :error="fieldErrors.custoUsd" />
-            <p v-if="entrada.origem === 'estoque_usd' && calc" class="text-[13px] text-muted">
-              Dólar de compra: {{ formatMoney(calc.dolarCompra) }}{{ usdCusto > 0 ? ' (custo médio do estoque)' : ' (configuração)' }}
-            </p>
-          </div>
-        </div>
-
-        <div class="rounded-xl bg-surface-2 px-4 py-3">
-          <UiCheckbox v-model="entrada.usaTaxaPrata" label="Incluir taxa de pratas no custo" />
-        </div>
-
-        <div class="grid gap-4 sm:grid-cols-2">
-          <UiInput v-if="showPix" v-model="entrada.valorPix" label="Valor recebido em PIX" prefix="R$" inputmode="decimal" placeholder="0,00" :error="fieldErrors.valorVendaPix" />
-          <UiInput v-if="showCambios" v-model="entrada.valorCambios" label="Valor recebido em Câmbios" suffix="C" inputmode="numeric" placeholder="0" :error="fieldErrors.valorVendaCambios" />
-        </div>
-      </section>
-
-      <section class="rounded-2xl border border-line bg-surface-2 p-5" aria-labelledby="sale-summary-title">
-        <h3 id="sale-summary-title" class="mb-4 text-lg font-semibold text-ink">Resumo do cálculo</h3>
-        <UiSkeleton v-if="loadingData && !calc" class="h-20" />
-        <template v-else-if="calc">
-          <dl class="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-4">
-            <div>
-              <dt class="text-[13px] text-muted">Custo</dt>
-              <dd class="mt-0.5 truncate text-base font-semibold text-ink tabular">{{ formatMoney(calc.result.custoBrl) }}</dd>
-              <dd v-if="!usaCambios" class="truncate text-xs text-muted tabular">US$ {{ formatFixed(calc.custoUsd, 2) }}</dd>
-            </div>
-            <div>
-              <dt class="text-[13px] text-muted">Receita</dt>
-              <dd class="mt-0.5 truncate text-base font-semibold text-ink tabular">{{ formatMoney(calc.result.receitaTotalBrl) }}</dd>
-            </div>
-            <div>
-              <dt class="text-[13px] text-muted">Lucro</dt>
-              <dd :class="['mt-0.5 truncate text-base font-semibold tabular', calc.result.lucroBrl < 0 ? 'text-danger' : calc.result.lucroBrl > 0 ? 'text-success' : 'text-ink']">
-                {{ formatMoney(calc.result.lucroBrl) }}
-              </dd>
-            </div>
-            <div>
-              <dt class="text-[13px] text-muted">Margem</dt>
-              <dd :class="['mt-0.5 truncate text-base font-semibold tabular', calc.abaixoDoIdeal ? 'text-warning' : 'text-success']">
-                {{ formatPercent(calc.result.margemPercent) }}
-              </dd>
-              <dd class="truncate text-xs text-muted">ideal {{ formatPercent(calc.margemIdeal) }}</dd>
-            </div>
-          </dl>
-          <div class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-[13px] text-muted">
-            <span>Referência: {{ formatMoney(calc.result.precoVendaPix) }} no PIX · {{ formatInt(calc.result.precoVendaCambios) }} C em câmbios</span>
-            <span v-if="showCambios">Resultado em câmbios: <strong class="font-semibold text-ink">{{ formatInt(calc.result.lucroCambios) }} C</strong></span>
-          </div>
-        </template>
-      </section>
-
-      <section class="flex flex-col gap-4" aria-label="Entrega">
-        <div>
-          <UiCheckbox v-model="entregue" label="Já entregue" />
-          <p class="mt-1.5 pl-8 text-[13px] text-muted">Entregue entra no faturamento e debita o dólar do estoque. Sem marcar, a venda fica pendente até você entregá-la.</p>
-        </div>
-        <UiTextarea v-model="observacao" label="Observação" optional placeholder="Alguma anotação sobre esta venda" :error="fieldErrors.observacao" />
-      </section>
-
-      <p v-if="formError" class="rounded-xl bg-danger-soft px-4 py-3 text-sm text-danger" role="alert">{{ formError }}</p>
-    
-      <div class="flex flex-wrap items-center justify-end gap-3">
-        <UiButton variant="subtle" size="lg" @click="emit('cancel')">Voltar</UiButton>
-        <UiButton type="submit" size="lg" :loading="submitting" :disabled="!valid">Confirmar venda</UiButton>
       </div>
-    </form>
+      <div class="flex items-end gap-2 sm:col-span-3">
+        <div class="min-w-0 flex-1">
+          <UiInput v-model="nickname" label="Nickname do comprador" placeholder="Ex: ana" autocomplete="off" optional :error="fieldErrors.nicknameComprador" />
+        </div>
+        <UiAvatar v-if="avatarNick" :name="avatarNick" :src="habboAvatarUrl(avatarNick)" class="mb-1" data-testid="nick-avatar" />
+      </div>
+      <div class="sm:col-span-3">
+        <UiChips v-model="entrada.forma" :options="formaOptions" label="Como o cliente pagou?" compact />
+        <p v-if="fieldErrors.formaPagamento" class="mt-1 text-[13px] text-danger" role="alert">{{ fieldErrors.formaPagamento }}</p>
+      </div>
+    </section>
+
+    <section class="grid gap-3 sm:grid-cols-3" aria-label="Custo e valores">
+      <UiSelect v-model="entrada.origem" label="De onde saiu o item?" :options="origemOptions" :error="fieldErrors.origemCusto" />
+
+      <div v-if="usaEsmeralda" class="flex flex-col gap-1">
+        <UiInput
+          v-model="entrada.quantidadeEsmeraldas"
+          :label="`Qtde. Esmeraldas${esmeraldasSaldo > 0 ? ` (saldo: ${formatDecimal(esmeraldasSaldo)})` : ''}`"
+          inputmode="decimal"
+          placeholder="0"
+          :error="fieldErrors.quantidadeEsmeraldas"
+        />
+        <p v-if="estoque && esmeraldasSaldo <= 0" class="text-xs text-warning">Sem saldo de esmeraldas no estoque.</p>
+        <p v-else-if="esmeraldasExcedem" class="text-xs text-warning">A quantidade passa do saldo disponível.</p>
+        <p v-else-if="estoque && esmeraldasCusto <= 0" class="text-xs text-warning">As esmeraldas em estoque estão sem custo.</p>
+        <p v-else-if="calc && calc.qtdEsmeraldas > 0" class="text-xs text-muted">≈ US$ {{ formatFixed(calc.custoUsd, 4) }} (US$ {{ formatFixed(esmeraldasCusto, 6) }} por esmeralda)</p>
+      </div>
+      <UiInput v-else-if="usaCambios" v-model="entrada.custoCambios" label="Custo em Câmbios" inputmode="numeric" placeholder="0" suffix="C" :error="fieldErrors.custoCambios" />
+      <div v-else class="flex flex-col gap-1">
+        <UiInput v-model="entrada.custoUsd" label="Custo USD" prefix="US$" inputmode="decimal" placeholder="0,00" :error="fieldErrors.custoUsd" />
+        <p v-if="entrada.origem === 'estoque_usd' && calc" class="text-xs text-muted">
+          Dólar: {{ formatMoney(calc.dolarCompra) }}{{ usdCusto > 0 ? ' (custo médio)' : ' (configuração)' }}
+        </p>
+      </div>
+
+      <div class="flex items-center self-end rounded-xl bg-surface-2 px-3 py-2.5">
+        <UiCheckbox :model-value="entrada.usaTaxaPrata" label="Taxa da feira (pratas)" @update:model-value="onTaxa" />
+        <span v-if="taxaBrl !== null" class="ml-auto pl-2 text-sm whitespace-nowrap text-muted tabular" data-testid="taxa-feira">{{ formatMoney(taxaBrl) }}</span>
+      </div>
+
+      <UiInput v-if="showPix" v-model="entrada.valorPix" label="Valor recebido em PIX" prefix="R$" inputmode="decimal" placeholder="0,00" :error="fieldErrors.valorVendaPix">
+        <template #prefix><PaymentIcon kind="pix" /></template>
+      </UiInput>
+      <UiInput v-if="showCambios" v-model="entrada.valorCambios" label="Valor recebido em Câmbios" suffix="C" inputmode="numeric" placeholder="0" :error="fieldErrors.valorVendaCambios">
+        <template #prefix><PaymentIcon kind="cambios" /></template>
+      </UiInput>
+    </section>
+
+    <section class="rounded-2xl border border-line bg-surface-2 px-4 py-3" aria-labelledby="sale-summary-title">
+      <h3 id="sale-summary-title" class="mb-2 text-sm font-semibold text-ink">Resumo do cálculo</h3>
+      <UiSkeleton v-if="loadingData && !calc" class="h-12" />
+      <template v-else-if="calc">
+        <dl class="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
+          <div>
+            <dt class="text-xs text-muted">Custo</dt>
+            <dd class="truncate text-[15px] font-semibold text-ink tabular">{{ formatMoney(calc.result.custoBrl) }}</dd>
+            <dd v-if="!usaCambios" class="truncate text-xs text-muted tabular">US$ {{ formatFixed(calc.custoUsd, 2) }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs text-muted">Receita</dt>
+            <dd class="truncate text-[15px] font-semibold text-ink tabular">{{ formatMoney(calc.result.receitaTotalBrl) }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs text-muted">Lucro</dt>
+            <dd :class="['truncate text-[15px] font-semibold tabular', calc.result.lucroBrl < 0 ? 'text-danger' : calc.result.lucroBrl > 0 ? 'text-success' : 'text-ink']">
+              {{ formatMoney(calc.result.lucroBrl) }}
+            </dd>
+          </div>
+          <div>
+            <dt class="text-xs text-muted">Margem</dt>
+            <dd :class="['truncate text-[15px] font-semibold tabular', calc.abaixoDoIdeal ? 'text-warning' : 'text-success']">{{ formatPercent(calc.result.margemPercent) }}</dd>
+            <dd class="truncate text-xs text-muted">ideal {{ formatPercent(calc.margemIdeal) }}</dd>
+          </div>
+        </dl>
+        <div class="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-line pt-2 text-xs text-muted">
+          <span class="inline-flex flex-wrap items-center gap-x-1.5">
+            Referência: <PaymentIcon kind="pix" class="size-3.5" /> {{ formatMoney(calc.result.precoVendaPix) }} · <PaymentIcon kind="cambios" class="size-3.5" /> {{ formatInt(calc.result.precoVendaCambios) }} C
+          </span>
+          <span v-if="showCambios">Resultado em câmbios: <strong class="font-semibold text-ink">{{ formatInt(calc.result.lucroCambios) }} C</strong></span>
+        </div>
+      </template>
+    </section>
+
+    <section class="grid gap-3 sm:grid-cols-2" aria-label="Entrega">
+      <div>
+        <UiCheckbox v-model="entregue" label="Já entregue" />
+        <p class="mt-1 pl-8 text-xs text-muted">Entregue entra no faturamento e debita o dólar do estoque. Sem marcar, fica pendente até você entregá-la.</p>
+      </div>
+      <UiTextarea v-model="observacao" label="Observação" optional placeholder="Alguma anotação sobre esta venda" :error="fieldErrors.observacao" />
+    </section>
+
+    <p v-if="formError" class="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger" role="alert">{{ formError }}</p>
+
+    <div class="flex flex-wrap items-center justify-end gap-3">
+      <UiButton variant="subtle" @click="emit('cancel')">Voltar</UiButton>
+      <UiButton type="submit" :loading="submitting" :disabled="!valid">Confirmar venda</UiButton>
+    </div>
+  </form>
 </template>
+
+<style scoped>
+/* Formulário denso: controles de 40px e textarea baixo, para caber sem rolar em notebooks. */
+.sale-form :deep(input:not([type='checkbox'])),
+.sale-form :deep(button[class*='h-12']) {
+  height: 2.5rem;
+}
+.sale-form :deep(textarea) {
+  height: 3.5rem;
+  min-height: 0;
+  padding-block: 0.5rem;
+}
+</style>

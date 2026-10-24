@@ -1,6 +1,6 @@
 import { calculateSale } from './calculator'
 import { parseDecimal } from './format'
-import type { FormaPagamento, OrigemCusto, RegrasPrecificacao } from './types'
+import type { ConfigCalculo, FormaPagamento, OrigemCusto, RegrasPrecificacao } from './types'
 
 /** Campos do formulário de venda manual como o usuário digita (texto). */
 export interface EntradaVendaManual {
@@ -107,4 +107,14 @@ export function zonedToIso(day: string, time: string, timeZone: string) {
   const asSeen = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute))
   // O instante real é o desejado menos o deslocamento do fuso naquele momento.
   return new Date(wanted - (asSeen - wanted)).toISOString()
+}
+
+/** Taxa da feira (pratas) em R$: a taxa configurada está em câmbios, convertida pelo K da feira. */
+export function taxaFeiraBrl(config: Pick<ConfigCalculo, 'taxaPrata' | 'valorKFeira' | 'moedasPorK'>) {
+  return (config.taxaPrata * config.valorKFeira) / Math.max(config.moedasPorK, 0.0001)
+}
+
+/** Sugestão de taxa da feira para a forma de pagamento: marcada em câmbios/híbrido, desmarcada em PIX. */
+export function taxaFeiraPadrao(forma: FormaPagamento) {
+  return forma !== 'pix'
 }

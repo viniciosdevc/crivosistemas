@@ -53,6 +53,7 @@ public static class DependencyInjection
             o.HmacSecret = cv["HmacSecret"]?.Trim() ?? "";
             o.ExportToken = cv["ExportToken"]?.Trim() ?? "";
         });
+        services.AddMemoryCache();
         services.AddHttpClient<ICrivonftClient, CrivonftClient>(c => c.Timeout = TimeSpan.FromSeconds(30));
         services.AddScoped<IngestaoService>();
         services.AddScoped<ReconciliacaoService>();

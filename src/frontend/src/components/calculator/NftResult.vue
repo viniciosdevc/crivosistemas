@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { calculateFromUsd } from '@/lib/calculator'
 import { formatDecimal, formatInt, formatMoney, formatPercent, parseDecimal } from '@/lib/format'
 import type { ConfigCalculo, FaixaPix } from '@/lib/types'
+import PaymentIcon from '@/components/ui/PaymentIcon.vue'
 import EditableValue from './EditableValue.vue'
 
 const props = defineProps<{ custoUsd: number; config: ConfigCalculo; faixas: FaixaPix[] }>()
@@ -33,7 +34,7 @@ function tone(margem: number, ideal: number) {
 </script>
 
 <template>
-  <div class="grid gap-3 rounded-2xl border border-line px-5 py-4 text-[15px]" aria-live="polite">
+  <div class="grid gap-2 rounded-xl border border-line px-4 py-3 text-sm" aria-live="polite">
     <div class="flex items-center justify-between gap-2"><span class="text-muted">Custo BRL</span><span class="font-medium text-ink tabular">{{ formatMoney(r.custoBrl) }}</span></div>
     <div class="flex items-center justify-between gap-2"><span class="text-muted">Custo em Câmbios</span><span class="font-medium text-ink tabular">{{ formatInt(r.custoCambios) }} C</span></div>
 
@@ -41,7 +42,7 @@ function tone(margem: number, ideal: number) {
 
     <EditableValue v-model="rawCambios" label="Sugestão Câmbios" :display="`${formatInt(simCambios)} C`" :placeholder="String(r.precoVendaCambios)" :overridden="rawCambios !== ''" inputmode="numeric" />
     <div class="flex items-center justify-between gap-2">
-      <span class="text-muted">Lucro (Câmbios)</span>
+      <span class="inline-flex items-center gap-1 text-muted"><PaymentIcon kind="cambios" class="size-3.5" />Lucro (Câmbios)</span>
       <span :class="['text-right tabular', lucroCambiosBrl > 0 ? 'font-semibold text-ink' : 'text-ink']">{{ formatInt(simCambios - r.custoCambios) }} C · {{ formatMoney(lucroCambiosBrl) }}</span>
     </div>
     <div class="flex items-center justify-between gap-2">
@@ -56,7 +57,7 @@ function tone(margem: number, ideal: number) {
 
     <EditableValue v-model="rawPix" label="Sugestão PIX" :display="formatMoney(simPix)" :placeholder="formatDecimal(r.precoVendaPix)" :overridden="rawPix !== ''" />
     <div class="flex items-center justify-between gap-2">
-      <span class="text-muted">Lucro (PIX)</span>
+      <span class="inline-flex items-center gap-1 text-muted"><PaymentIcon kind="pix" class="size-3.5" />Lucro (PIX)</span>
       <span :class="['text-right tabular', lucroPixBrl > 0 ? 'font-semibold text-ink' : 'text-ink']">{{ formatMoney(lucroPixBrl) }}</span>
     </div>
     <div class="flex items-center justify-between gap-2">

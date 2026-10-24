@@ -148,7 +148,7 @@ public static class VendasManuaisEndpoints
 
     private static async Task<Venda> ManualAsync(AppDbContext db, Guid id, CancellationToken ct)
     {
-        var v = await db.Vendas.Include(x => x.Cliente).FirstOrDefaultAsync(x => x.Id == id, ct) ?? throw new NotFoundException("Venda não encontrada.");
+        var v = await db.Vendas.Include(x => x.Cliente).Include(x => x.Itens).FirstOrDefaultAsync(x => x.Id == id, ct) ?? throw new NotFoundException("Venda não encontrada.");
         if (!v.Manual) throw new DomainException("venda_nao_manual", "Só vendas lançadas aqui podem ser alteradas. As do crivonft mudam por lá.");
         return v;
     }
