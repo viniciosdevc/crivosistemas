@@ -570,3 +570,32 @@ export interface NftColecao {
   criadoEm: string
 }
 
+
+export interface AcessoLocal {
+  pais: string
+  regiao: string
+  cidade: string
+  latitude: number | null
+  longitude: number | null
+  acessos: number
+}
+
+export interface AcessoCliente {
+  nickname: string
+  acessos: number
+  primeiraEntrada: string
+  ultimaEntrada: string
+  pais: string | null
+  regiao: string | null
+  cidade: string | null
+  /** Última atividade nos últimos 5 minutos. */
+  agora: boolean
+}
+
+export interface ResumoAcessos {
+  periodo: { de: string; ate: string }
+  totais: { acessos: number; logados: number; paises: number; cidades: number }
+  porDia: { dia: string; acessos: number }[]
+  locais: AcessoLocal[]
+  clientes: AcessoCliente[]
+}

@@ -128,3 +128,6 @@ Rotas assinadas que o crivonft expõe em `/api/integracoes/gestao/`: `GET nfts`,
 - **Coleções:** cadastradas no crivonft (`nft_colecoes`) com as posições vazias; o preenchimento dos itens continua no painel do crivonft.
 - Crivonft desatualizado (sem as rotas) responde 404 e a tela mostra "publique a atualização da loja".
 
+
+## Acessos por localização (mapa)
+`GET /api/acessos?dias=30` (admin) repassa `GET {crivonft}/api/integracoes/gestao/acessos?dias=30` (mesma assinatura). O crivonft coleta 1 aviso por visita no navegador e guarda só agregados por dia/país/estado/cidade (sem IP) e, por cliente conectado, total de acessos, primeira/última entrada e último local. A localização vem dos cabeçalhos da Cloudflare; para ter cidade e coordenadas, ative em Cloudflare → Rules → Transform Rules → Managed Transforms → "Add visitor location headers". Sem isso só o país aparece (o centro do país serve de posição). Tela: Relatórios → Mapa de acessos.
