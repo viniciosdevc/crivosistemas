@@ -12,6 +12,7 @@ using Crivosistemas.Api.Modules.Estoque;
 using Crivosistemas.Api.Modules.Financeiro;
 using Crivosistemas.Api.Modules.Integracoes;
 using Crivosistemas.Api.Modules.Posicao;
+using Crivosistemas.Api.Modules.Projecao;
 using Crivosistemas.Api.Modules.Nfts;
 using Crivosistemas.Api.Modules.Precificacao;
 using Crivosistemas.Api.Modules.Vendas;
