@@ -771,3 +771,34 @@ export interface AnaliseCrm {
     reativar: ClienteCrm[]
   }
 }
+
+// ── Resumo diário de caixa ──────────────────────────────────────────────────
+
+export interface LinhaResumoDiario {
+  inicio: string
+  fim: string
+  entrada: number
+  saida: number
+  saldo: number
+  saldoAcumulado: number
+  projetado: boolean
+}
+export interface ResumoDiario {
+  mes: string
+  hoje: string
+  projecaoDias: number
+  granularidadeProjecao: 'dia' | 'semana' | 'mes'
+  linhas: LinhaResumoDiario[]
+  totais: {
+    saldoAtual: number
+    entradas: number
+    saidas: number
+    saldoFinalProjetado: number
+    menorSaldoProjetado: number
+    diaMenorSaldo: string | null
+    mediaFaturamentoDia: number
+    mediaLucroDia: number
+    conhecidoEntradas: number
+    conhecidoSaidas: number
+  }
+}

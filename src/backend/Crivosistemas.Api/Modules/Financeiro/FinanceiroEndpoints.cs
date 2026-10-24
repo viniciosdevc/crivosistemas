@@ -36,6 +36,7 @@ public static class FinanceiroEndpoints
     {
         var g = app.MapGroup("/api/financeiro").WithTags("Financeiro").RequireAuthorization(Session.AdminPolicy);
         g.MapGet("/resumo", Resumo).WithSummary("Saldo (confirmados), resultado de hoje, do mês e do período, pendências e totais por categoria.");
+        g.MapGet("/diario", ResumoDiario.Obter).WithSummary("Resumo diário de caixa do mês (entrada, saída, saldo, acumulado) e, opcional, a projeção dos próximos dias (projecao=15|30|90|120|365|1825).");
         g.MapGet("/lancamentos", Listar).WithSummary("Lançamentos com filtros: de, ate, tipo, status, origem, busca.");
         g.MapGet("/categorias", Categorias).WithSummary("Categorias sugeridas e já usadas.");
         g.MapGet("/inicio", async (FinanceiroService svc, AppDbContext db, CancellationToken ct) => { var d = await svc.InicioAsync(ct); await db.SaveChangesAsync(ct); return Results.Ok(new { data = d }); })

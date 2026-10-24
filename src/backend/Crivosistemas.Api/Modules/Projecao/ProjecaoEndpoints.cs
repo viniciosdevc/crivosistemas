@@ -50,7 +50,7 @@ public static class ProjecaoEndpoints
     }
 
     /// <summary>Soma diária de vendas faturáveis nos dias [de, ate] (dia de São Paulo).</summary>
-    private static async Task<Dictionary<DateOnly, (decimal Fat, decimal Luc)>> VendasPorDiaAsync(AppDbContext db, DateOnly de, DateOnly ate, CancellationToken ct)
+    internal static async Task<Dictionary<DateOnly, (decimal Fat, decimal Luc)>> VendasPorDiaAsync(AppDbContext db, DateOnly de, DateOnly ate, CancellationToken ct)
     {
         var (ini, fim) = FusoSp.Intervalo(de, ate);
         var linhas = await db.Vendas.AsNoTracking().Where(VendaConsultas.Faturavel).Where(v => v.DataHora >= ini && v.DataHora < fim)

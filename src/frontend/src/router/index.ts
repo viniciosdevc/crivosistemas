@@ -28,6 +28,7 @@ const admin: RouteRecordRaw[] = [
   { path: 'relatorios/crm', name: 'report-crm', component: () => import('@/views/admin/reports/CrmView.vue'), meta: { section: 'Relatórios', title: 'CRM de clientes' } },
   { path: 'relatorios/financeiro', name: 'report-finance', component: () => import('@/views/admin/reports/FinanceReportView.vue'), meta: { section: 'Relatórios', title: 'Financeiro', adminOnly: true } },
   { path: 'relatorios/acessos', name: 'report-access', component: () => import('@/views/admin/reports/AccessMapView.vue'), meta: { section: 'Relatórios', title: 'Mapa de acessos', adminOnly: true } },
+  { path: 'relatorios/diario', name: 'report-daily', component: () => import('@/views/admin/reports/DailySummaryView.vue'), meta: { section: 'Relatórios', title: 'Resumo diário', adminOnly: true } },
   { path: 'relatorios/projecao', name: 'report-projection', component: () => import('@/views/admin/reports/ProjectionView.vue'), meta: { section: 'Relatórios', title: 'Projeção', adminOnly: true } },
   { path: 'posicao', name: 'position', component: () => import('@/views/admin/PositionView.vue'), meta: { section: 'Gestão', title: 'Posição e saldos', adminOnly: true } },
   { path: 'convites', name: 'invites', component: () => import('@/views/admin/ConvitesView.vue'), meta: { section: 'Gestão', title: 'Convites', adminOnly: true } },
