@@ -364,6 +364,48 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                     b.ToTable("LancamentosFinanceiros", (string)null);
                 });
 
+            modelBuilder.Entity("Crivosistemas.Domain.Identity.Passkey", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<byte[]>("CredentialId")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("varbinary(1024)");
+
+                    b.Property<DateTime?>("LastUsedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("varchar(80)");
+
+                    b.Property<byte[]>("PublicKey")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("varbinary(1024)");
+
+                    b.Property<long>("SignCount")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CredentialId")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Passkeys");
+                });
+
             modelBuilder.Entity("Crivosistemas.Domain.Identity.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1110,6 +1152,15 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("VendaId")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Crivosistemas.Domain.Identity.Passkey", b =>
+                {
+                    b.HasOne("Crivosistemas.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Crivosistemas.Domain.Identity.UserToken", b =>
