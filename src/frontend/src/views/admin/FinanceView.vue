@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ArrowDownCircle, ArrowUpCircle, Check, Clock, FilterX, Plus, Wallet, XCircle } from 'lucide-vue-next'
+import { Check, FilterX, Plus, XCircle } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
 import LancamentoModal from '@/components/admin/finance/LancamentoModal.vue'
 import DataTable, { type Column } from '@/components/ui/DataTable.vue'
 import PageCard from '@/components/ui/PageCard.vue'
+import StatBlocks, { type Stat } from '@/components/ui/StatBlocks.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiChips from '@/components/ui/UiChips.vue'
@@ -12,7 +13,6 @@ import UiEmptyState from '@/components/ui/UiEmptyState.vue'
 import UiPagination from '@/components/ui/UiPagination.vue'
 import UiSearch from '@/components/ui/UiSearch.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
-import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { ApiError, api } from '@/lib/api'
 import { confirmWithReason } from '@/lib/confirm'
 import { formatDay, formatMoney, todayIso } from '@/lib/format'
@@ -90,21 +90,19 @@ const columns: Column[] = [
   { key: 'acoes', label: '', align: 'right' },
 ]
 
-const cards = computed(() => {
+const stats = computed<Stat[]>(() => {
   const r = resumo.data.value
   if (!r) return []
   return [
-    { label: 'Saldo atual', value: formatMoney(r.saldo), icon: Wallet, tone: r.saldo >= 0 ? 'text-ink' : 'text-danger', hint: inicio.data.value ? `Confirmados desde ${formatDay(inicio.data.value.data)}. Para começar com caixa, lance um “Saldo inicial”.` : 'Só lançamentos confirmados' },
-    { label: 'Entradas no período', value: formatMoney(r.periodo.entradas), icon: ArrowUpCircle, tone: 'text-success', hint: `Hoje: ${formatMoney(r.hoje.entradas)}` },
-    { label: 'Saídas no período', value: formatMoney(r.periodo.saidas), icon: ArrowDownCircle, tone: 'text-danger', hint: `Hoje: ${formatMoney(r.hoje.saidas)}` },
+    { label: 'Saldo atual', value: r.saldo, tone: r.saldo >= 0 ? 'default' : 'danger', note: inicio.data.value ? `Confirmados desde ${formatDay(inicio.data.value.data)}` : 'Só lançamentos confirmados' },
+    { label: 'Entradas no período', value: r.periodo.entradas, tone: 'success', note: `Hoje: ${formatMoney(r.hoje.entradas)}` },
+    { label: 'Saídas no período', value: r.periodo.saidas, tone: 'danger', note: `Hoje: ${formatMoney(r.hoje.saidas)}` },
     {
-      label: 'Resultado do período', value: formatMoney(r.periodo.resultado), icon: Clock, tone: r.periodo.resultado >= 0 ? 'text-success' : 'text-danger',
-      hint: r.pendentes > 0 ? `${r.pendentes} pendente(s): ${formatMoney(r.pendenteReceber)} a receber, ${formatMoney(r.pendentePagar)} a pagar` : `Mês: ${formatMoney(r.mes.resultado)}`,
+      label: 'Resultado do período', value: r.periodo.resultado, tone: r.periodo.resultado >= 0 ? 'success' : 'danger',
+      note: r.pendentes > 0 ? `${r.pendentes} pendente(s): ${formatMoney(r.pendenteReceber)} a receber, ${formatMoney(r.pendentePagar)} a pagar` : `Mês: ${formatMoney(r.mes.resultado)}`,
     },
   ]
 })
-
-const maxCategoria = computed(() => Math.max(1, ...(resumo.data.value?.porCategoria ?? []).map((c) => c.total)))
 
 const modalOpen = ref(false)
 const modalTipo = ref<TipoLancamento>('saida')
@@ -161,29 +159,7 @@ function origemLink(l: Lancamento) {
       </template>
     </div>
 
-    <div v-if="!resumo.data.value" class="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><UiSkeleton v-for="i in 4" :key="i" class="h-28" /></div>
-    <dl v-else class="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div v-for="c in cards" :key="c.label" class="rounded-2xl border border-line p-5">
-        <dt class="flex items-center gap-2 text-sm text-muted"><component :is="c.icon" class="size-4" /> {{ c.label }}</dt>
-        <dd :class="['mt-1 text-2xl font-semibold tracking-tight tabular', c.tone]">{{ c.value }}</dd>
-        <dd class="mt-1 text-[13px] text-muted">{{ c.hint }}</dd>
-      </div>
-    </dl>
-
-    <section v-if="resumo.data.value && resumo.data.value.porCategoria.length" class="mb-8" aria-labelledby="cat-title">
-      <h2 id="cat-title" class="mb-3 text-lg font-semibold text-ink">Por categoria</h2>
-      <ul class="grid gap-3 md:grid-cols-2">
-        <li v-for="c in resumo.data.value.porCategoria" :key="c.categoria + c.tipo" class="rounded-2xl border border-line px-4 py-3">
-          <div class="flex items-baseline justify-between gap-3 text-sm">
-            <span class="font-medium text-ink">{{ c.categoria }} <span class="font-normal text-muted">· {{ c.quantidade }}</span></span>
-            <span :class="['tabular font-medium', c.tipo === 'entrada' ? 'text-success' : 'text-danger']">{{ c.tipo === 'entrada' ? '+' : '−' }}{{ formatMoney(c.total) }}</span>
-          </div>
-          <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-3">
-            <div :class="['h-full rounded-full', c.tipo === 'entrada' ? 'bg-success' : 'bg-danger']" :style="{ width: `${Math.max(3, (c.total / maxCategoria) * 100)}%` }" />
-          </div>
-        </li>
-      </ul>
-    </section>
+    <StatBlocks class="mb-8" :stats="stats" :loading="!resumo.data.value" />
 
     <section aria-labelledby="mov-title">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">

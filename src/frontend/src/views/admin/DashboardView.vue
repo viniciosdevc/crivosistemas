@@ -4,13 +4,14 @@ import { computed, ref, watch } from 'vue'
 import SalesChart from '@/components/admin/dashboard/SalesChart.vue'
 import SaleTable from '@/components/admin/sales/SaleTable.vue'
 import PageCard from '@/components/ui/PageCard.vue'
+import StatBlocks, { type Stat } from '@/components/ui/StatBlocks.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiChips from '@/components/ui/UiChips.vue'
 import UiDatePicker from '@/components/ui/UiDatePicker.vue'
 import UiEmptyState from '@/components/ui/UiEmptyState.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { api } from '@/lib/api'
-import { formatDay, formatInt, formatMoney, formatPercent, pluralize } from '@/lib/format'
+import { formatDay, formatMoney, formatPercent, pluralize } from '@/lib/format'
 import { origemVenda } from '@/lib/labels'
 import { isPeriodPreset, periodOptions, resolvePeriod, type PeriodPreset } from '@/lib/period'
 import { toast } from '@/lib/toast'
@@ -38,12 +39,16 @@ watch(summary.error, (e) => e && toast.error('Não foi possível carregar o pain
 
 const totals = computed(() => summary.data.value?.totais)
 const margin = computed(() => (totals.value && totals.value.faturamento > 0 ? (totals.value.lucro / totals.value.faturamento) * 100 : 0))
-const cards = computed(() => [
-  { label: 'Faturamento', value: totals.value ? formatMoney(totals.value.faturamento) : '' },
-  { label: 'Lucro', value: totals.value ? formatMoney(totals.value.lucro) : '', hint: totals.value ? `Margem de ${formatPercent(margin.value)}` : '' },
-  { label: 'Ticket médio', value: totals.value ? formatMoney(totals.value.ticketMedio) : '' },
-  { label: 'Vendas', value: totals.value ? formatInt(totals.value.quantidade) : '', hint: 'Pagas ou concluídas' },
-])
+const stats = computed<Stat[]>(() => {
+  const t = totals.value
+  if (!t) return []
+  return [
+    { label: 'Faturamento', value: t.faturamento },
+    { label: 'Lucro', value: t.lucro, note: `Margem de ${formatPercent(margin.value)}` },
+    { label: 'Ticket médio', value: t.ticketMedio },
+    { label: 'Vendas', value: t.quantidade, count: true, note: 'Pagas ou concluídas' },
+  ]
+})
 const origins = computed(() => {
   const list = summary.data.value?.porOrigem ?? []
   const total = list.reduce((s, o) => s + o.faturamento, 0)
@@ -84,16 +89,9 @@ watch(metricModel, (m) => m !== metric.value && set({ metrica: m === 'faturament
     </UiEmptyState>
 
     <template v-else>
-      <div class="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-        <div v-for="c in cards" :key="c.label" class="rounded-2xl border border-line p-4 sm:p-5">
-          <p class="text-sm text-muted">{{ c.label }}</p>
-          <UiSkeleton v-if="!summary.data.value" class="mt-3 h-8 w-28" />
-          <p v-else class="mt-2 truncate text-xl font-semibold tracking-tight text-ink tabular sm:text-2xl">{{ c.value }}</p>
-          <p v-if="c.hint" class="mt-1 text-[13px] text-muted">{{ c.hint }}</p>
-        </div>
-      </div>
+      <StatBlocks :stats="stats" :loading="!summary.data.value" />
 
-      <div class="mt-4 grid gap-4 lg:mt-6 lg:grid-cols-3 lg:gap-6">
+      <div class="mt-8 grid gap-4 lg:grid-cols-3 lg:gap-6">
         <section class="rounded-2xl border border-line p-5 lg:col-span-2" aria-labelledby="chart-title">
           <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 id="chart-title" class="text-lg font-semibold text-ink">Por dia</h2>

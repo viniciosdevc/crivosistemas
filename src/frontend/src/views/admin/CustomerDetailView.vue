@@ -6,13 +6,14 @@ import CambiosHistory from '@/components/admin/cambios/CambiosHistory.vue'
 import SaleTable from '@/components/admin/sales/SaleTable.vue'
 import WalletAddress from '@/components/admin/WalletAddress.vue'
 import PageCard from '@/components/ui/PageCard.vue'
+import StatBlocks, { type Stat } from '@/components/ui/StatBlocks.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import { habboAvatarUrl } from '@/lib/habbo'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiEmptyState from '@/components/ui/UiEmptyState.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { api } from '@/lib/api'
-import { formatDate, formatDateTime, formatInt, formatMoney } from '@/lib/format'
+import { formatDate, formatDateTime } from '@/lib/format'
 import type { ClienteDetalhe } from '@/lib/types'
 import { useAsync } from '@/lib/useAsync'
 
@@ -21,6 +22,15 @@ const { data, loading, error, run } = useAsync((signal) => api.get<ClienteDetalh
 watch(() => route.params.id, () => void run(), { immediate: true })
 
 const c = computed(() => data.value?.cliente)
+const stats = computed<Stat[]>(() => {
+  if (!c.value) return []
+  return [
+    { label: 'Total gasto', value: c.value.totalGasto },
+    { label: 'Compras', value: c.value.compras, count: true },
+    { label: 'Ticket médio', value: ticket.value },
+    { label: 'Última compra', text: c.value.ultimaCompra ? formatDate(c.value.ultimaCompra) : '—' },
+  ]
+})
 const ticket = computed(() => (c.value && c.value.compras > 0 ? c.value.totalGasto / c.value.compras : 0))
 </script>
 
@@ -46,25 +56,8 @@ const ticket = computed(() => (c.value && c.value.compras > 0 ? c.value.totalGas
     <div v-else-if="loading && !data" class="space-y-4"><UiSkeleton class="h-24" /><UiSkeleton class="h-64" /></div>
 
     <template v-else-if="data && c">
-      <div class="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-        <div class="rounded-2xl border border-line p-4 sm:p-5">
-          <p class="text-sm text-muted">Total gasto</p>
-          <p class="mt-2 truncate text-xl font-semibold text-ink tabular sm:text-2xl">{{ formatMoney(c.totalGasto) }}</p>
-        </div>
-        <div class="rounded-2xl border border-line p-4 sm:p-5">
-          <p class="text-sm text-muted">Compras</p>
-          <p class="mt-2 text-xl font-semibold text-ink tabular sm:text-2xl">{{ formatInt(c.compras) }}</p>
-        </div>
-        <div class="rounded-2xl border border-line p-4 sm:p-5">
-          <p class="text-sm text-muted">Ticket médio</p>
-          <p class="mt-2 truncate text-xl font-semibold text-ink tabular sm:text-2xl">{{ formatMoney(ticket) }}</p>
-        </div>
-        <div class="rounded-2xl border border-line p-4 sm:p-5">
-          <p class="text-sm text-muted">Última compra</p>
-          <p class="mt-2 text-xl font-semibold text-ink sm:text-2xl">{{ c.ultimaCompra ? formatDate(c.ultimaCompra) : '—' }}</p>
-        </div>
-      </div>
-      <p class="mt-3 text-[13px] text-muted">
+      <StatBlocks :stats="stats" />
+      <p class="mt-5 text-[13px] text-muted">
         Cliente desde {{ formatDateTime(data.criadoEmOrigem) }} · chave {{ data.chave }}. Total, compras e última compra contam só vendas pagas ou concluídas.
       </p>
 
