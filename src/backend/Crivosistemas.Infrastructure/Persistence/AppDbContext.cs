@@ -30,6 +30,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<PrecificacaoHistorico> PrecificacaoHistoricos => Set<PrecificacaoHistorico>();
     public DbSet<PrecificacaoEnvio> PrecificacaoEnvios => Set<PrecificacaoEnvio>();
     public DbSet<LoteEstoque> LotesEstoque => Set<LoteEstoque>();
+    public DbSet<ItemEstoque> ItensEstoque => Set<ItemEstoque>();
     public DbSet<MovimentoEstoque> MovimentosEstoque => Set<MovimentoEstoque>();
     public DbSet<ConfiguracaoEstoque> ConfiguracoesEstoque => Set<ConfiguracaoEstoque>();
     public DbSet<LancamentoFinanceiro> LancamentosFinanceiros => Set<LancamentoFinanceiro>();
