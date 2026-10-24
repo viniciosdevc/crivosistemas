@@ -5,11 +5,12 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiDatePicker from '@/components/ui/UiDatePicker.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiModal from '@/components/ui/UiModal.vue'
+import UiTabs from '@/components/ui/UiTabs.vue'
 import { ApiError, api } from '@/lib/api'
-import { formatInt, formatMoney, formatUsd, parseDecimal, todayIso } from '@/lib/format'
+import { formatFixed, formatInt, formatMoney, formatUsd, parseDecimal, todayIso } from '@/lib/format'
 import { analisarItem } from '@/lib/itens'
 import { toast } from '@/lib/toast'
-import type { ItemEstoque, NftCatalogo, NftItem, RegrasPrecificacao } from '@/lib/types'
+import type { ItemEstoque, NftCatalogo, NftItem, RegrasPrecificacao, ResumoEstoques } from '@/lib/types'
 
 /** Cadastra um item: busca o nome no catálogo (foto e preço de mercado), informa quanto pagou e quantas unidades. */
 const props = defineProps<{ regras: RegrasPrecificacao | null }>()
@@ -17,6 +18,9 @@ const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{ saved: [item: ItemEstoque] }>()
 
 const form = reactive({ data: '', quantidade: '1', custo: '' })
+const moeda = ref<'usd' | 'brl'>('usd')
+const moedas = [{ value: 'usd' as const, label: 'US$' }, { value: 'brl' as const, label: 'R$ (PIX)' }]
+const resumoUsd = ref<ResumoEstoques['usd'] | null>(null)
 const busca = ref('')
 const sugestoes = ref<NftItem[]>([])
 const escolhido = ref<NftItem | null>(null)
@@ -31,6 +35,8 @@ watch(open, (v) => {
   Object.keys(fieldErrors).forEach((k) => delete fieldErrors[k])
   error.value = null
   Object.assign(form, { data: todayIso(), quantidade: '1', custo: '' })
+  moeda.value = 'usd'
+  api.get<ResumoEstoques>('/api/estoque/resumo').then((r) => (resumoUsd.value = r.usd)).catch(() => (resumoUsd.value = null))
   busca.value = ''
   sugestoes.value = []
   escolhido.value = null
@@ -61,7 +67,13 @@ function escolher(item: NftItem) {
 }
 
 const quantidade = computed(() => Math.trunc(parseDecimal(form.quantidade) ?? 0))
-const custo = computed(() => parseDecimal(form.custo))
+// Cotação R$/US$: custo médio do dólar em estoque; sem saldo, o dólar de compra das regras.
+const cotacao = computed(() => {
+  const r = resumoUsd.value
+  return r && r.saldo > 0 && r.custoMedio > 0 ? r.custoMedio : (props.regras?.configuracao.dolarPadraoCompra ?? 0)
+})
+const digitado = computed(() => parseDecimal(form.custo))
+const custo = computed(() => (digitado.value == null ? null : moeda.value === 'usd' ? digitado.value : cotacao.value > 0 ? digitado.value / cotacao.value : null))
 const ready = computed(() => busca.value.trim().length > 0 && !!form.data && quantidade.value >= 1 && custo.value != null && custo.value >= 0)
 const analise = computed(() => {
   const item = escolhido.value
@@ -120,10 +132,16 @@ async function submit() {
         </div>
       </div>
       <div class="grid grid-cols-2 gap-3">
-        <UiInput v-model="form.custo" label="Valor pago (cada)" prefix="US$" inputmode="decimal" placeholder="0,00" :error="fieldErrors.custoUnitario" />
+        <div>
+          <UiTabs v-model="moeda" :tabs="moedas" class="mb-1.5" />
+          <UiInput v-model="form.custo" label="Valor pago (cada)" :prefix="moeda === 'usd' ? 'US$' : 'R$'" inputmode="decimal" placeholder="0,00" :error="fieldErrors.custoUnitario" />
+        </div>
         <UiInput v-model="form.quantidade" label="Quantidade" inputmode="numeric" :error="fieldErrors.quantidade" />
       </div>
       <UiDatePicker v-model="form.data" label="Data da compra" :max="todayIso()" :error="fieldErrors.data" />
+      <p v-if="moeda === 'brl' && custo != null" class="text-sm text-muted">
+        ≈ <span class="font-semibold text-ink tabular">{{ formatUsd(custo) }}</span> a R$ {{ formatFixed(cotacao, 4) }}/US$
+      </p>
       <div v-if="analise" class="grid gap-1 text-sm text-muted">
         <p>Custo <span class="font-semibold text-ink tabular">{{ formatInt(analise.custoCambios) }} C</span> · <span class="tabular">{{ formatMoney(analise.custoBrl) }}</span></p>
         <template v-if="analise.mercado">
