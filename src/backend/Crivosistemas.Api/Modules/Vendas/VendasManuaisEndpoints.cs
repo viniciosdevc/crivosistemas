@@ -40,6 +40,7 @@ public static class VendasManuaisEndpoints
     {
         var g = app.MapGroup("/api/vendas").WithTags("Vendas").RequireAuthorization();
         g.MapPost("/manuais", Criar).WithSummary("Registra uma venda manual (pendente, ou já entregue).");
+        g.MapPut("/{id:guid}/manual", Editar).WithSummary("Edita uma venda manual (não cancelada): refaz o cálculo e acerta estoque, câmbios e financeiro.");
         g.MapPost("/{id:guid}/entregar", Entregar).WithSummary("Marca a venda manual como entregue: entra no faturamento e debita o dólar.");
         g.MapPost("/{id:guid}/cancelar", Cancelar).WithSummary("Cancela a venda manual e devolve o estoque.");
     }
@@ -49,19 +50,7 @@ public static class VendasManuaisEndpoints
     private static async Task<IResult> Criar([FromBody] NovaVendaRequest req, AppDbContext db, PrecificacaoService precos, EstoqueService estoque, CambiosService cambiosSvc,
         IngestaoService ingestao, FinanceiroService financeiro, HttpContext http, CancellationToken ct)
     {
-        var erros = new Dictionary<string, string[]>();
-        if (!Nomes.TentarForma(req.FormaPagamento, out var forma)) erros["formaPagamento"] = ["Use pix, cambios ou hibrido."];
-        if (!Nomes.TentarCusto(req.OrigemCusto, out var origemCusto)) erros["origemCusto"] = ["Use estoque_usd, cambios, estoque_esmeralda ou manual."];
-        if (string.IsNullOrWhiteSpace(req.NomeItem)) erros["nomeItem"] = ["Informe o nome do item."];
-        if (erros.Count > 0) return Results.ValidationProblem(erros);
-
-        var pix = forma == FormaPagamento.Cambios ? 0 : req.ValorVendaPix;
-        var cambios = forma == FormaPagamento.Pix ? 0 : Math.Round(req.ValorVendaCambios, 0, MidpointRounding.AwayFromZero);
-        if (pix + cambios <= 0) throw new DomainException("valor_obrigatorio", "Informe quanto o cliente pagou.");
-        if (origemCusto == OrigemCusto.EstoqueEsmeralda && req.QuantidadeEsmeraldas <= 0)
-            throw new DomainException("esmeraldas_obrigatorias", "Informe quantas esmeraldas saíram do estoque.");
-        if (origemCusto == OrigemCusto.Cambios && req.CustoCambios <= 0)
-            throw new DomainException("custo_obrigatorio", "Informe o custo em câmbios.");
+        if (Validar(req, out var forma, out var origemCusto, out var pix, out var cambios) is { } erro) return erro;
 
         var userId = http.User.Id();
         var nomeUsuario = http.User.Identity?.Name;
@@ -69,27 +58,7 @@ public static class VendasManuaisEndpoints
         {
             await estoque.TravarAsync(ct);
             await cambiosSvc.TravarAsync(ct);
-            var (cfg, faixas) = PrecificacaoService.ParaCalculo(await precos.ObterAsync(ct));
-            if (!req.UsaTaxaPrata) cfg = cfg with { TaxaPrata = 0 };
-
-            // Custo efetivo (mesma regra do crivonft): dólar do estoque pelo custo médio; esmeraldas pelo custo médio delas em US$.
-            var custoUsd = (double)req.CustoUsd;
-            double? dolarCompra = null;
-            if (origemCusto == OrigemCusto.EstoqueUsd)
-            {
-                var r = await estoque.ResumoAsync(TipoEstoque.Usd, ct);
-                if (r.CustoMedio > 0) dolarCompra = (double)r.CustoMedio;
-            }
-            if (origemCusto == OrigemCusto.EstoqueEsmeralda)
-            {
-                var r = await estoque.ResumoAsync(TipoEstoque.Esmeralda, ct);
-                if (req.QuantidadeEsmeraldas > r.Saldo)
-                    throw new DomainException("saldo_insuficiente", $"Saldo de esmeraldas insuficiente. Disponível: {r.Saldo:0.##}.");
-                if (r.CustoMedio <= 0) throw new DomainException("custo_medio_ausente", "As esmeraldas em estoque estão sem custo. Confira o estoque.");
-                custoUsd = (double)(req.QuantidadeEsmeraldas * r.CustoMedio);
-            }
-            var calc = CalculoVenda.Venda(origemCusto == OrigemCusto.Cambios ? 0 : custoUsd, (double)pix, (double)cambios, cfg, faixas,
-                origemCusto == OrigemCusto.Cambios ? (double)req.CustoCambios : null, dolarCompra);
+            var calc = await CalcularAsync(req, origemCusto, pix, cambios, precos, estoque, ct);
 
             Cliente? cliente = null;
             var nick = req.NicknameComprador?.Trim();
@@ -138,6 +107,111 @@ public static class VendasManuaisEndpoints
             return v;
         }, ct);
         return Results.Created($"/api/vendas/{venda.Id}", VendasEndpoints.ToLista(venda));
+    }
+
+    /// <summary>Valida o corpo de nova venda/edição; devolve o erro HTTP (ou null) e os valores já normalizados.</summary>
+    private static IResult? Validar(NovaVendaRequest req, out FormaPagamento forma, out OrigemCusto origemCusto, out decimal pix, out decimal cambios)
+    {
+        var erros = new Dictionary<string, string[]>();
+        pix = cambios = 0;
+        if (!Nomes.TentarForma(req.FormaPagamento, out forma)) erros["formaPagamento"] = ["Use pix, cambios ou hibrido."];
+        if (!Nomes.TentarCusto(req.OrigemCusto, out origemCusto)) erros["origemCusto"] = ["Use estoque_usd, cambios, estoque_esmeralda ou manual."];
+        if (string.IsNullOrWhiteSpace(req.NomeItem)) erros["nomeItem"] = ["Informe o nome do item."];
+        if (erros.Count > 0) return Results.ValidationProblem(erros);
+
+        pix = forma == FormaPagamento.Cambios ? 0 : req.ValorVendaPix;
+        cambios = forma == FormaPagamento.Pix ? 0 : Math.Round(req.ValorVendaCambios, 0, MidpointRounding.AwayFromZero);
+        if (pix + cambios <= 0) throw new DomainException("valor_obrigatorio", "Informe quanto o cliente pagou.");
+        if (origemCusto == OrigemCusto.EstoqueEsmeralda && req.QuantidadeEsmeraldas <= 0)
+            throw new DomainException("esmeraldas_obrigatorias", "Informe quantas esmeraldas saíram do estoque.");
+        if (origemCusto == OrigemCusto.Cambios && req.CustoCambios <= 0)
+            throw new DomainException("custo_obrigatorio", "Informe o custo em câmbios.");
+        return null;
+    }
+
+    /// <summary>Custo efetivo (mesma regra do crivonft): dólar do estoque pelo custo médio; esmeraldas pelo custo médio delas em US$. Chamar com o estoque travado.</summary>
+    private static async Task<VendaCalculada> CalcularAsync(NovaVendaRequest req, OrigemCusto origemCusto, decimal pix, decimal cambios, PrecificacaoService precos, EstoqueService estoque, CancellationToken ct)
+    {
+            var (cfg, faixas) = PrecificacaoService.ParaCalculo(await precos.ObterAsync(ct));
+            if (!req.UsaTaxaPrata) cfg = cfg with { TaxaPrata = 0 };
+
+            // Custo efetivo (mesma regra do crivonft): dólar do estoque pelo custo médio; esmeraldas pelo custo médio delas em US$.
+            var custoUsd = (double)req.CustoUsd;
+            double? dolarCompra = null;
+            if (origemCusto == OrigemCusto.EstoqueUsd)
+            {
+                var r = await estoque.ResumoAsync(TipoEstoque.Usd, ct);
+                if (r.CustoMedio > 0) dolarCompra = (double)r.CustoMedio;
+            }
+            if (origemCusto == OrigemCusto.EstoqueEsmeralda)
+            {
+                var r = await estoque.ResumoAsync(TipoEstoque.Esmeralda, ct);
+                if (req.QuantidadeEsmeraldas > r.Saldo)
+                    throw new DomainException("saldo_insuficiente", $"Saldo de esmeraldas insuficiente. Disponível: {r.Saldo:0.##}.");
+                if (r.CustoMedio <= 0) throw new DomainException("custo_medio_ausente", "As esmeraldas em estoque estão sem custo. Confira o estoque.");
+                custoUsd = (double)(req.QuantidadeEsmeraldas * r.CustoMedio);
+            }
+            var calc = CalculoVenda.Venda(origemCusto == OrigemCusto.Cambios ? 0 : custoUsd, (double)pix, (double)cambios, cfg, faixas,
+                origemCusto == OrigemCusto.Cambios ? (double)req.CustoCambios : null, dolarCompra);
+        return calc;
+    }
+
+    /// <summary>Editar = desfazer os efeitos da venda (estoque, saldo de câmbios, financeiro) e aplicá-los de novo com os valores novos,
+    /// na mesma transação. Assim estoque e financeiro sempre refletem o estado final, sem lógica de diferença.</summary>
+    private static async Task<IResult> Editar(Guid id, [FromBody] NovaVendaRequest req, AppDbContext db, PrecificacaoService precos, EstoqueService estoque, CambiosService cambiosSvc,
+        IngestaoService ingestao, FinanceiroService financeiro, HttpContext http, CancellationToken ct)
+    {
+        if (Validar(req, out var forma, out var origemCusto, out var pix, out var cambios) is { } erro) return erro;
+        var userId = http.User.Id();
+        var venda = await db.InTransactionAsync(async () =>
+        {
+            await estoque.TravarAsync(ct);
+            await cambiosSvc.TravarAsync(ct);
+            var v = await ManualAsync(db, id, ct);
+            if (v.StatusNormalizado == StatusVenda.Cancelado) throw new DomainException("status_invalido", "Venda cancelada não pode ser editada.");
+            var antes = new { v.TotalBrl, v.LucroBrl, v.Status, item = v.Itens.OrderBy(i => i.Ordem).FirstOrDefault()?.Descricao };
+
+            await estoque.EstornarVendaAsync(v.Id, null, userId, ct);
+            await cambiosSvc.EstornarVendaManualAsync(v.Id, userId, ct);
+            var calc = await CalcularAsync(req, origemCusto, pix, cambios, precos, estoque, ct);
+
+            var nick = req.NicknameComprador?.Trim();
+            Cliente? cliente = string.IsNullOrEmpty(nick) ? null : await ingestao.AplicarClienteAsync(new ClientePayload(nick, nick, null, null, null), sobrescrever: false, ct);
+            v.Cliente = cliente;
+            v.ClienteId = cliente?.Id;
+            if (req.DataHora is { } dh) v.DataHora = dh.ToUniversalTime();
+            v.FormaPagamento = forma;
+            v.TotalBrl = (decimal)calc.ReceitaTotalBrl;
+            v.ValorPixBrl = pix;
+            v.ValorCambios = cambios;
+            v.CustoBrl = (decimal)calc.CustoBrl;
+            v.CustoUsd = (decimal)calc.CustoUsd;
+            v.CustoCambios = (decimal)calc.CustoCambios;
+            v.LucroBrl = (decimal)calc.LucroBrl;
+            v.MargemPercent = (decimal)calc.MargemPercent;
+            v.OrigemCusto = origemCusto;
+            v.QuantidadeEsmeraldas = origemCusto == OrigemCusto.EstoqueEsmeralda ? req.QuantidadeEsmeraldas : null;
+            v.UsaTaxaPrata = req.UsaTaxaPrata;
+            v.DolarCompraUsado = calc.DolarCompraUsado is { } d ? (decimal)d : null;
+            v.Observacao = string.IsNullOrWhiteSpace(req.Observacao) ? null : req.Observacao.Trim();
+            v.Status = StatusPendente;
+            v.StatusNormalizado = StatusVenda.Pendente;
+            v.AtualizadoEm = v.AtualizadoEmOrigem = DateTime.UtcNow;
+            var item = v.Itens.OrderBy(i => i.Ordem).FirstOrDefault();
+            if (item is null) v.Itens.Add(new VendaItem { VendaId = v.Id, Ordem = 0, Descricao = req.NomeItem.Trim(), Quantidade = 1, PrecoUsd = (decimal)calc.CustoUsd, PrecoBrl = v.TotalBrl });
+            else { item.Descricao = req.NomeItem.Trim(); item.PrecoUsd = (decimal)calc.CustoUsd; item.PrecoBrl = v.TotalBrl; }
+            await db.SaveChangesAsync(ct);
+
+            if (origemCusto == OrigemCusto.EstoqueEsmeralda)
+                await estoque.DebitarVendaAsync(TipoEstoque.Esmeralda, req.QuantidadeEsmeraldas, v.Id, userId, ct);
+            if (req.Entregue) await MarcarEntregueAsync(v, estoque, cambiosSvc, financeiro, userId, ct);
+            else await financeiro.SincronizarVendaAsync(v, ct);
+
+            db.Audit(http, "venda.manual_editada", "Venda", v.Id, new { antes, depois = new { v.TotalBrl, v.LucroBrl, v.Status, item = req.NomeItem.Trim() }, origemCusto = Nomes.Custo(origemCusto) });
+            await db.SaveChangesAsync(ct);
+            return v;
+        }, ct);
+        return Results.Ok(VendasEndpoints.ToLista(venda));
     }
 
     private static async Task MarcarEntregueAsync(Venda v, EstoqueService estoque, CambiosService cambios, FinanceiroService financeiro, Guid userId, CancellationToken ct)

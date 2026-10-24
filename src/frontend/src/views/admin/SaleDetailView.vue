@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ArrowLeft, Ban, PackageCheck, RefreshCw, TriangleAlert } from 'lucide-vue-next'
+import { ArrowLeft, Ban, PackageCheck, Pencil, RefreshCw, TriangleAlert } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import EditSaleModal from '@/components/admin/sales/EditSaleModal.vue'
 import WalletAddress from '@/components/admin/WalletAddress.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import PageCard from '@/components/ui/PageCard.vue'
@@ -22,13 +23,26 @@ import type { VendaDetalhe } from '@/lib/types'
 import { useAsync } from '@/lib/useAsync'
 
 const route = useRoute()
+const router = useRouter()
+const editOpen = ref(false)
 const { data, loading, error, run } = useAsync((signal) => api.get<VendaDetalhe>(`/api/vendas/${route.params.id}`, undefined, signal))
 watch(() => route.params.id, () => void run(), { immediate: true })
 
 const venda = computed(() => data.value?.venda)
+// ?editar=1 (vindo da lista) abre o modal assim que o detalhe carrega e limpa a query.
+watch([data, () => route.query.editar], ([d, q]) => {
+  if (q !== '1' || !d) return
+  if (d.venda.origem === 'manual' && d.venda.statusNormalizado !== 'cancelado') editOpen.value = true
+  void router.replace({ query: Object.fromEntries(Object.entries(route.query).filter(([k]) => k !== 'editar')) })
+}, { immediate: true })
 const isManual = computed(() => venda.value?.origem === 'manual')
 const canDeliver = computed(() => isManual.value && venda.value?.statusNormalizado === 'pendente')
 const canCancel = computed(() => isManual.value && ['pendente', 'concluido'].includes(venda.value?.statusNormalizado ?? ''))
+const canEdit = computed(() => isManual.value && venda.value?.statusNormalizado !== 'cancelado')
+const editHint = computed(() => {
+  if (!venda.value || canEdit.value) return null
+  return isManual.value ? 'Venda cancelada não pode ser editada.' : 'Vendas do crivonft são sincronizadas de lá e não podem ser editadas aqui. Altere no crivonft.'
+})
 const acting = ref<'entregar' | 'cancelar' | null>(null)
 
 async function deliver() {
@@ -98,7 +112,8 @@ const values = computed(() => {
 
 <template>
   <PageCard :title="title">
-    <template v-if="canDeliver || canCancel" #actions>
+    <template v-if="venda" #actions>
+      <UiButton variant="secondary" :disabled="!canEdit || acting !== null" :title="editHint ?? undefined" @click="editOpen = true"><Pencil class="size-4" /> Editar</UiButton>
       <UiButton v-if="canDeliver" :loading="acting === 'entregar'" :disabled="acting !== null" @click="deliver"><PackageCheck class="size-4" /> Marcar como entregue</UiButton>
       <UiButton v-if="canCancel" variant="secondary" :loading="acting === 'cancelar'" :disabled="acting !== null" @click="cancelSale"><Ban class="size-4" /> Cancelar venda</UiButton>
     </template>
@@ -117,6 +132,9 @@ const values = computed(() => {
       </div>
       <p v-if="venda" class="mt-1 text-[15px] text-muted">{{ formatDateTime(venda.dataHora) }}</p>
     </template>
+
+    <p v-if="editHint" class="mb-4 rounded-xl bg-surface-2 px-3 py-2 text-[13px] text-muted" data-testid="edit-hint">{{ editHint }}</p>
+    <EditSaleModal v-if="data && canEdit" v-model:open="editOpen" :venda="data" @saved="run" />
 
     <UiEmptyState v-if="error && !data" :icon="TriangleAlert" :title="error.status === 404 ? 'Venda não encontrada' : 'Não foi possível carregar a venda'" :description="error.message">
       <UiButton v-if="error.status !== 404" variant="secondary" @click="run"><RefreshCw class="size-4" /> Tentar de novo</UiButton>

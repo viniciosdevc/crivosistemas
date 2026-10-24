@@ -3,7 +3,8 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import NewSaleForm from '@/components/admin/sales/NewSaleForm.vue'
 
 const get = vi.fn()
-vi.mock('@/lib/api', async (orig) => ({ ...(await orig<typeof import('@/lib/api')>()), api: { get: (...a: unknown[]) => get(...a), post: vi.fn() } }))
+const put = vi.fn()
+vi.mock('@/lib/api', async (orig) => ({ ...(await orig<typeof import('@/lib/api')>()), api: { get: (...a: unknown[]) => get(...a), post: vi.fn(), put: (...a: unknown[]) => put(...a) } }))
 
 const regras = {
   versao: 1,
@@ -53,6 +54,32 @@ describe('NewSaleForm', () => {
     vi.advanceTimersByTime(400)
     await flushPromises()
     expect(w.get('[data-testid="nick-avatar"] img').attributes('src')).toContain('user=ana')
+    w.unmount()
+  })
+
+  it('modo edição pré-preenche a partir do detalhe e faz PUT sem dataHora', async () => {
+    put.mockResolvedValue({ id: 'v9' })
+    const venda = {
+      venda: { id: 'v9', origem: 'manual', statusNormalizado: 'pendente', formaPagamento: 'hibrido', cliente: { id: 'c', nickname: 'ana', email: null, carteira: null } },
+      valores: { custoUsd: 12.5, custoCambios: 0, valorPixBrl: 80.5, valorCambios: 300 },
+      itens: [{ descricao: 'Dragão' }],
+      manual: { origemCusto: 'estoque_usd', quantidadeEsmeraldas: null, usaTaxaPrata: false, observacao: 'obs' },
+    } as never
+    const w = mount(NewSaleForm, { attachTo: document.body, props: { venda } })
+    await flushPromises()
+    expect((w.get('input[placeholder="Nome do item vendido"]').element as HTMLInputElement).value).toBe('Dragão')
+    expect((w.get('input[placeholder="Ex: ana"]').element as HTMLInputElement).value).toBe('ana')
+    expect((w.get('input[placeholder="0,00"]').element as HTMLInputElement).value).toBe('12,5')
+    expect(checkbox(w, 'Já entregue').attributes('aria-checked')).toBe('false')
+    expect(w.get('[data-testid="aviso-edicao"]').text()).toContain('recalculados')
+    await w.get('form').trigger('submit')
+    await flushPromises()
+    expect(put).toHaveBeenCalledTimes(1)
+    const [url, body] = put.mock.calls[0]! as [string, Record<string, unknown>]
+    expect(url).toBe('/api/vendas/v9/manual')
+    expect(body).not.toHaveProperty('dataHora')
+    expect(body).toMatchObject({ nomeItem: 'Dragão', nicknameComprador: 'ana', custoUsd: 12.5, valorVendaPix: 80.5, valorVendaCambios: 300, usaTaxaPrata: false, entregue: false, observacao: 'obs' })
+    expect(w.emitted('saved')).toBeTruthy()
     w.unmount()
   })
 })
