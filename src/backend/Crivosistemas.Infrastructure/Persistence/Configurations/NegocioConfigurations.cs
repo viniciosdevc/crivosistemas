@@ -18,7 +18,9 @@ internal sealed class ClienteConfig : IEntityTypeConfiguration<Cliente>
         b.Property(x => x.Email).HasMaxLength(254);
         b.Property(x => x.IdentidadeId).HasMaxLength(120);
         b.HasIndex(x => x.Chave).IsUnique();
+        b.Property(x => x.Carteira).HasMaxLength(42);
         b.HasIndex(x => x.Nickname);
+        b.HasIndex(x => x.Carteira);
     }
 }
 

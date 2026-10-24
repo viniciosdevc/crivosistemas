@@ -157,6 +157,18 @@ export function parseDecimal(raw: string | number | null | undefined): number | 
   return Number.isFinite(n) ? n : null
 }
 
+/** Endereço de carteira abreviado: 0x1234…abcd. */
+export function shortWallet(address: string | null | undefined) {
+  const a = address?.trim()
+  if (!a) return ''
+  return a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a
+}
+
+/** Página do endereço no explorer da Immutable zkEVM. */
+export function walletExplorerUrl(address: string) {
+  return `https://explorer.immutable.com/address/${encodeURIComponent(address.trim())}`
+}
+
 /** Número com até `digits` casas (custos unitários pequenos, como US$ por esmeralda). */
 export function formatFixed(value: number | null | undefined, digits = 6) {
   return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: digits }).format(value ?? 0)

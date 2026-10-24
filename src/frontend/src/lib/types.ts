@@ -38,6 +38,8 @@ export interface ClienteResumo {
   id: string
   nickname: string
   email: string | null
+  /** Endereço 0x… (minúsculas) ou null. */
+  carteira: string | null
 }
 
 export interface VendaLista {
@@ -180,6 +182,7 @@ export interface ClienteLista {
   id: string
   nickname: string
   email: string | null
+  carteira: string | null
   totalGasto: number
   compras: number
   ultimaCompra: string | null
