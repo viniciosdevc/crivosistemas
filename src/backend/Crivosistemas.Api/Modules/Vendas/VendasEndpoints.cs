@@ -11,6 +11,9 @@ namespace Crivosistemas.Api.Modules.Vendas;
 public sealed record ClienteResumoDto(Guid Id, string Nickname, string? Email, string? Carteira);
 public sealed record VendaListaDto(Guid Id, string Origem, string OrigemId, string? PedidoId, DateTime DataHora, DateOnly Dia, string Status, string StatusNormalizado,
     string? FormaPagamento, string? Vendedor, ClienteResumoDto? Cliente, decimal TotalBrl, decimal LucroBrl, decimal MargemPercent, bool Removida, bool Faturavel, string? Item);
+/// <summary>Soma de todas as vendas faturáveis (pagas/concluídas, não removidas) do filtro, em todas as páginas.</summary>
+public sealed record SubtotalVendasDto(int Quantidade, decimal TotalBrl, decimal LucroBrl);
+public sealed record VendasPaginaDto(IReadOnlyList<VendaListaDto> Items, int Page, int PageSize, int Total, SubtotalVendasDto Subtotal);
 public sealed record VendaItemDto(int Ordem, string Descricao, decimal Quantidade, decimal PrecoUsd, decimal PrecoBrl, string? Referencia);
 public sealed record CupomDto(string Codigo, string? Tipo);
 public sealed record ValoresDto(decimal TotalBrl, decimal DescontoBrl, decimal TaxaBrl, decimal ValorPixBrl, decimal ValorCambios, decimal CustoBrl, decimal CustoUsd,
@@ -111,7 +114,9 @@ public static class VendasEndpoints
             _ => desc ? q.OrderByDescending(v => v.DataHora) : q.OrderBy(v => v.DataHora),
         };
         var r = await ordenado.ThenBy(v => v.Id).Include(v => v.Cliente).Include(v => v.Itens).AsSplitQuery().ToPageAsync(page, pageSize, ct);
-        return Results.Ok(new PagedResult<VendaListaDto>(r.Items.Select(ToLista).ToList(), r.Page, r.PageSize, r.Total));
+        var fat = await q.Where(VendaConsultas.Faturavel).GroupBy(_ => 1)
+            .Select(g => new SubtotalVendasDto(g.Count(), g.Sum(v => v.TotalBrl), g.Sum(v => v.LucroBrl))).FirstOrDefaultAsync(ct);
+        return Results.Ok(new VendasPaginaDto(r.Items.Select(ToLista).ToList(), r.Page, r.PageSize, r.Total, fat ?? new SubtotalVendasDto(0, 0, 0)));
     }
 
     private static async Task<IResult> Imagens(string[]? nome, ICrivonftClient crivonft, IMemoryCache cache, ILogger<VendasLog> log, CancellationToken ct)
