@@ -58,6 +58,7 @@ public static class DependencyInjection
         services.AddScoped<ReconciliacaoService>();
         services.AddScoped<PrecificacaoService>();
         services.AddScoped<Estoque.EstoqueService>();
+        services.AddScoped<Financeiro.FinanceiroService>();
         services.AddScoped<PrecificacaoEnvioService>();
         return services;
     }

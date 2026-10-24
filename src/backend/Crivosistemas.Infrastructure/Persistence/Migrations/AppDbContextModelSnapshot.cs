@@ -190,6 +190,82 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                     b.ToTable("MovimentosEstoque", (string)null);
                 });
 
+            modelBuilder.Entity("Crivosistemas.Domain.Financeiro.LancamentoFinanceiro", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("AtualizadoEm")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("CanceladoEm")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Categoria")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("varchar(60)");
+
+                    b.Property<DateTime?>("ConfirmadoEm")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("CriadoPor")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("Data")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Descricao")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<Guid?>("LoteEstoqueId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("MotivoCancelamento")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<string>("Origem")
+                        .IsRequired()
+                        .HasMaxLength(15)
+                        .HasColumnType("varchar(15)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(15)
+                        .HasColumnType("varchar(15)");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<decimal>("ValorBrl")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("decimal(14,2)");
+
+                    b.Property<Guid?>("VendaId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LoteEstoqueId")
+                        .IsUnique();
+
+                    b.HasIndex("VendaId")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "Data");
+
+                    b.HasIndex("Tipo", "Data");
+
+                    b.ToTable("LancamentosFinanceiros", (string)null);
+                });
+
             modelBuilder.Entity("Crivosistemas.Domain.Identity.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -786,6 +862,19 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                         .HasForeignKey("LoteId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Crivosistemas.Domain.Financeiro.LancamentoFinanceiro", b =>
+                {
+                    b.HasOne("Crivosistemas.Domain.Estoque.LoteEstoque", null)
+                        .WithMany()
+                        .HasForeignKey("LoteEstoqueId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Crivosistemas.Domain.Vendas.Venda", null)
+                        .WithMany()
+                        .HasForeignKey("VendaId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("Crivosistemas.Domain.Identity.UserToken", b =>

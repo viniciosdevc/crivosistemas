@@ -6,6 +6,7 @@ using Crivosistemas.Domain.Integracoes;
 using Crivosistemas.Domain.Precificacao;
 using Crivosistemas.Domain.Vendas;
 using Crivosistemas.Infrastructure.Estoque;
+using Crivosistemas.Infrastructure.Financeiro;
 using Crivosistemas.Infrastructure.Integracoes;
 using Crivosistemas.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
@@ -45,7 +46,7 @@ public static class VendasManuaisEndpoints
     private const string StatusPendente = "pendente", StatusEntregue = "entregue", StatusCancelada = "cancelada";
 
     private static async Task<IResult> Criar([FromBody] NovaVendaRequest req, AppDbContext db, PrecificacaoService precos, EstoqueService estoque,
-        IngestaoService ingestao, HttpContext http, CancellationToken ct)
+        IngestaoService ingestao, FinanceiroService financeiro, HttpContext http, CancellationToken ct)
     {
         var erros = new Dictionary<string, string[]>();
         if (!Nomes.TentarForma(req.FormaPagamento, out var forma)) erros["formaPagamento"] = ["Use pix, cambios ou hibrido."];
@@ -128,7 +129,7 @@ public static class VendasManuaisEndpoints
             // Esmeraldas saem já na criação (reserva física, como no crivonft).
             if (origemCusto == OrigemCusto.EstoqueEsmeralda)
                 await estoque.DebitarVendaAsync(TipoEstoque.Esmeralda, req.QuantidadeEsmeraldas, v.Id, userId, ct);
-            if (req.Entregue) await MarcarEntregueAsync(v, estoque, userId, ct);
+            if (req.Entregue) await MarcarEntregueAsync(v, estoque, financeiro, userId, ct);
 
             db.Audit(http, "venda.manual_criada", "Venda", v.Id, new { v.TotalBrl, v.LucroBrl, origemCusto = Nomes.Custo(origemCusto), req.Entregue });
             await db.SaveChangesAsync(ct);
@@ -137,13 +138,15 @@ public static class VendasManuaisEndpoints
         return Results.Created($"/api/vendas/{venda.Id}", VendasEndpoints.ToLista(venda));
     }
 
-    private static async Task MarcarEntregueAsync(Venda v, EstoqueService estoque, Guid userId, CancellationToken ct)
+    private static async Task MarcarEntregueAsync(Venda v, EstoqueService estoque, FinanceiroService financeiro, Guid userId, CancellationToken ct)
     {
         if (v.OrigemCusto == OrigemCusto.EstoqueUsd && v.CustoUsd > 0)
             await estoque.DebitarVendaAsync(TipoEstoque.Usd, v.CustoUsd, v.Id, userId, ct);
         v.Status = StatusEntregue;
         v.StatusNormalizado = StatusVenda.Concluido;
         v.AtualizadoEm = v.AtualizadoEmOrigem = DateTime.UtcNow;
+        // Entregue: o PIX entra no financeiro (como "Venda PIX" no crivonft).
+        await financeiro.SincronizarVendaAsync(v, ct);
     }
 
     private static async Task<Venda> ManualAsync(AppDbContext db, Guid id, CancellationToken ct)
@@ -153,14 +156,14 @@ public static class VendasManuaisEndpoints
         return v;
     }
 
-    private static async Task<IResult> Entregar(Guid id, AppDbContext db, EstoqueService estoque, HttpContext http, CancellationToken ct)
+    private static async Task<IResult> Entregar(Guid id, AppDbContext db, EstoqueService estoque, FinanceiroService financeiro, HttpContext http, CancellationToken ct)
     {
         var v = await db.InTransactionAsync(async () =>
         {
             await estoque.TravarAsync(ct);
             var v = await ManualAsync(db, id, ct);
             if (v.StatusNormalizado != StatusVenda.Pendente) throw new DomainException("status_invalido", "Só uma venda pendente pode ser marcada como entregue.");
-            await MarcarEntregueAsync(v, estoque, http.User.Id(), ct);
+            await MarcarEntregueAsync(v, estoque, financeiro, http.User.Id(), ct);
             db.Audit(http, "venda.manual_entregue", "Venda", v.Id);
             await db.SaveChangesAsync(ct);
             return v;
@@ -168,7 +171,7 @@ public static class VendasManuaisEndpoints
         return Results.Ok(VendasEndpoints.ToLista(v));
     }
 
-    private static async Task<IResult> Cancelar(Guid id, [FromBody] CancelarVendaRequest? req, AppDbContext db, EstoqueService estoque, HttpContext http, CancellationToken ct)
+    private static async Task<IResult> Cancelar(Guid id, [FromBody] CancelarVendaRequest? req, AppDbContext db, EstoqueService estoque, FinanceiroService financeiro, HttpContext http, CancellationToken ct)
     {
         var v = await db.InTransactionAsync(async () =>
         {
@@ -179,6 +182,7 @@ public static class VendasManuaisEndpoints
             v.Status = StatusCancelada;
             v.StatusNormalizado = StatusVenda.Cancelado;
             v.AtualizadoEm = v.AtualizadoEmOrigem = DateTime.UtcNow;
+            await financeiro.SincronizarVendaAsync(v, ct);
             if (!string.IsNullOrWhiteSpace(req?.Motivo))
             {
                 var obs = $"{v.Observacao}\nCancelada: {req.Motivo.Trim()}".Trim();

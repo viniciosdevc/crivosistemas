@@ -1,4 +1,5 @@
 using Crivosistemas.Domain.Estoque;
+using Crivosistemas.Domain.Financeiro;
 using Crivosistemas.Domain.Integracoes;
 using Crivosistemas.Domain.Precificacao;
 using Crivosistemas.Domain.Vendas;
@@ -191,5 +192,29 @@ internal sealed class ConfiguracaoEstoqueConfig : IEntityTypeConfiguration<Confi
     {
         b.ToTable("ConfiguracoesEstoque");
         b.Property(x => x.CustoMedioUsdFixo).HasPrecision(18, 8);
+    }
+}
+
+internal sealed class LancamentoFinanceiroConfig : IEntityTypeConfiguration<LancamentoFinanceiro>
+{
+    public void Configure(EntityTypeBuilder<LancamentoFinanceiro> b)
+    {
+        b.ToTable("LancamentosFinanceiros");
+        b.Property(x => x.Tipo).HasConversion<string>().HasMaxLength(10);
+        b.Property(x => x.Status).HasConversion<string>().HasMaxLength(15);
+        b.Property(x => x.Origem).HasConversion<string>().HasMaxLength(15);
+        b.Property(x => x.Categoria).HasMaxLength(60);
+        b.Property(x => x.Descricao).HasMaxLength(300);
+        b.Property(x => x.ValorBrl).HasPrecision(14, 2);
+        b.Property(x => x.MotivoCancelamento).HasMaxLength(300);
+        b.Ignore(x => x.Automatico);
+        b.Ignore(x => x.ValorComSinal);
+        // Um lançamento por venda e por compra (o MySQL aceita vários NULL num índice único).
+        b.HasIndex(x => x.VendaId).IsUnique();
+        b.HasIndex(x => x.LoteEstoqueId).IsUnique();
+        b.HasIndex(x => new { x.Status, x.Data });
+        b.HasIndex(x => new { x.Tipo, x.Data });
+        b.HasOne<Venda>().WithMany().HasForeignKey(x => x.VendaId).OnDelete(DeleteBehavior.SetNull);
+        b.HasOne<LoteEstoque>().WithMany().HasForeignKey(x => x.LoteEstoqueId).OnDelete(DeleteBehavior.SetNull);
     }
 }

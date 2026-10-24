@@ -5,6 +5,7 @@ using Crivosistemas.Api.Common;
 using Crivosistemas.Api.Modules.Auth;
 using Crivosistemas.Api.Modules.Clientes;
 using Crivosistemas.Api.Modules.Estoque;
+using Crivosistemas.Api.Modules.Financeiro;
 using Crivosistemas.Api.Modules.Integracoes;
 using Crivosistemas.Api.Modules.Precificacao;
 using Crivosistemas.Api.Modules.Vendas;
@@ -164,6 +165,7 @@ app.MapIntegracoesEndpoints();
 app.MapVendasEndpoints();
 app.MapVendasManuaisEndpoints();
 app.MapEstoqueEndpoints();
+app.MapFinanceiroEndpoints();
 app.MapClientesEndpoints();
 app.MapPrecificacaoEndpoints();
 
