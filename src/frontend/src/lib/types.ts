@@ -497,6 +497,37 @@ export interface NovoLancamento {
   pendente: boolean
 }
 
+export interface SaldosSistema {
+  brl: number
+  usd: number
+  cambios: number
+  esmeraldas: number
+  custoMedioUsd: number
+  totalOperacionalBrl: number
+}
+
+export interface PosicaoDiaria {
+  id: string
+  data: string
+  brlInformado: number | null
+  usdInformado: number | null
+  cambiosInformado: number | null
+  esmeraldasInformado: number | null
+  brlSistema: number
+  usdSistema: number
+  cambiosSistema: number
+  esmeraldasSistema: number
+  brlDiferenca: number | null
+  usdDiferenca: number | null
+  cambiosDiferenca: number | null
+  esmeraldasDiferenca: number | null
+  custoMedioUsd: number
+  totalOperacionalBrl: number
+  observacao: string | null
+  criadoPorNome: string | null
+  atualizadoEm: string
+}
+
 // ── NFTs e coleções (dados do crivonft) ─────────────────────────────────────
 
 export interface NftCategoria { categoria: string; rotulo: string; total: number; atualizadoEm: string | null }

@@ -2,6 +2,7 @@ using Crivosistemas.Domain.Cambios;
 using Crivosistemas.Domain.Estoque;
 using Crivosistemas.Domain.Financeiro;
 using Crivosistemas.Domain.Integracoes;
+using Crivosistemas.Domain.Posicao;
 using Crivosistemas.Domain.Precificacao;
 using Crivosistemas.Domain.Vendas;
 using Microsoft.EntityFrameworkCore;
@@ -254,4 +255,23 @@ internal sealed class LancamentoFinanceiroConfig : IEntityTypeConfiguration<Lanc
 internal sealed class ConfiguracaoFinanceiroConfig : IEntityTypeConfiguration<ConfiguracaoFinanceiro>
 {
     public void Configure(EntityTypeBuilder<ConfiguracaoFinanceiro> b) => b.ToTable("ConfiguracoesFinanceiro");
+}
+
+internal sealed class PosicaoDiariaConfig : IEntityTypeConfiguration<PosicaoDiaria>
+{
+    public void Configure(EntityTypeBuilder<PosicaoDiaria> b)
+    {
+        b.ToTable("PosicoesDiarias");
+        b.Property(x => x.BrlInformado).HasPrecision(14, 2);
+        b.Property(x => x.BrlSistema).HasPrecision(14, 2);
+        b.Property(x => x.UsdInformado).HasPrecision(18, 8);
+        b.Property(x => x.UsdSistema).HasPrecision(18, 8);
+        b.Property(x => x.EsmeraldasInformado).HasPrecision(18, 8);
+        b.Property(x => x.EsmeraldasSistema).HasPrecision(18, 8);
+        b.Property(x => x.CambiosInformado).HasPrecision(18, 2);
+        b.Property(x => x.CambiosSistema).HasPrecision(18, 2);
+        b.Property(x => x.CustoMedioUsd).HasPrecision(18, 8);
+        b.Property(x => x.Observacao).HasMaxLength(300);
+        b.HasIndex(x => x.Data).IsUnique();
+    }
 }

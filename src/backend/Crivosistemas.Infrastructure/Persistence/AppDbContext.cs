@@ -3,6 +3,7 @@ using Crivosistemas.Domain.Cambios;
 using Crivosistemas.Domain.Common;
 using Crivosistemas.Domain.Estoque;
 using Crivosistemas.Domain.Financeiro;
+using Crivosistemas.Domain.Posicao;
 using Crivosistemas.Domain.Identity;
 using Crivosistemas.Domain.Integracoes;
 using Crivosistemas.Domain.Precificacao;
@@ -34,6 +35,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ConfiguracaoFinanceiro> ConfiguracoesFinanceiro => Set<ConfiguracaoFinanceiro>();
     public DbSet<SaldoCambios> SaldosCambios => Set<SaldoCambios>();
     public DbSet<MovimentoCambios> MovimentosCambios => Set<MovimentoCambios>();
+    public DbSet<PosicaoDiaria> PosicoesDiarias => Set<PosicaoDiaria>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
