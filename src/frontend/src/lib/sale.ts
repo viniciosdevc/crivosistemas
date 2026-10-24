@@ -113,8 +113,3 @@ export function zonedToIso(day: string, time: string, timeZone: string) {
 export function taxaFeiraBrl(config: Pick<ConfigCalculo, 'taxaPrata' | 'valorKFeira' | 'moedasPorK'>) {
   return (config.taxaPrata * config.valorKFeira) / Math.max(config.moedasPorK, 0.0001)
 }
-
-/** Sugestão de taxa da feira para a forma de pagamento: marcada em câmbios/híbrido, desmarcada em PIX. */
-export function taxaFeiraPadrao(forma: FormaPagamento) {
-  return forma !== 'pix'
-}
