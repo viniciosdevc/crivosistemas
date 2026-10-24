@@ -308,3 +308,17 @@ internal sealed class PosicaoDiariaConfig : IEntityTypeConfiguration<PosicaoDiar
         b.HasIndex(x => x.Data).IsUnique();
     }
 }
+
+internal sealed class CenarioProjecaoConfig : IEntityTypeConfiguration<Domain.Projecao.CenarioProjecao>
+{
+    public void Configure(EntityTypeBuilder<Domain.Projecao.CenarioProjecao> b)
+    {
+        b.Property(x => x.Nome).HasMaxLength(80);
+        b.Property(x => x.CrescimentoPercent).HasPrecision(9, 2);
+        b.Property(x => x.MediaFaturamentoDia).HasPrecision(14, 2);
+        b.Property(x => x.MediaLucroDia).HasPrecision(14, 2);
+        b.Property(x => x.CaixaInicialBrl).HasPrecision(14, 2);
+        b.Ignore(x => x.InicioProjecao);
+        b.HasIndex(x => x.CriadoEm);
+    }
+}

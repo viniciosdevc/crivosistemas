@@ -956,6 +956,57 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                     b.ToTable("PrecificacaoHistoricos");
                 });
 
+            modelBuilder.Entity("Crivosistemas.Domain.Projecao.CenarioProjecao", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("AtualizadoEm")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("BaseAte")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("BaseDe")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("CaixaInicialBrl")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("decimal(14,2)");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("CriadoPor")
+                        .HasColumnType("char(36)");
+
+                    b.Property<decimal>("CrescimentoPercent")
+                        .HasPrecision(9, 2)
+                        .HasColumnType("decimal(9,2)");
+
+                    b.Property<DateTime>("DataFinal")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("MediaFaturamentoDia")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("decimal(14,2)");
+
+                    b.Property<decimal>("MediaLucroDia")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("decimal(14,2)");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("varchar(80)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CriadoEm");
+
+                    b.ToTable("CenariosProjecao", (string)null);
+                });
+
             modelBuilder.Entity("Crivosistemas.Domain.Vendas.Cliente", b =>
                 {
                     b.Property<Guid>("Id")

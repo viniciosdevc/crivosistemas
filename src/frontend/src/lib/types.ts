@@ -703,3 +703,40 @@ export interface ItemEstoque {
   observacao: string | null
   motivoCancelamento: string | null
 }
+
+// ── Projeção ────────────────────────────────────────────────────────────────
+
+export interface CenarioProjecao {
+  id: string | null
+  nome: string
+  baseDe: string
+  baseAte: string
+  dataFinal: string
+  inicioProjecao: string
+  crescimentoPercent: number
+  mediaFaturamentoDia: number
+  mediaLucroDia: number
+  caixaInicialBrl: number
+  criadoEm: string | null
+}
+export interface DiaProjecao {
+  dia: string
+  faturamentoProjetado: number
+  lucroProjetado: number
+  caixaProjetado: number
+  faturamentoRealizado: number | null
+  lucroRealizado: number | null
+}
+export interface ResumoProjecao {
+  lucroFinal: number
+  faturamentoFinal: number
+  caixaFinal: number
+  lucroEsperadoAteHoje: number
+  lucroRealizadoAteHoje: number
+  diferencaLucro: number
+  diasDecorridos: number
+  diasTotal: number
+}
+export interface Projecao { cenario: CenarioProjecao; resumo: ResumoProjecao; dias: DiaProjecao[] }
+export interface ProjecaoResumida { cenario: CenarioProjecao; resumo: ResumoProjecao }
+export interface NovoCenario { nome: string; baseDe: string; baseAte: string; dataFinal: string; crescimentoPercent: number }
