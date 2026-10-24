@@ -5,17 +5,10 @@ namespace Crivosistemas.UnitTests;
 public sealed class RegrasPosicaoTests
 {
     [Fact]
-    public void Diferenca_e_informado_menos_sistema_e_nula_sem_conferencia()
+    public void Total_soma_conta_dolar_ao_preco_de_venda_cambios_ao_valor_do_k_e_esmeraldas()
     {
-        Assert.Equal(-50m, RegrasPosicao.Diferenca(950m, 1000m));
-        Assert.Equal(0m, RegrasPosicao.Diferenca(10m, 10m));
-        Assert.Null(RegrasPosicao.Diferenca(null, 1000m));
-    }
-
-    [Fact]
-    public void Total_operacional_soma_caixa_e_dolar_ao_custo_medio_usando_o_conferido()
-    {
-        Assert.Equal(1500m, RegrasPosicao.TotalOperacionalBrl(1000m, 900m, 100m, 80m, 5m));
-        Assert.Equal(1300m, RegrasPosicao.TotalOperacionalBrl(null, 900m, null, 80m, 5m));
+        // 1000 na conta + 100 US$ × 5,5 + 20000 câmbios × 0,01 + 50 esmeraldas × 2
+        Assert.Equal(1000m + 550m + 200m + 100m, RegrasPosicao.TotalBrl(1000m, 100m, 20000m, 50m, 5.5m, 0.01m, 2m));
+        Assert.Equal(0m, RegrasPosicao.TotalBrl(0, 0, 0, 0, 5.5m, 0.01m, 2m));
     }
 }

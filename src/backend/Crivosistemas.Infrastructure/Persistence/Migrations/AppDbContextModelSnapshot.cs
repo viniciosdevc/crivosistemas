@@ -574,16 +574,48 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("char(36)");
 
+                    b.Property<decimal?>("AjusteBrl")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("decimal(14,2)");
+
+                    b.Property<decimal?>("AjusteCambios")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("AjusteEsmeraldas")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("decimal(18,8)");
+
+                    b.Property<decimal?>("AjusteUsd")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("decimal(18,8)");
+
                     b.Property<DateTime>("AtualizadoEm")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<decimal>("BrlFinal")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("decimal(14,2)");
 
                     b.Property<decimal?>("BrlInformado")
                         .HasPrecision(14, 2)
                         .HasColumnType("decimal(14,2)");
 
+                    b.Property<decimal>("BrlPorCambio")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("decimal(18,8)");
+
+                    b.Property<decimal>("BrlPorEsmeralda")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("decimal(18,8)");
+
                     b.Property<decimal>("BrlSistema")
                         .HasPrecision(14, 2)
                         .HasColumnType("decimal(14,2)");
+
+                    b.Property<decimal>("CambiosFinal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal?>("CambiosInformado")
                         .HasPrecision(18, 2)
@@ -606,6 +638,10 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("Data")
                         .HasColumnType("date");
 
+                    b.Property<decimal>("EsmeraldasFinal")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("decimal(18,8)");
+
                     b.Property<decimal?>("EsmeraldasInformado")
                         .HasPrecision(18, 8)
                         .HasColumnType("decimal(18,8)");
@@ -618,6 +654,14 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("varchar(300)");
 
+                    b.Property<decimal>("PrecoUsd")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("decimal(18,8)");
+
+                    b.Property<decimal>("UsdFinal")
+                        .HasPrecision(18, 8)
+                        .HasColumnType("decimal(18,8)");
+
                     b.Property<decimal?>("UsdInformado")
                         .HasPrecision(18, 8)
                         .HasColumnType("decimal(18,8)");
@@ -626,7 +670,8 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 8)
                         .HasColumnType("decimal(18,8)");
 
-                    b.HasKey("Id");
+                    
+b.HasKey("Id");
 
                     b.HasIndex("Data")
                         .IsUnique();

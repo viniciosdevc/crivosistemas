@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.Json;
 
 namespace Crivosistemas.IntegrationTests;
 
@@ -7,23 +6,21 @@ namespace Crivosistemas.IntegrationTests;
 public sealed class PosicaoTests(ApiFactory factory)
 {
     [Fact]
-    public async Task Posicao_de_hoje_guarda_a_diferenca_para_o_sistema_e_substitui_no_mesmo_dia()
+    public async Task Informar_a_conta_ajusta_o_financeiro_pela_diferenca_e_nao_repete_no_mesmo_dia()
     {
         var admin = await factory.SeedAndLoginAdminAsync();
-        var s = await (await admin.GetAsync("/api/posicao/sistema")).Json();
-        var brl = s.GetProperty("brl").GetDecimal();
+        var antes = (await (await admin.GetAsync("/api/posicao/atual")).Json()).GetProperty("patrimonio").GetProperty("contaBrl").GetDecimal();
 
-        var r = await admin.Put("/api/posicao/hoje", new { brl = brl + 100, observacao = "conferido" });
+        var r = await admin.Put("/api/posicao/hoje", new { brl = antes + 100, observacao = "conferido" });
         Assert.Equal(HttpStatusCode.OK, r.StatusCode);
-        var p = await r.Json();
-        Assert.Equal(100m, p.GetProperty("brlDiferenca").GetDecimal());
-        Assert.Equal(JsonValueKind.Null, p.GetProperty("usdDiferenca").ValueKind);
+        Assert.Equal(100m, (await r.Json()).GetProperty("ajusteBrl").GetDecimal());
+        var depois = (await (await admin.GetAsync("/api/posicao/atual")).Json()).GetProperty("patrimonio").GetProperty("contaBrl").GetDecimal();
+        Assert.Equal(antes + 100, depois);
 
-        // Informar de novo no mesmo dia substitui; continua uma linha só.
-        (await admin.Put("/api/posicao/hoje", new { brl })).EnsureSuccessStatusCode();
-        var lista = await (await admin.GetAsync("/api/posicao")).Json();
-        Assert.Equal(1, lista.EnumerateArray().Count());
-        Assert.Equal(0m, lista[0].GetProperty("brlDiferenca").GetDecimal());
+        // Informar o mesmo valor de novo não lança nada: o ajuste do dia continua 100 e há uma linha só.
+        var r2 = await (await admin.Put("/api/posicao/hoje", new { brl = antes + 100 })).Json();
+        Assert.Equal(100m, r2.GetProperty("ajusteBrl").GetDecimal());
+        Assert.Equal(1, (await (await admin.GetAsync("/api/posicao")).Json()).GetArrayLength());
 
         Assert.Equal(HttpStatusCode.BadRequest, (await admin.Put("/api/posicao/hoje", new { })).StatusCode);
     }

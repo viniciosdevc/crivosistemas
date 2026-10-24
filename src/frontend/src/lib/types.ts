@@ -497,13 +497,27 @@ export interface NovoLancamento {
   pendente: boolean
 }
 
-export interface SaldosSistema {
-  brl: number
-  usd: number
-  cambios: number
-  esmeraldas: number
-  custoMedioUsd: number
-  totalOperacionalBrl: number
+export interface Patrimonio {
+  cambiosSaldo: number
+  brlPorCambio: number
+  cambiosBrl: number
+  usdSaldo: number
+  usdCustoMedio: number
+  usdPrecoMedioVenda: number
+  usdVendas: number
+  usdBrl: number
+  esmeraldasSaldo: number
+  esmeraldaCustoUsd: number
+  brlPorEsmeralda: number
+  esmeraldasBrl: number
+  contaBrl: number
+  totalEntradas: number
+  totalSaidas: number
+  pendenteReceber: number
+  pendentePagar: number
+  totalBrl: number
+  caixaLiquido: number
+  liquidezPercent: number
 }
 
 export interface PosicaoDiaria {
@@ -517,15 +531,26 @@ export interface PosicaoDiaria {
   usdSistema: number
   cambiosSistema: number
   esmeraldasSistema: number
-  brlDiferenca: number | null
-  usdDiferenca: number | null
-  cambiosDiferenca: number | null
-  esmeraldasDiferenca: number | null
-  custoMedioUsd: number
-  totalOperacionalBrl: number
+  ajusteBrl: number | null
+  ajusteUsd: number | null
+  ajusteCambios: number | null
+  ajusteEsmeraldas: number | null
+  brlFinal: number
+  usdFinal: number
+  cambiosFinal: number
+  esmeraldasFinal: number
+  precoUsd: number
+  brlPorCambio: number
+  brlPorEsmeralda: number
+  totalBrl: number
   observacao: string | null
   criadoPorNome: string | null
   atualizadoEm: string
+}
+
+export interface PosicaoAtual {
+  patrimonio: Patrimonio
+  hoje: PosicaoDiaria | null
 }
 
 // ── NFTs e coleções (dados do crivonft) ─────────────────────────────────────
