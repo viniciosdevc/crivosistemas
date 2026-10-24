@@ -37,7 +37,7 @@ Respostas: `200/201` processado; `200` com `{"duplicado":true}` se o id do event
   "status_normalizado": "pendente | pago | concluido | cancelado | reembolsado",
   "forma_pagamento": "pix | cambios | hibrido | null",
   "vendedor": "string ou null",
-  "cliente": null | { "chave": "nickname ou identidade_id", "nickname": "...", "email": null, "identidade_id": null },
+  "cliente": null | { "chave": "nickname ou identidade_id", "nickname": "...", "email": null, "identidade_id": null, "carteira": null },
   "itens": [ { "descricao": "...", "quantidade": 1, "preco_usd": 0, "preco_brl": 0, "referencia": "listing/token id ou null" } ],
   "valores": {
     "total_brl": 0, "desconto_brl": 0, "taxa_brl": 0,
@@ -54,7 +54,9 @@ Valores monetários: número decimal (não string), BRL com 2 casas, USD/câmbio
 
 ### `venda.removida` → `dados`: `{ "origem": "...", "origem_id": "..." }` (venda excluída na origem: marcar como removida, não apagar).
 
-### `cliente.upsert` → `dados`: `{ "chave": "...", "nickname": "...", "email": null, "identidade_id": null, "criado_em": "..." }`
+### `cliente.upsert` → `dados`: `{ "chave": "...", "nickname": "...", "email": null, "identidade_id": null, "carteira": null, "criado_em": "..." }`
+
+**Campo `carteira` (cliente, v1.2, opcional):** endereço da carteira do cliente (0x + 40 hexadecimais, Immutable zkEVM), em minúsculas, ou `null`/ausente quando a origem não conhece. Vem em `venda.upsert.cliente` e em `cliente.upsert`. O receptor guarda em minúsculas, **atualiza** quando vem preenchido e **nunca apaga** uma carteira já conhecida ao receber `null`; valor que não é um endereço válido é ignorado sem rejeitar o evento. Origem: pedido do site = carteira do pedido; venda manual (nft/câmbios) = carteira da identidade Habbo de mesmo nickname. Na exportação (`/api/export/clientes`) a coluna `carteira` é lida do mesmo jeito e só preenche cliente que ainda não tinha carteira.
 
 ## 2. Carga inicial e reconciliação (crivosistemas puxa)
 Usa as rotas já existentes do crivonft com `Authorization: Bearer <IMPORT_SECRET>`:

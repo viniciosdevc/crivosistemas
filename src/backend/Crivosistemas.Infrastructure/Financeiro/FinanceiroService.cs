@@ -1,3 +1,4 @@
+using Crivosistemas.Domain.Cambios;
 using Crivosistemas.Domain.Estoque;
 using Crivosistemas.Domain.Financeiro;
 using Crivosistemas.Domain.Vendas;
@@ -60,6 +61,46 @@ public sealed class FinanceiroService(AppDbContext db)
         lanc.AtualizadoEm = agora;
     }
 
+    /// <summary>Venda de câmbios por R$ (não estornada) é uma entrada confirmada; estornar o movimento cancela a entrada.</summary>
+    public async Task SincronizarVendaCambiosAsync(MovimentoCambios mov, CancellationToken ct)
+    {
+        if (mov.Tipo != TipoMovimentoCambios.Venda) return;
+        var lanc = db.LancamentosFinanceiros.Local.FirstOrDefault(l => l.MovimentoCambiosId == mov.Id)
+            ?? await db.LancamentosFinanceiros.FirstOrDefaultAsync(l => l.MovimentoCambiosId == mov.Id, ct);
+        var agora = DateTime.UtcNow;
+        var valor = mov.ValorBrl ?? 0;
+
+        if (mov.EstornadoEm is not null || valor <= 0)
+        {
+            if (lanc is null || lanc.Status == StatusLancamento.Cancelado) return;
+            lanc.Status = StatusLancamento.Cancelado;
+            lanc.MotivoCancelamento = "Venda de câmbios estornada.";
+            lanc.CanceladoEm = lanc.AtualizadoEm = agora;
+            return;
+        }
+
+        if (lanc is null)
+        {
+            string? nick = null;
+            if (mov.ClienteId is { } cid)
+                nick = db.Clientes.Local.FirstOrDefault(c => c.Id == cid)?.Nickname
+                    ?? await db.Clientes.Where(c => c.Id == cid).Select(c => c.Nickname).FirstOrDefaultAsync(ct);
+            lanc = new LancamentoFinanceiro
+            {
+                Tipo = TipoLancamento.Entrada, Origem = OrigemLancamento.VendaCambios, Categoria = RegrasFinanceiro.CategoriaVendaCambios,
+                MovimentoCambiosId = mov.Id, CriadoPor = mov.UserId, CriadoEm = agora, ConfirmadoEm = agora,
+                Descricao = RegrasFinanceiro.DescricaoVendaCambios(Math.Abs(mov.Quantidade), nick),
+            };
+            db.LancamentosFinanceiros.Add(lanc);
+        }
+        lanc.Status = StatusLancamento.Confirmado;
+        lanc.MotivoCancelamento = null;
+        lanc.CanceladoEm = null;
+        lanc.ValorBrl = Math.Round(valor, 2, MidpointRounding.AwayFromZero);
+        lanc.Data = FusoSp.Dia(mov.DataHora);
+        lanc.AtualizadoEm = agora;
+    }
+
     /// <summary>Compra de dólar com valor em R$ vira uma saída confirmada; editar a compra atualiza a saída e cancelar a compra a cancela.
     /// Lotes de ajuste ou importados do crivonft não geram lançamento (o dinheiro não saiu aqui).</summary>
     public async Task SincronizarCompraUsdAsync(LoteEstoque lote, CancellationToken ct)
@@ -106,7 +147,11 @@ public sealed class FinanceiroService(AppDbContext db)
         var lotes = await db.LotesEstoque.Where(l => l.Tipo == TipoEstoque.Usd && l.Origem == OrigemLote.Compra && l.CanceladoEm == null && l.CustoTotal > 0)
             .Where(l => !db.LancamentosFinanceiros.Any(x => x.LoteEstoqueId == l.Id)).ToListAsync(ct);
         foreach (var l in lotes) await SincronizarCompraUsdAsync(l, ct);
+
+        var movs = await db.MovimentosCambios.Where(m => m.Tipo == TipoMovimentoCambios.Venda && m.EstornadoEm == null && m.ValorBrl > 0)
+            .Where(m => !db.LancamentosFinanceiros.Any(x => x.MovimentoCambiosId == m.Id)).ToListAsync(ct);
+        foreach (var m in movs) await SincronizarVendaCambiosAsync(m, ct);
         await db.SaveChangesAsync(ct);
-        return (vendas.Count, lotes.Count);
+        return (vendas.Count + movs.Count, lotes.Count);
     }
 }

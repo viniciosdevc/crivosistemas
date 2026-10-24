@@ -45,3 +45,11 @@ Trazidos do crivonft (`src/lib/inventory.ts`, `estoque/actions.ts`, `vendas/acti
 - **Trava.** Toda escrita roda em transação e trava a linha de `ConfiguracoesEstoque` (`SELECT … FOR UPDATE`): duas vendas simultâneas não gastam o mesmo saldo.
 - **Venda manual = origem `manual`.** O servidor recalcula custo, lucro e margem com `CalculoVenda` (porta de `calculateSale`). Esmeraldas saem na criação; o dólar sai por FIFO quando a venda é marcada como entregue (só para custo "Estoque em USD"; no crivonft qualquer venda com custo USD debitava o dólar, inclusive as de esmeralda). Cancelar devolve aos mesmos lotes pelo custo original. Só a venda entregue entra no faturamento; pendente fica de fora, como no crivonft.
 - **Fora desta versão:** estoque de itens ("estoque normal"), código de fidelidade, cofre, lançamento financeiro da compra de dólar e o envio ao Pulse. Os lotes com saldo do crivonft podem ser importados uma vez (Estoque › Importar do crivonft).
+
+## 11. Financeiro (entradas e saídas em R$)
+Porta do livro-razão `financeiro_lancamentos` do crivonft, só para administradores.
+
+- **Entra sozinho.** O PIX de toda venda faturável (paga ou concluída, do crivonft, do site ou manual entregue) vira uma entrada confirmada "Venda PIX"; a venda de câmbios por R$ vira "Venda de câmbios"; cada compra de dólar do estoque vira uma saída "Compra de USD". Um lançamento por origem (índices únicos em `VendaId`, `LoteEstoqueId`, `MovimentoCambiosId`), sempre dentro da transação da origem (`FinanceiroService`).
+- **Acompanha a origem.** Venda cancelada/removida, compra editada ou cancelada e venda de câmbios estornada reajustam ou cancelam o lançamento automático. Ele não é mexido à mão.
+- **Nada é editado ou apagado.** Lançamento manual errado é cancelado com motivo (fica no histórico, fora do saldo) e lançado de novo. Pendente só entra no saldo ao confirmar.
+- **Diferença do crivonft:** lá o PIX só entra na entrega e pode nascer pendente pela data prevista; aqui, vendas importadas já chegam concluídas e entram confirmadas. `POST /api/financeiro/sincronizar` (chamado ao abrir a tela) gera o que existia antes do financeiro.

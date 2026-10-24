@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Crivosistemas.Api.Modules.Financeiro;
 
 public sealed record LancamentoDto(Guid Id, string Tipo, string Status, string Origem, string Categoria, string? Descricao, decimal ValorBrl, DateOnly Data,
-    Guid? VendaId, Guid? LoteEstoqueId, string? MotivoCancelamento, string? CriadoPorNome, DateTime CriadoEm, DateTime? ConfirmadoEm, DateTime? CanceladoEm, bool Automatico);
+    Guid? VendaId, Guid? LoteEstoqueId, Guid? MovimentoCambiosId, string? MotivoCancelamento, string? CriadoPorNome, DateTime CriadoEm, DateTime? ConfirmadoEm, DateTime? CanceladoEm, bool Automatico);
 public sealed record TotaisFinanceiroDto(decimal Entradas, decimal Saidas, decimal Resultado);
 public sealed record CategoriaTotalDto(string Categoria, string Tipo, decimal Total, int Quantidade);
 public sealed record ResumoFinanceiroDto(decimal Saldo, TotaisFinanceiroDto Hoje, TotaisFinanceiroDto Mes, DateOnly De, DateOnly Ate, TotaisFinanceiroDto Periodo,
@@ -97,9 +97,9 @@ public static class FinanceiroEndpoints
         {
             OrigemLancamento? o = origem.Trim().ToLowerInvariant() switch
             {
-                "manual" => OrigemLancamento.Manual, "venda" => OrigemLancamento.Venda, "compra_usd" => OrigemLancamento.CompraUsd, _ => null,
+                "manual" => OrigemLancamento.Manual, "venda" => OrigemLancamento.Venda, "compra_usd" => OrigemLancamento.CompraUsd, "venda_cambios" => OrigemLancamento.VendaCambios, _ => null,
             };
-            if (o is null) erros["origem"] = ["Use manual, venda ou compra_usd."]; else q = q.Where(l => l.Origem == o);
+            if (o is null) erros["origem"] = ["Use manual, venda, venda_cambios ou compra_usd."]; else q = q.Where(l => l.Origem == o);
         }
         if (erros.Count > 0) return Results.ValidationProblem(erros);
         if (!string.IsNullOrWhiteSpace(busca))
@@ -120,7 +120,7 @@ public static class FinanceiroEndpoints
     }
 
     private static LancamentoDto ToDto(LancamentoFinanceiro l, IReadOnlyDictionary<Guid, string> nomes) => new(l.Id, RegrasFinanceiro.Tipo(l.Tipo),
-        RegrasFinanceiro.Status(l.Status), RegrasFinanceiro.Origem(l.Origem), l.Categoria, l.Descricao, l.ValorBrl, l.Data, l.VendaId, l.LoteEstoqueId,
+        RegrasFinanceiro.Status(l.Status), RegrasFinanceiro.Origem(l.Origem), l.Categoria, l.Descricao, l.ValorBrl, l.Data, l.VendaId, l.LoteEstoqueId, l.MovimentoCambiosId,
         l.MotivoCancelamento, l.CriadoPor is { } u && nomes.TryGetValue(u, out var n) ? n : null, l.CriadoEm, l.ConfirmadoEm, l.CanceladoEm, l.Automatico);
 
     private static async Task<IResult> Categorias(AppDbContext db, CancellationToken ct)

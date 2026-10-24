@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Crivosistemas.Api.Common;
 using Crivosistemas.Api.Modules.Auth;
+using Crivosistemas.Api.Modules.Cambios;
 using Crivosistemas.Api.Modules.Clientes;
 using Crivosistemas.Api.Modules.Estoque;
 using Crivosistemas.Api.Modules.Financeiro;
@@ -166,6 +167,7 @@ app.MapVendasEndpoints();
 app.MapVendasManuaisEndpoints();
 app.MapEstoqueEndpoints();
 app.MapFinanceiroEndpoints();
+app.MapCambiosEndpoints();
 app.MapClientesEndpoints();
 app.MapPrecificacaoEndpoints();
 

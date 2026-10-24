@@ -72,7 +72,7 @@ function onSort(key: string, dir: 'asc' | 'desc') {
   <PageCard title="Vendas" subtitle="Vendas do site, NFT e câmbios vindas do crivonft, e as lançadas aqui.">
     <template #actions>
       <UiButton @click="newSaleOpen = true"><Plus class="size-4" /> Nova venda</UiButton>
-      <UiSearch :model-value="filters.busca" placeholder="Cliente, pedido, cupom ou item" @update:model-value="(v) => set({ busca: v })" />
+      <UiSearch :model-value="filters.busca" placeholder="Cliente, carteira, pedido, cupom ou item" @update:model-value="(v) => set({ busca: v })" />
     </template>
 
     <form class="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6" @submit.prevent>

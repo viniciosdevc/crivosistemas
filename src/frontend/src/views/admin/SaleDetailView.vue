@@ -2,6 +2,7 @@
 import { ArrowLeft, Ban, PackageCheck, RefreshCw, TriangleAlert } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import WalletAddress from '@/components/admin/WalletAddress.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import PageCard from '@/components/ui/PageCard.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
@@ -136,6 +137,7 @@ const values = computed(() => {
               <div class="min-w-0">
                 <RouterLink :to="{ name: 'customer', params: { id: venda.cliente.id } }" class="font-medium text-ink hover:underline">{{ venda.cliente.nickname }}</RouterLink>
                 <span v-if="venda.cliente.email" class="block text-sm text-muted">{{ venda.cliente.email }}</span>
+                <span v-if="venda.cliente.carteira" class="mt-0.5 block text-sm text-muted">Carteira <WalletAddress :address="venda.cliente.carteira" full /></span>
               </div>
             </dd>
             <dd v-else class="text-faint">Sem cliente identificado</dd>

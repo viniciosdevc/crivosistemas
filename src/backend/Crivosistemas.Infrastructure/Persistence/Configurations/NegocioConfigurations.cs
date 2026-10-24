@@ -1,3 +1,4 @@
+using Crivosistemas.Domain.Cambios;
 using Crivosistemas.Domain.Estoque;
 using Crivosistemas.Domain.Financeiro;
 using Crivosistemas.Domain.Integracoes;
@@ -18,7 +19,9 @@ internal sealed class ClienteConfig : IEntityTypeConfiguration<Cliente>
         b.Property(x => x.Email).HasMaxLength(254);
         b.Property(x => x.IdentidadeId).HasMaxLength(120);
         b.HasIndex(x => x.Chave).IsUnique();
+        b.Property(x => x.Carteira).HasMaxLength(42);
         b.HasIndex(x => x.Nickname);
+        b.HasIndex(x => x.Carteira);
     }
 }
 
@@ -195,6 +198,33 @@ internal sealed class ConfiguracaoEstoqueConfig : IEntityTypeConfiguration<Confi
     }
 }
 
+internal sealed class SaldoCambiosConfig : IEntityTypeConfiguration<SaldoCambios>
+{
+    public void Configure(EntityTypeBuilder<SaldoCambios> b)
+    {
+        b.ToTable("SaldosCambios");
+        b.Property(x => x.Saldo).HasPrecision(18, 2);
+    }
+}
+
+internal sealed class MovimentoCambiosConfig : IEntityTypeConfiguration<MovimentoCambios>
+{
+    public void Configure(EntityTypeBuilder<MovimentoCambios> b)
+    {
+        b.ToTable("MovimentosCambios");
+        b.Property(x => x.Tipo).HasConversion<string>().HasMaxLength(20);
+        b.Property(x => x.Quantidade).HasPrecision(18, 2);
+        b.Property(x => x.SaldoAnterior).HasPrecision(18, 2);
+        b.Property(x => x.SaldoNovo).HasPrecision(18, 2);
+        b.Property(x => x.ValorBrl).HasPrecision(18, 2);
+        b.Property(x => x.Observacao).HasMaxLength(300);
+        b.HasOne<Cliente>().WithMany().HasForeignKey(x => x.ClienteId).OnDelete(DeleteBehavior.Restrict);
+        b.HasIndex(x => x.DataHora);
+        b.HasIndex(x => x.ClienteId);
+        b.HasIndex(x => x.VendaId);
+    }
+}
+
 internal sealed class LancamentoFinanceiroConfig : IEntityTypeConfiguration<LancamentoFinanceiro>
 {
     public void Configure(EntityTypeBuilder<LancamentoFinanceiro> b)
@@ -212,9 +242,11 @@ internal sealed class LancamentoFinanceiroConfig : IEntityTypeConfiguration<Lanc
         // Um lançamento por venda e por compra (o MySQL aceita vários NULL num índice único).
         b.HasIndex(x => x.VendaId).IsUnique();
         b.HasIndex(x => x.LoteEstoqueId).IsUnique();
+        b.HasIndex(x => x.MovimentoCambiosId).IsUnique();
         b.HasIndex(x => new { x.Status, x.Data });
         b.HasIndex(x => new { x.Tipo, x.Data });
         b.HasOne<Venda>().WithMany().HasForeignKey(x => x.VendaId).OnDelete(DeleteBehavior.SetNull);
         b.HasOne<LoteEstoque>().WithMany().HasForeignKey(x => x.LoteEstoqueId).OnDelete(DeleteBehavior.SetNull);
+        b.HasOne<MovimentoCambios>().WithMany().HasForeignKey(x => x.MovimentoCambiosId).OnDelete(DeleteBehavior.SetNull);
     }
 }

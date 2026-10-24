@@ -54,6 +54,13 @@ export const motivoMovimento: Record<string, { label: string; tone: Tone }> = {
   edicao: { label: 'Correção de compra', tone: 'neutral' },
 }
 
+export const tipoMovimentoCambios: Record<string, { label: string; tone: Tone }> = {
+  venda: { label: 'Venda de câmbios', tone: 'info' },
+  venda_manual: { label: 'Recebido em venda', tone: 'success' },
+  ajuste: { label: 'Ajuste de saldo', tone: 'warning' },
+  estorno: { label: 'Estorno', tone: 'neutral' },
+}
+
 export const tipoCupom: Record<string, string> = {
   percentual: 'Percentual',
   valor_fixo: 'Valor fixo',
@@ -102,4 +109,17 @@ export const tipoEvento: Record<string, string> = {
 export function labelOf(map: Record<string, { label: string; tone: Tone }>, value: string | null | undefined) {
   if (!value) return { label: '—', tone: 'neutral' as Tone }
   return map[value] ?? { label: value, tone: 'neutral' as Tone }
+}
+
+export const statusLancamento: Record<string, { label: string; tone: Tone }> = {
+  pendente: { label: 'Pendente', tone: 'warning' },
+  confirmado: { label: 'Confirmado', tone: 'success' },
+  cancelado: { label: 'Cancelado', tone: 'danger' },
+}
+
+export const origemLancamento: Record<string, { label: string; tone: Tone }> = {
+  manual: { label: 'Manual', tone: 'neutral' },
+  venda: { label: 'Venda PIX', tone: 'brand' },
+  venda_cambios: { label: 'Venda de câmbios', tone: 'info' },
+  compra_usd: { label: 'Compra de dólar', tone: 'warning' },
 }

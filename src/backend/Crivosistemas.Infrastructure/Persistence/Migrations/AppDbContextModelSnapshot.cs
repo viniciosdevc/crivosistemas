@@ -55,6 +55,82 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                     b.ToTable("AuditEntries");
                 });
 
+            modelBuilder.Entity("Crivosistemas.Domain.Cambios.MovimentoCambios", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("ClienteId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("DataHora")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("EstornadoEm")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("EstornoDeId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Observacao")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<decimal>("Quantidade")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("SaldoAnterior")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("SaldoNovo")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<decimal?>("ValorBrl")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid?>("VendaId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClienteId");
+
+                    b.HasIndex("DataHora");
+
+                    b.HasIndex("VendaId");
+
+                    b.ToTable("MovimentosCambios", (string)null);
+                });
+
+            modelBuilder.Entity("Crivosistemas.Domain.Cambios.SaldoCambios", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("AtualizadoEm")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal>("Saldo")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SaldosCambios", (string)null);
+                });
+
             modelBuilder.Entity("Crivosistemas.Domain.Estoque.ConfiguracaoEstoque", b =>
                 {
                     b.Property<Guid>("Id")
@@ -229,6 +305,9 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("varchar(300)");
 
+                    b.Property<Guid?>("MovimentoCambiosId")
+                        .HasColumnType("char(36)");
+
                     b.Property<string>("Origem")
                         .IsRequired()
                         .HasMaxLength(15)
@@ -254,6 +333,9 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("LoteEstoqueId")
+                        .IsUnique();
+
+                    b.HasIndex("MovimentoCambiosId")
                         .IsUnique();
 
                     b.HasIndex("VendaId")
@@ -643,6 +725,10 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("AtualizadoEm")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("Carteira")
+                        .HasMaxLength(42)
+                        .HasColumnType("varchar(42)");
+
                     b.Property<string>("Chave")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -668,6 +754,8 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                         .HasColumnType("varchar(120)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Carteira");
 
                     b.HasIndex("Chave")
                         .IsUnique();
@@ -855,6 +943,14 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                     b.ToTable("VendaItens");
                 });
 
+            modelBuilder.Entity("Crivosistemas.Domain.Cambios.MovimentoCambios", b =>
+                {
+                    b.HasOne("Crivosistemas.Domain.Vendas.Cliente", null)
+                        .WithMany()
+                        .HasForeignKey("ClienteId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("Crivosistemas.Domain.Estoque.MovimentoEstoque", b =>
                 {
                     b.HasOne("Crivosistemas.Domain.Estoque.LoteEstoque", null)
@@ -869,6 +965,11 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                     b.HasOne("Crivosistemas.Domain.Estoque.LoteEstoque", null)
                         .WithMany()
                         .HasForeignKey("LoteEstoqueId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Crivosistemas.Domain.Cambios.MovimentoCambios", null)
+                        .WithMany()
+                        .HasForeignKey("MovimentoCambiosId")
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("Crivosistemas.Domain.Vendas.Venda", null)

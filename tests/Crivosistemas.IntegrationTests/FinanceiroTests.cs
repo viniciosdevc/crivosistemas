@@ -107,6 +107,15 @@ public sealed class FinanceiroTests(ApiFactory factory)
         (await admin.Post($"/api/estoque/usd/compras/{loteId}/cancelar", new { motivo = "engano" })).EnsureSuccessStatusCode();
         Assert.Equal(antes, await Saldo(admin));
 
+        // Venda de câmbios por R$ entra; estornar tira.
+        (await admin.Post("/api/cambios/saldo", new { saldo = 1000, motivo = "teste financeiro" })).EnsureSuccessStatusCode();
+        var cv = await (await admin.Post("/api/cambios/vendas", new { quantidade = 100, valorBrl = 40, nickname = "cli-camb-fin" })).Json();
+        Assert.Equal(antes + 40m, await Saldo(admin));
+        var cl = (await Lancamentos(admin, "cli-camb-fin"))[0];
+        Assert.Equal("venda_cambios", cl.GetProperty("origem").GetString());
+        (await admin.Post($"/api/cambios/movimentos/{cv.GetProperty("id").GetGuid()}/estornar", new { motivo = "erro" })).EnsureSuccessStatusCode();
+        Assert.Equal(antes, await Saldo(admin));
+
         // Sincronizar é idempotente.
         var s = await (await admin.Post("/api/financeiro/sincronizar", new { })).Json();
         var depois = await Saldo(admin);

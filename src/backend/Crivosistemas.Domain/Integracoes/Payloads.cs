@@ -4,7 +4,7 @@ using Crivosistemas.Domain.Vendas;
 
 namespace Crivosistemas.Domain.Integracoes;
 
-public sealed record ClientePayload(string Chave, string Nickname, string? Email, string? IdentidadeId, DateTime? CriadoEm);
+public sealed record ClientePayload(string Chave, string Nickname, string? Email, string? IdentidadeId, DateTime? CriadoEm, string? Carteira = null);
 
 public sealed record ItemPayload(string Descricao, decimal Quantidade, decimal PrecoUsd, decimal PrecoBrl, string? Referencia);
 
@@ -169,7 +169,18 @@ public static class PayloadParser
         var email = Texto(c, "email", e, P("email"), obrigatorio: false, max: 254);
         var identidade = Texto(c, "identidade_id", e, P("identidade_id"), obrigatorio: false, max: 120);
         var criado = Data(c, "criado_em", e, P("criado_em"), obrigatorio: false);
-        return chave is null ? null : new ClientePayload(chave, nickname ?? chave, email, identidade, criado);
+        var carteira = NormalizarCarteira(Texto(c, "carteira", e, P("carteira"), obrigatorio: false, max: 120));
+        return chave is null ? null : new ClientePayload(chave, nickname ?? chave, email, identidade, criado, carteira);
+    }
+
+    /// <summary>Endereço de carteira (0x + 40 hexadecimais) em minúsculas; qualquer outra coisa vira null, sem rejeitar o evento.</summary>
+    public static string? NormalizarCarteira(string? valor)
+    {
+        var v = valor?.Trim().ToLowerInvariant();
+        if (v is null || v.Length != 42 || !v.StartsWith("0x", StringComparison.Ordinal)) return null;
+        for (var i = 2; i < v.Length; i++)
+            if (!Uri.IsHexDigit(v[i])) return null;
+        return v;
     }
 
     public static decimal Dinheiro(decimal v) => Math.Round(v, 2, MidpointRounding.AwayFromZero);

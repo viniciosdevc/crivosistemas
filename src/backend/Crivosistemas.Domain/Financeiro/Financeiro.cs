@@ -8,7 +8,7 @@ public enum TipoLancamento { Entrada = 1, Saida = 2 }
 public enum StatusLancamento { Pendente = 1, Confirmado = 2, Cancelado = 3 }
 
 /// <summary>De onde veio o lançamento. Os automáticos acompanham a origem (venda, compra de dólar) e não são mexidos à mão.</summary>
-public enum OrigemLancamento { Manual = 1, Venda = 2, CompraUsd = 3 }
+public enum OrigemLancamento { Manual = 1, Venda = 2, CompraUsd = 3, VendaCambios = 4 }
 
 /// <summary>Uma entrada ou saída de dinheiro (R$), como o livro-razão <c>financeiro_lancamentos</c> do crivonft.</summary>
 public class LancamentoFinanceiro : Entity
@@ -25,6 +25,8 @@ public class LancamentoFinanceiro : Entity
     public Guid? VendaId { get; set; }
     /// <summary>Compra de dólar (lote do estoque) que gerou a saída (no máximo um lançamento por lote).</summary>
     public Guid? LoteEstoqueId { get; set; }
+    /// <summary>Venda de câmbios por R$ (movimento do saldo de câmbios) que gerou a entrada.</summary>
+    public Guid? MovimentoCambiosId { get; set; }
     public string? MotivoCancelamento { get; set; }
     public Guid? CriadoPor { get; set; }
     public DateTime CriadoEm { get; set; } = DateTime.UtcNow;
@@ -63,10 +65,11 @@ public static class RegrasFinanceiro
 {
     public const string CategoriaVendaPix = "Venda PIX";
     public const string CategoriaCompraUsd = "Compra de USD";
+    public const string CategoriaVendaCambios = "Venda de câmbios";
 
     /// <summary>Sugestões do formulário (as mesmas do crivonft, mais as que já foram usadas).</summary>
     public static readonly string[] CategoriasSugeridas =
-        [CategoriaVendaPix, CategoriaCompraUsd, "Aporte", "Retirada", "Salário", "Comissão", "Anúncios", "Ferramentas", "Taxas", "Impostos", "Reembolso", "Outros"];
+        [CategoriaVendaPix, CategoriaVendaCambios, CategoriaCompraUsd, "Aporte", "Retirada", "Salário", "Comissão", "Anúncios", "Ferramentas", "Taxas", "Impostos", "Reembolso", "Outros"];
 
     public static string Tipo(TipoLancamento t) => t == TipoLancamento.Entrada ? "entrada" : "saida";
     public static bool TentarTipo(string? s, out TipoLancamento t)
@@ -96,7 +99,7 @@ public static class RegrasFinanceiro
 
     public static string Origem(OrigemLancamento o) => o switch
     {
-        OrigemLancamento.Venda => "venda", OrigemLancamento.CompraUsd => "compra_usd", _ => "manual",
+        OrigemLancamento.Venda => "venda", OrigemLancamento.CompraUsd => "compra_usd", OrigemLancamento.VendaCambios => "venda_cambios", _ => "manual",
     };
 
     /// <summary>"Venda PIX: Mobi raro → nick" (como no crivonft), cortado em 300.</summary>
@@ -105,6 +108,9 @@ public static class RegrasFinanceiro
         var d = $"Venda PIX: {(string.IsNullOrWhiteSpace(item) ? "venda" : item.Trim())}{(string.IsNullOrWhiteSpace(nickname) ? "" : $" → {nickname.Trim()}")}";
         return d.Length > 300 ? d[..300] : d;
     }
+
+    public static string DescricaoVendaCambios(decimal quantidade, string? nickname) =>
+        $"Venda de {quantidade.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)} câmbios{(string.IsNullOrWhiteSpace(nickname) ? "" : $" → {nickname.Trim()}")}";
 
     public static string DescricaoCompraUsd(decimal usdRecebido) =>
         $"Depósito USD: ${usdRecebido.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)} recebidos";

@@ -25,6 +25,7 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                     Data = table.Column<DateTime>(type: "date", nullable: false),
                     VendaId = table.Column<Guid>(type: "char(36)", nullable: true),
                     LoteEstoqueId = table.Column<Guid>(type: "char(36)", nullable: true),
+                    MovimentoCambiosId = table.Column<Guid>(type: "char(36)", nullable: true),
                     MotivoCancelamento = table.Column<string>(type: "varchar(300)", maxLength: 300, nullable: true),
                     CriadoPor = table.Column<Guid>(type: "char(36)", nullable: true),
                     CriadoEm = table.Column<DateTime>(type: "datetime(6)", nullable: false),
@@ -42,6 +43,12 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
+                        name: "FK_LancamentosFinanceiros_MovimentosCambios_MovimentoCambiosId",
+                        column: x => x.MovimentoCambiosId,
+                        principalTable: "MovimentosCambios",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
                         name: "FK_LancamentosFinanceiros_Vendas_VendaId",
                         column: x => x.VendaId,
                         principalTable: "Vendas",
@@ -54,6 +61,12 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                 name: "IX_LancamentosFinanceiros_LoteEstoqueId",
                 table: "LancamentosFinanceiros",
                 column: "LoteEstoqueId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LancamentosFinanceiros_MovimentoCambiosId",
+                table: "LancamentosFinanceiros",
+                column: "MovimentoCambiosId",
                 unique: true);
 
             migrationBuilder.CreateIndex(
