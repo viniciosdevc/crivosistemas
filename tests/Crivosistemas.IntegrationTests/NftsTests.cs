@@ -50,7 +50,7 @@ public sealed class NftsTests(ApiFactory factory)
         f.RespostaGestao = new GestaoResposta(422, """{"error":"Categoria inválida."}""");
         var recusada = await admin.Post("/api/nfts/colecoes", new { nome = "Pets", categoria = "xyz" });
         Assert.Equal(HttpStatusCode.UnprocessableEntity, recusada.StatusCode);
-        Assert.Equal("Categoria inválida.", (await recusada.Json()).GetProperty("title").GetString());
+        Assert.Equal("Categoria inválida.", (await recusada.Body()).GetProperty("title").GetString());
 
         f.ChamadasGestao.Clear();
         f.RespostaGestao = new GestaoResposta(201, """{"ok":true,"id":"11111111-1111-1111-1111-111111111111"}""");
@@ -61,7 +61,7 @@ public sealed class NftsTests(ApiFactory factory)
         f.RespostaGestao = new GestaoResposta(404, "<html>nada</html>");
         var antigo = await admin.GetAsync("/api/nfts/colecoes");
         Assert.Equal(HttpStatusCode.BadGateway, antigo.StatusCode);
-        Assert.Contains("publique a atualização", (await antigo.Json()).GetProperty("detail").GetString());
+        Assert.Contains("publique a atualização", (await antigo.Body()).GetProperty("detail").GetString());
         f.RespostaGestao = new GestaoResposta(200, "{}");
     }
 }
