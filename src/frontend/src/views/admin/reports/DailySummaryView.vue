@@ -93,7 +93,11 @@ const stats = computed<Stat[]>(() => {
     <StatBlocks :stats="stats" :loading="!dados.data.value" :skeletons="projetar ? 5 : 3" />
 
     <UiSkeleton v-if="!dados.data.value" class="mt-8 h-64 w-full" />
-    <UiEmptyState v-else-if="!linhas.length" class="mt-8" title="Sem dias para mostrar" description="Esse mês ainda não começou." />
+    <UiEmptyState
+      v-else-if="!linhas.length" class="mt-8"
+      :title="dados.data.value.primeiroDia ? `Sem movimento antes de ${formatDay(dados.data.value.primeiroDia).slice(0, 5)}` : 'Sem movimento ainda'"
+      description="O resumo começa no primeiro dia com lançamento."
+    />
     <div v-else class="mt-8 overflow-x-auto rounded-3xl border border-line">
       <table class="w-full border-collapse text-left text-sm tabular">
         <thead class="bg-surface-2">
