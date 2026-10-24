@@ -38,7 +38,7 @@ onBeforeUnmount(() => window.clearInterval(timer))
 const onlinePoints = computed(() => onlineToMapPoints(online.data.value?.pontos ?? []))
 watch(dias, () => { country.value = null; void summary.run() })
 // páginas e itens acompanham o país escolhido no globo
-watch(country, () => void summary.run())
+watch(country, () => { showAllItems.value = false; void summary.run() })
 watch(summary.error, (e) => e && toast.error('Não foi possível carregar os acessos', e.message))
 
 const locais = computed(() => summary.data.value?.locais ?? [])
@@ -64,7 +64,7 @@ const placeRows = computed<RankedRow[]>(() => {
   const max = Math.max(1, ...rows.map((r) => r.acessos))
   return rows.slice(0, 15).map((r) => ({ key: r.key, label: r.label, value: formatInt(r.acessos), share: (r.acessos / max) * 100 }))
 })
-const categoryLabels: Record<string, string> = { clothes: 'Roupas', furni: 'Furnis', addons: 'Add-ons', pets: 'Pets' }
+const categoryLabels: Record<string, string> = { clothes: 'Roupas', furni: 'Furnis', addons: 'Add-ons', pets: 'Pets', tokens: 'Tokens' }
 const pageLabels: Record<string, string> = { '/': 'Início', '/buscar': 'Busca', '/checkout': 'Checkout', '/ranking': 'Ranking', '/lootbox': 'Caixas', '/fidelidade': 'Fidelidade', '/minha-carteira': 'Minha carteira', '/minha-conta': 'Minha conta', '/como-funciona': 'Como funciona', '/entrar': 'Entrar', '/clientes': 'Clientes', '/estudio': 'Estúdio' }
 const pageRows = computed<RankedRow[]>(() => {
   const list = summary.data.value?.paginas ?? []
@@ -75,7 +75,13 @@ const pageRows = computed<RankedRow[]>(() => {
     return { key: p.rota, label, value: formatInt(p.visualizacoes), share: (p.visualizacoes / max) * 100 }
   })
 })
-const items = computed(() => summary.data.value?.itens ?? [])
+// Mais relevantes primeiro (visualizações + carrinho + favoritos); só os 10 primeiros até pedir mais.
+const ITEMS_COLLAPSED = 10
+const showAllItems = ref(false)
+const sortedItems = computed(() =>
+  [...(summary.data.value?.itens ?? [])].sort((a, b) => b.visualizacoes + b.carrinho + b.desejo - (a.visualizacoes + a.carrinho + a.desejo)),
+)
+const items = computed(() => (showAllItems.value ? sortedItems.value : sortedItems.value.slice(0, ITEMS_COLLAPSED)))
 const clientes = computed(() => summary.data.value?.clientes ?? [])
 </script>
 
@@ -128,6 +134,14 @@ const clientes = computed(() => summary.data.value?.clientes ?? [])
               </tbody>
             </table>
           </div>
+          <button
+            v-if="sortedItems.length > ITEMS_COLLAPSED"
+            type="button"
+            class="mt-3 text-sm font-medium text-ink underline-offset-2 hover:underline"
+            @click="showAllItems = !showAllItems"
+          >
+            {{ showAllItems ? 'Ver menos' : `Ver mais (${sortedItems.length - ITEMS_COLLAPSED})` }}
+          </button>
         </div>
         <div>
           <h3 class="mb-3 text-lg font-semibold text-ink">Páginas mais acessadas</h3>
