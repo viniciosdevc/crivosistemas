@@ -185,6 +185,7 @@ app.MapEstoqueEndpoints();
 app.MapFinanceiroEndpoints();
 app.MapCambiosEndpoints();
 app.MapPosicaoEndpoints();
+app.MapProjecaoEndpoints();
 app.MapClientesEndpoints();
 app.MapPrecificacaoEndpoints();
 app.MapAcessosEndpoints();
