@@ -25,6 +25,7 @@ public static class ClientesEndpoints
     {
         var g = app.MapGroup("/api/clientes").WithTags("Clientes").RequireAuthorization();
         g.MapGet("", Listar).WithSummary("Lista paginada com busca (nickname, e-mail, carteira) e ordenação por nome, totalGasto, compras ou ultimaCompra.");
+        g.MapGet("/crm", Crm).WithSummary("Análise de CRM: segmentos, ticket médio, frequência, LTV, concentração de receita e lista de clientes para reativar.");
         g.MapGet("/{id:guid}", Detalhe).WithSummary("Detalhe do cliente com o histórico de vendas.");
         g.MapPatch("/{id:guid}", Atualizar).WithSummary("Edita a carteira (texto livre até 120; vazio remove) e/ou o favorito. Com a integração configurada, o crivonft (dono do dado) é atualizado primeiro.");
     }
@@ -79,6 +80,20 @@ public static class ClientesEndpoints
         }
         var r = await final.ThenBy(x => x.Id).ToPageAsync(page, pageSize, ct);
         return Results.Ok(new PagedResult<ClienteListaDto>(r.Items.Select(x => Lista(x.Id, x.Nickname, x.Email, x.Carteira, x.CarteiraLoja, x.Favorito, x.Total, x.Compras, x.Ultima)).ToList(), r.Page, r.PageSize, r.Total));
+    }
+
+    private static async Task<IResult> Crm(AppDbContext db, int? inativoDias, CancellationToken ct)
+    {
+        var dias = Math.Clamp(inativoDias ?? 60, 7, 365);
+        var compras = await db.Vendas.AsNoTracking().Where(VendaConsultas.Faturavel).Where(v => v.ClienteId != null)
+            .GroupBy(v => v.ClienteId!.Value)
+            .Select(g => new { Id = g.Key, Total = g.Sum(v => v.TotalBrl), N = g.Count(), Primeira = g.Min(v => v.DataHora), Ultima = g.Max(v => v.DataHora) })
+            .ToDictionaryAsync(x => x.Id, ct);
+        var clientes = await db.Clientes.AsNoTracking().Select(c => new { c.Id, c.Nickname, c.Favorito }).ToListAsync(ct);
+        var entrada = clientes.Select(c => compras.TryGetValue(c.Id, out var x)
+            ? new ClienteCompras(c.Id, c.Nickname, c.Favorito, x.Total, x.N, x.Primeira, x.Ultima)
+            : new ClienteCompras(c.Id, c.Nickname, c.Favorito, 0, 0, null, null)).ToList();
+        return Results.Ok(new { inativoDias = dias, analise = CrmClientes.Analisar(entrada, DateTime.UtcNow, dias) });
     }
 
     private static async Task<IResult> Detalhe(Guid id, AppDbContext db, CancellationToken ct)

@@ -25,6 +25,7 @@ const admin: RouteRecordRaw[] = [
   { path: 'nfts', name: 'nfts', component: () => import('@/views/admin/NftsView.vue'), meta: { section: 'Ativos', title: 'NFTs', adminOnly: true } },
   { path: 'financeiro', name: 'finance', component: () => import('@/views/admin/FinanceView.vue'), meta: { section: 'Gestão', title: 'Financeiro', adminOnly: true } },
   { path: 'relatorios/vendas', name: 'report-sales', component: () => import('@/views/admin/reports/SalesReportView.vue'), meta: { section: 'Relatórios', title: 'Vendas' } },
+  { path: 'relatorios/crm', name: 'report-crm', component: () => import('@/views/admin/reports/CrmView.vue'), meta: { section: 'Relatórios', title: 'CRM de clientes' } },
   { path: 'relatorios/financeiro', name: 'report-finance', component: () => import('@/views/admin/reports/FinanceReportView.vue'), meta: { section: 'Relatórios', title: 'Financeiro', adminOnly: true } },
   { path: 'relatorios/acessos', name: 'report-access', component: () => import('@/views/admin/reports/AccessMapView.vue'), meta: { section: 'Relatórios', title: 'Mapa de acessos', adminOnly: true } },
   { path: 'relatorios/projecao', name: 'report-projection', component: () => import('@/views/admin/reports/ProjectionView.vue'), meta: { section: 'Relatórios', title: 'Projeção', adminOnly: true } },

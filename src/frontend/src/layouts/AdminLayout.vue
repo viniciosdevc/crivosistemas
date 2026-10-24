@@ -60,6 +60,7 @@ const groups: NavGroup[] = [
   {
     key: 'relatorios', label: 'Relatórios', icon: ChartPie, items: [
       { label: 'Vendas', to: '/painel/relatorios/vendas', icon: ReceiptText },
+      { label: 'CRM de clientes', to: '/painel/relatorios/crm', icon: Users },
       { label: 'Mapa de acessos', to: '/painel/relatorios/acessos', icon: Globe2, adminOnly: true },
       { label: 'Financeiro', to: '/painel/relatorios/financeiro', icon: Wallet, adminOnly: true },
       { label: 'Projeção', to: '/painel/relatorios/projecao', icon: TrendingUp, adminOnly: true },

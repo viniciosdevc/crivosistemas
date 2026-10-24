@@ -740,3 +740,34 @@ export interface ResumoProjecao {
 export interface Projecao { cenario: CenarioProjecao; resumo: ResumoProjecao; dias: DiaProjecao[] }
 export interface ProjecaoResumida { cenario: CenarioProjecao; resumo: ResumoProjecao }
 export interface NovoCenario { nome: string; baseDe: string; baseAte: string; dataFinal: string; crescimentoPercent: number }
+
+// ── CRM de clientes ─────────────────────────────────────────────────────────
+
+export type SegmentoCliente = 'vip' | 'recorrente' | 'novo' | 'ocasional' | 'emRisco' | 'inativo' | 'nuncaComprou'
+
+export interface ClienteCrm {
+  id: string
+  nickname: string
+  favorito: boolean
+  totalGasto: number
+  compras: number
+  ticketMedio: number
+  primeiraCompra: string | null
+  ultimaCompra: string | null
+  diasSemComprar: number | null
+  segmento: SegmentoCliente
+  vip: boolean
+}
+
+export interface AnaliseCrm {
+  inativoDias: number
+  analise: {
+    totais: {
+      clientes: number; compradores: number; nuncaComprou: number; receita: number; ticketMedio: number
+      comprasPorCliente: number; ltvMedio: number; diasMedioDesdeUltima: number; taxaRecompra: number; concentracaoTop10: number
+    }
+    segmentos: { segmento: SegmentoCliente; clientes: number; receita: number }[]
+    top: ClienteCrm[]
+    reativar: ClienteCrm[]
+  }
+}
