@@ -56,6 +56,7 @@ const lista = useAsync((signal) =>
     page: Number(filters.value.page) || 1, pageSize,
   }, signal),
 )
+const inicio = useAsync((signal) => api.get<{ data: string }>('/api/financeiro/inicio', undefined, signal))
 const categorias = useAsync((signal) => api.get<string[]>('/api/financeiro/categorias', undefined, signal))
 
 watch(range, () => void resumo.run(), { immediate: true })
@@ -69,6 +70,7 @@ onMounted(async () => {
     if (r.vendas + r.compras > 0) refresh()
   } catch { /* sem efeito: o que já está lançado continua valendo */ }
   void categorias.run()
+  void inicio.run()
 })
 
 function refresh() {
@@ -92,7 +94,7 @@ const cards = computed(() => {
   const r = resumo.data.value
   if (!r) return []
   return [
-    { label: 'Saldo atual', value: formatMoney(r.saldo), icon: Wallet, tone: r.saldo >= 0 ? 'text-ink' : 'text-danger', hint: 'Só lançamentos confirmados' },
+    { label: 'Saldo atual', value: formatMoney(r.saldo), icon: Wallet, tone: r.saldo >= 0 ? 'text-ink' : 'text-danger', hint: inicio.data.value ? `Confirmados desde ${formatDay(inicio.data.value.data)}. Para começar com caixa, lance um “Saldo inicial”.` : 'Só lançamentos confirmados' },
     { label: 'Entradas no período', value: formatMoney(r.periodo.entradas), icon: ArrowUpCircle, tone: 'text-success', hint: `Hoje: ${formatMoney(r.hoje.entradas)}` },
     { label: 'Saídas no período', value: formatMoney(r.periodo.saidas), icon: ArrowDownCircle, tone: 'text-danger', hint: `Hoje: ${formatMoney(r.hoje.saidas)}` },
     {
