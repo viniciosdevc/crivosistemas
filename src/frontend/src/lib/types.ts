@@ -622,5 +622,8 @@ export interface ResumoAcessos {
   totais: { acessos: number; logados: number; paises: number; cidades: number }
   porDia: { dia: string; acessos: number }[]
   locais: AcessoLocal[]
+  /** Itens aparecem como `/{categoria}/[item]`. */
+  paginas: { rota: string; visualizacoes: number }[]
+  itens: { categoria: string; item: string; visualizacoes: number; carrinho: number; desejo: number }[]
   clientes: AcessoCliente[]
 }
