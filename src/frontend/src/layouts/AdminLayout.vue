@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {
-  Boxes, Calculator, ChartColumn, ChevronDown, Coins, KeyRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plug, Plus, ReceiptText, SlidersHorizontal, Sun, UserCog, Users, X,
+  Boxes, Calculator, HandCoins, ChartColumn, ChevronDown, Coins, KeyRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plug, Plus, ReceiptText, SlidersHorizontal, Sun, UserCog, Users, X,
   Building2,
 } from 'lucide-vue-next'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
@@ -36,6 +36,7 @@ const items: NavItem[] = [
   { label: 'Clientes', to: '/painel/clientes', icon: Users },
   { label: 'Calculadora', to: '/painel/calculadora', icon: Calculator },
   { label: 'Estoque', to: '/painel/estoque', icon: Boxes },
+  { label: 'Venda de Câmbios', to: '/painel/cambios', icon: HandCoins },
   { label: 'Preços e regras', to: '/painel/precos', icon: SlidersHorizontal, adminOnly: true },
   { label: 'Integrações', to: '/painel/integracoes', icon: Plug, adminOnly: true },
   { label: 'Usuários', to: '/painel/usuarios', icon: UserCog, adminOnly: true },
