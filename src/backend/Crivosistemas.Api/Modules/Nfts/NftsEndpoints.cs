@@ -26,6 +26,9 @@ public static class NftsEndpoints
     {
         var g = app.MapGroup("/api/nfts").WithTags("Nfts").RequireAuthorization(Session.AdminPolicy);
         g.MapGet("", ListarNfts).WithSummary("Catálogo de NFTs do crivonft com preço de venda atual, anterior e variação.");
+        // Autocomplete da busca do topo: o operador também consulta preço, então basta estar autenticado.
+        app.MapGet("/api/nfts/busca", BuscarNfts).WithTags("Nfts").RequireAuthorization()
+            .WithSummary("Até 8 NFTs do catálogo pelo nome (?q=), com imagem e custo em USD, para a busca rápida.");
         g.MapPost("/atualizar", AtualizarNfts).WithSummary("Pede ao crivonft para atualizar o catálogo (ou reindexar) em segundo plano.");
         g.MapGet("/colecoes", ListarColecoes).WithSummary("Coleções cadastradas no crivonft.");
         g.MapPost("/colecoes", CriarColecao).WithSummary("Cadastra uma coleção no crivonft.");
@@ -58,6 +61,13 @@ public static class NftsEndpoints
     {
         var q = ParametrosNft.Where(k => !string.IsNullOrWhiteSpace(http.Request.Query[k])).Select(k => $"{k}={Uri.EscapeDataString(http.Request.Query[k].ToString())}");
         return (await Chamar(o, crivonft, HttpMethod.Get, "/api/integracoes/gestao/nfts?" + string.Join('&', q), null, ct)).Resultado;
+    }
+
+    private static async Task<IResult> BuscarNfts(HttpContext http, IOptions<CrivonftOptions> o, ICrivonftClient crivonft, CancellationToken ct)
+    {
+        var q = http.Request.Query["q"].ToString().Trim();
+        if (q.Length < 2) return Results.Json(new { itens = Array.Empty<object>() });
+        return (await Chamar(o, crivonft, HttpMethod.Get, $"/api/integracoes/gestao/nfts?q={Uri.EscapeDataString(q)}&page=1&pageSize=8", null, ct)).Resultado;
     }
 
     private static async Task<IResult> AtualizarNfts([FromBody] AtualizarNftsRequest req, AppDbContext db, IOptions<CrivonftOptions> o, ICrivonftClient crivonft, HttpContext http, CancellationToken ct)
