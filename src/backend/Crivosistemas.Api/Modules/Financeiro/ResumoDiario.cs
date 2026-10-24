@@ -9,7 +9,7 @@ namespace Crivosistemas.Api.Modules.Financeiro;
 
 public sealed record ResumoDiarioTotaisDto(decimal SaldoAtual, decimal Entradas, decimal Saidas, decimal SaldoFinalProjetado, decimal MenorSaldoProjetado, DateOnly? DiaMenorSaldo,
     decimal MediaFaturamentoDia, decimal MediaLucroDia, decimal ConhecidoEntradas, decimal ConhecidoSaidas);
-public sealed record ResumoDiarioDto(string Mes, DateOnly Hoje, int ProjecaoDias, string GranularidadeProjecao, IReadOnlyList<LinhaResumo> Linhas, ResumoDiarioTotaisDto Totais);
+public sealed record ResumoDiarioDto(string Mes, DateOnly Hoje, int ProjecaoDias, string GranularidadeProjecao, IReadOnlyList<LinhaResumo> Linhas, ResumoDiarioTotaisDto Totais, DateOnly? PrimeiroDia);
 
 /// <summary>Resumo diário de caixa: o realizado vem dos lançamentos confirmados (vendas PIX, câmbios e compras já entram sozinhos);
 /// a projeção usa a média dos últimos 30 dias de vendas e lucro (como a página Projeção) mais os lançamentos futuros já conhecidos.</summary>
@@ -40,7 +40,10 @@ public static class ResumoDiario
         var porDia = ultimoReal < inicioMes ? [] : await l.Where(x => x.Data >= inicioMes && x.Data <= ultimoReal)
             .GroupBy(x => new { x.Data, x.Tipo }).Select(g => new { g.Key.Data, g.Key.Tipo, Total = g.Sum(x => x.ValorBrl) }).ToListAsync(ct);
         var realizado = new List<(DateOnly Dia, decimal Entrada, decimal Saida)>();
-        for (var d = inicioMes; d <= ultimoReal; d = d.AddDays(1))
+        // antes do primeiro lançamento o sistema ainda não tinha começado: a tabela parte do primeiro dia com movimento
+        var primeiroDia = await l.MinAsync(x => (DateOnly?)x.Data, ct);
+        var partida = primeiroDia is not null && primeiroDia.Value > inicioMes ? primeiroDia.Value : inicioMes;
+        for (var d = partida; primeiroDia is not null && d <= ultimoReal; d = d.AddDays(1))
             realizado.Add((d, porDia.Where(x => x.Data == d && x.Tipo == TipoLancamento.Entrada).Sum(x => x.Total), porDia.Where(x => x.Data == d && x.Tipo == TipoLancamento.Saida).Sum(x => x.Total)));
         var linhas = RegrasResumoDiario.Agrupar(realizado, saldoInicial, "dia", projetado: false);
         var saldoAtual = linhas.Count > 0 ? linhas[^1].SaldoAcumulado : saldoInicial;
@@ -74,6 +77,6 @@ public static class ResumoDiario
         }
 
         return Results.Ok(new ResumoDiarioDto(inicioMes.ToString("yyyy-MM"), hoje, dias, gran, linhas,
-            new ResumoDiarioTotaisDto(saldoAtual, realizado.Sum(x => x.Entrada), realizado.Sum(x => x.Saida), saldoFinal, menor, diaMenor, mediaFat, mediaLuc, conhecidoE, conhecidoS)));
+            new ResumoDiarioTotaisDto(saldoAtual, realizado.Sum(x => x.Entrada), realizado.Sum(x => x.Saida), saldoFinal, menor, diaMenor, mediaFat, mediaLuc, conhecidoE, conhecidoS), primeiroDia));
     }
 }

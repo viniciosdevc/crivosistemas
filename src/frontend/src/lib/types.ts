@@ -788,6 +788,8 @@ export interface ResumoDiario {
   hoje: string
   projecaoDias: number
   granularidadeProjecao: 'dia' | 'semana' | 'mes'
+  /** Primeiro dia com lançamento confirmado; antes dele não há o que mostrar. */
+  primeiroDia: string | null
   linhas: LinhaResumoDiario[]
   totais: {
     saldoAtual: number
