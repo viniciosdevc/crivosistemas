@@ -23,8 +23,33 @@ import { toast } from '@/lib/toast'
 import type { EventoIntegracao, Paged, Reconciliacao, StatusIntegracao } from '@/lib/types'
 import { useUrlFilters } from '@/lib/urlFilters'
 import { useAsync } from '@/lib/useAsync'
+import { useAuthStore } from '@/stores/auth'
 
 const pageSize = 15
+const auth = useAuthStore()
+
+// ── modo manutenção da loja (crivonft) ──────────────────────────────────────
+type Manutencao = { ativo: boolean; mensagem: string | null; atualizadoEm: string | null }
+const manutencao = useAsync((signal) => api.get<Manutencao>('/api/manutencao', undefined, signal))
+if (auth.isAdmin) void manutencao.run()
+const togglingMaintenance = ref(false)
+async function toggleMaintenance() {
+  const ligar = !manutencao.data.value?.ativo
+  if (ligar && !(await confirm({
+    title: 'Colocar a loja em manutenção?',
+    description: 'Os visitantes passam a ver uma página de manutenção e não conseguem comprar. O painel do crivonft, os webhooks de pagamento e a integração com este sistema continuam funcionando.',
+    confirmLabel: 'Ligar manutenção',
+  }))) return
+  togglingMaintenance.value = true
+  try {
+    manutencao.data.value = await api.put<Manutencao>('/api/manutencao', { ativo: ligar })
+    toast.success(ligar ? 'Loja em manutenção' : 'Loja de volta ao ar', ligar ? 'Pode levar alguns segundos para valer.' : undefined)
+  } catch (e) {
+    toast.error('Não foi possível alterar a manutenção', e instanceof ApiError ? e.message : undefined)
+  } finally {
+    togglingMaintenance.value = false
+  }
+}
 const defaults = { aba: 'eventos', estado: '', tipo: '', busca: '', page: '1' }
 const { filters, set } = useUrlFilters(defaults)
 const tab = computed<'eventos' | 'reconciliacoes'>({
@@ -230,6 +255,24 @@ const s = computed(() => status.data.value)
             </button>
           </li>
         </ul>
+      </section>
+
+      <section v-if="auth.isAdmin" class="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-line p-5" aria-labelledby="maint-title">
+        <div>
+          <h2 id="maint-title" class="text-lg font-semibold text-ink">Modo manutenção da loja</h2>
+          <p class="text-sm text-muted">
+            <template v-if="manutencao.data.value">
+              Agora a loja está <UiBadge :tone="manutencao.data.value.ativo ? 'warning' : 'success'">{{ manutencao.data.value.ativo ? 'em manutenção' : 'no ar' }}</UiBadge>
+              <span v-if="manutencao.data.value.atualizadoEm"> desde {{ formatDateTime(manutencao.data.value.atualizadoEm) }}</span>
+            </template>
+            <template v-else-if="manutencao.error.value">Não foi possível consultar o estado: {{ manutencao.error.value.message }}</template>
+            <template v-else>Consultando…</template>
+          </p>
+        </div>
+        <UiButton v-if="manutencao.data.value" :variant="manutencao.data.value.ativo ? 'primary' : 'secondary'" :loading="togglingMaintenance" @click="toggleMaintenance">
+          {{ manutencao.data.value.ativo ? 'Voltar ao ar' : 'Ligar manutenção' }}
+        </UiButton>
+        <UiButton v-else-if="manutencao.error.value" variant="secondary" @click="manutencao.run"><RefreshCw class="size-4" /> Tentar de novo</UiButton>
       </section>
 
       <UiTabs v-model="tab" :tabs="tabs" class="mt-8 mb-5" />

@@ -5,6 +5,7 @@ using Crivosistemas.Api.Common;
 using Crivosistemas.Api.Modules.Auth;
 using Crivosistemas.Api.Modules.Cambios;
 using Crivosistemas.Api.Modules.Clientes;
+using Crivosistemas.Api.Modules.Manutencao;
 using Crivosistemas.Api.Modules.Acessos;
 using Crivosistemas.Api.Modules.Convites;
 using Crivosistemas.Api.Modules.Estoque;
@@ -176,6 +177,7 @@ app.MapPosicaoEndpoints();
 app.MapClientesEndpoints();
 app.MapPrecificacaoEndpoints();
 app.MapAcessosEndpoints();
+app.MapManutencaoEndpoints();
 app.MapConvitesEndpoints();
 app.MapNftsEndpoints();
 
