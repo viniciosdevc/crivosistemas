@@ -28,6 +28,12 @@ public static class ImportacaoMapper
             ignorada = "espelho de pedido do site";
             return new(null, []);
         }
+        if (PayloadParser.Texto(r, "external_id", e, "external_id", obrigatorio: false, max: 120) is { } ext && ext.StartsWith(VendaEnvioRegras.PrefixoExternalId, StringComparison.Ordinal))
+        {
+            // Venda lançada aqui e espelhada no crivonft: já existe como "manual"; importar de novo duplicaria.
+            ignorada = "espelho de venda manual deste sistema";
+            return new(null, []);
+        }
         var dataHora = PayloadParser.Data(r, "data_hora", e, "data_hora", obrigatorio: true);
         var status = PayloadParser.Texto(r, "status", e, "status", obrigatorio: false, max: 60) ?? "pendente";
         var atualizado = PayloadParser.Data(r, "atualizado_em", e, "atualizado_em", obrigatorio: false) ?? dataHora;

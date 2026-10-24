@@ -133,3 +133,12 @@ Rotas assinadas que o crivonft expõe em `/api/integracoes/gestao/`: `GET nfts`,
 
 ## Acessos por localização (mapa)
 `GET /api/acessos?dias=30` (admin) repassa `GET {crivonft}/api/integracoes/gestao/acessos?dias=30` (mesma assinatura). O crivonft coleta 1 aviso por visita no navegador e guarda só agregados por dia/país/estado/cidade (sem IP) e, por cliente conectado, total de acessos, primeira/última entrada e último local. A localização vem dos cabeçalhos da Cloudflare; para ter cidade e coordenadas, ative em Cloudflare → Rules → Transform Rules → Managed Transforms → "Add visitor location headers". Sem isso só o país aparece (o centro do país serve de posição). Tela: Relatórios → Mapa de acessos.
+
+
+## Vendas manuais (gestão → crivonft)
+Vendas lançadas em **Vendas → Nova venda** (origem `manual`) também aparecem no crivonft, como linha de `vendas_nft`.
+
+- **Rota:** `PUT {BaseUrl}/api/integracoes/gestao/vendas` (Bearer + HMAC). Idempotente pelo `external_id` = `dash:{id da venda}`; criar, editar, entregar e cancelar reenviam a venda inteira com o estado atual (`status`: `pendente|entregue|cancelado`). `atualizado_em` mais antigo que o gravado é ignorado.
+- **Sem contabilidade em dobro:** estoque (dólar FIFO, esmeraldas), saldo de câmbios e financeiro são acertados **aqui**. O crivonft só grava a linha: não debita estoque, não lança caixa, não mexe no cofre nem no Pulse.
+- **Sem loop:** o crivonft não enfileira linhas `dash:*` na outbox, nem no `/reenviar`, nem em `/api/export/vendas`; e o mapper da importação daqui também ignora `external_id` com esse prefixo.
+- **Fila:** tabela `VendaEnvios` (uma linha por venda, gravada na mesma transação da venda). O Worker (`VendaEnvioJob`, a cada 5 s) envia com o mesmo backoff da precificação; 404 (crivonft ainda sem a rota) repete em vez de falhar. Admin: `GET /api/integracoes/crivonft/vendas-manuais` (contagem por estado e últimos erros) e `POST /api/integracoes/crivonft/vendas-manuais/reenviar` (recoloca todas as vendas manuais na fila; use uma vez para as que já existiam).

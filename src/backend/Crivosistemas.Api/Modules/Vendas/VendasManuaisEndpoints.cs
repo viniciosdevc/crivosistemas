@@ -102,6 +102,7 @@ public static class VendasManuaisEndpoints
                 await estoque.DebitarVendaAsync(TipoEstoque.Esmeralda, req.QuantidadeEsmeraldas, v.Id, userId, ct);
             if (req.Entregue) await MarcarEntregueAsync(v, estoque, cambiosSvc, financeiro, userId, ct);
 
+            await VendaEnvioService.EnfileirarAsync(db, v.Id, ct);
             db.Audit(http, "venda.manual_criada", "Venda", v.Id, new { v.TotalBrl, v.LucroBrl, origemCusto = Nomes.Custo(origemCusto), req.Entregue });
             await db.SaveChangesAsync(ct);
             return v;
@@ -207,6 +208,7 @@ public static class VendasManuaisEndpoints
             if (req.Entregue) await MarcarEntregueAsync(v, estoque, cambiosSvc, financeiro, userId, ct);
             else await financeiro.SincronizarVendaAsync(v, ct);
 
+            await VendaEnvioService.EnfileirarAsync(db, v.Id, ct);
             db.Audit(http, "venda.manual_editada", "Venda", v.Id, new { antes, depois = new { v.TotalBrl, v.LucroBrl, v.Status, item = req.NomeItem.Trim() }, origemCusto = Nomes.Custo(origemCusto) });
             await db.SaveChangesAsync(ct);
             return v;
@@ -243,6 +245,7 @@ public static class VendasManuaisEndpoints
             var v = await ManualAsync(db, id, ct);
             if (v.StatusNormalizado != StatusVenda.Pendente) throw new DomainException("status_invalido", "Só uma venda pendente pode ser marcada como entregue.");
             await MarcarEntregueAsync(v, estoque, cambios, financeiro, http.User.Id(), ct);
+            await VendaEnvioService.EnfileirarAsync(db, v.Id, ct);
             db.Audit(http, "venda.manual_entregue", "Venda", v.Id);
             await db.SaveChangesAsync(ct);
             return v;
@@ -269,6 +272,7 @@ public static class VendasManuaisEndpoints
                 var obs = $"{v.Observacao}\nCancelada: {req.Motivo.Trim()}".Trim();
                 v.Observacao = obs.Length > 500 ? obs[..500] : obs;
             }
+            await VendaEnvioService.EnfileirarAsync(db, v.Id, ct);
             db.Audit(http, "venda.manual_cancelada", "Venda", v.Id, new { motivo = req?.Motivo, devolvido });
             await db.SaveChangesAsync(ct);
             return v;

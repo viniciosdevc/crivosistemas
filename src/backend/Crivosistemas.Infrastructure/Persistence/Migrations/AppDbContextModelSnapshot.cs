@@ -974,15 +974,15 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                         .HasPrecision(14, 2)
                         .HasColumnType("decimal(14,2)");
 
+                    b.Property<decimal>("CrescimentoPercent")
+                        .HasPrecision(9, 2)
+                        .HasColumnType("decimal(9,2)");
+
                     b.Property<DateTime>("CriadoEm")
                         .HasColumnType("datetime(6)");
 
                     b.Property<Guid?>("CriadoPor")
                         .HasColumnType("char(36)");
-
-                    b.Property<decimal>("CrescimentoPercent")
-                        .HasPrecision(9, 2)
-                        .HasColumnType("decimal(9,2)");
 
                     b.Property<DateTime>("DataFinal")
                         .HasColumnType("date");
@@ -1004,7 +1004,7 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CriadoEm");
 
-                    b.ToTable("CenariosProjecao", (string)null);
+                    b.ToTable("CenariosProjecao");
                 });
 
             modelBuilder.Entity("Crivosistemas.Domain.Vendas.Cliente", b =>
@@ -1201,6 +1201,54 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                     b.HasIndex("StatusNormalizado", "DataHora");
 
                     b.ToTable("Vendas");
+                });
+
+            modelBuilder.Entity("Crivosistemas.Domain.Vendas.VendaEnvio", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("EnviadoAtualizadoEm")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("EnviadoEm")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(15)
+                        .HasColumnType("varchar(15)");
+
+                    b.Property<DateTime>("ProximaTentativaEm")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("Tentativas")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UltimaTentativaEm")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("UltimoErro")
+                        .HasMaxLength(2000)
+                        .HasColumnType("varchar(2000)");
+
+                    b.Property<int?>("UltimoStatusHttp")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("VendaId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VendaId")
+                        .IsUnique();
+
+                    b.HasIndex("Estado", "ProximaTentativaEm");
+
+                    b.ToTable("VendaEnvios");
                 });
 
             modelBuilder.Entity("Crivosistemas.Domain.Vendas.VendaItem", b =>

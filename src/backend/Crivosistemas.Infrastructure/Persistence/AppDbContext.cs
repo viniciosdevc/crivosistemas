@@ -29,6 +29,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<FaixaPix> FaixasPix => Set<FaixaPix>();
     public DbSet<PrecificacaoHistorico> PrecificacaoHistoricos => Set<PrecificacaoHistorico>();
     public DbSet<PrecificacaoEnvio> PrecificacaoEnvios => Set<PrecificacaoEnvio>();
+    public DbSet<VendaEnvio> VendaEnvios => Set<VendaEnvio>();
     public DbSet<LoteEstoque> LotesEstoque => Set<LoteEstoque>();
     public DbSet<ItemEstoque> ItensEstoque => Set<ItemEstoque>();
     public DbSet<MovimentoEstoque> MovimentosEstoque => Set<MovimentoEstoque>();

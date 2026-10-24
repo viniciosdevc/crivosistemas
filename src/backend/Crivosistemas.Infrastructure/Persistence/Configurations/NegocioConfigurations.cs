@@ -155,6 +155,17 @@ internal sealed class PrecificacaoEnvioConfig : IEntityTypeConfiguration<Precifi
     }
 }
 
+internal sealed class VendaEnvioConfig : IEntityTypeConfiguration<VendaEnvio>
+{
+    public void Configure(EntityTypeBuilder<VendaEnvio> b)
+    {
+        b.Property(x => x.Estado).HasConversion<string>().HasMaxLength(15);
+        b.Property(x => x.UltimoErro).HasMaxLength(2000);
+        b.HasIndex(x => x.VendaId).IsUnique();
+        b.HasIndex(x => new { x.Estado, x.ProximaTentativaEm });
+    }
+}
+
 internal sealed class LoteEstoqueConfig : IEntityTypeConfiguration<LoteEstoque>
 {
     public void Configure(EntityTypeBuilder<LoteEstoque> b)
