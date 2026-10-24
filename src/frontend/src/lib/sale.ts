@@ -74,11 +74,11 @@ export function vendaManualValida(input: EntradaVendaManual, nomeItem: string) {
 }
 
 /** Corpo do POST /api/vendas/manuais a partir do que foi digitado. */
-export function montarVendaManual(input: EntradaVendaManual, extra: { dataHora: string; nickname: string; nomeItem: string; observacao: string; entregue: boolean }) {
+export function montarVendaManual(input: EntradaVendaManual, extra: { dataHora?: string; nickname: string; nomeItem: string; observacao: string; entregue: boolean }) {
   const usaEsmeralda = input.origem === 'estoque_esmeralda'
   const usaCambios = input.origem === 'cambios'
   return {
-    dataHora: extra.dataHora,
+    ...(extra.dataHora ? { dataHora: extra.dataHora } : {}),
     nicknameComprador: extra.nickname.trim(),
     nomeItem: extra.nomeItem.trim(),
     formaPagamento: input.forma,

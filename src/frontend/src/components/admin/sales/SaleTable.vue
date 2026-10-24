@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** Tabela de vendas usada na lista, no painel e no detalhe do cliente. A linha inteira abre a venda. */
-import { ArrowRight, ReceiptText, RefreshCw, TriangleAlert } from 'lucide-vue-next'
+import { ArrowRight, Pencil, ReceiptText, RefreshCw, TriangleAlert } from 'lucide-vue-next'
 import { computed, watch } from 'vue'
 import DataTable, { type Column } from '@/components/ui/DataTable.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
@@ -118,6 +118,14 @@ const nomeImagem = (v: VendaLista) => nomeBaseItem(v.item) ?? tituloItem(v)
     <template #cell-acoes="{ row }">
       <RouterLink :to="{ name: 'sale', params: { id: row.id } }" class="inline-flex items-center gap-1 text-sm font-medium text-ink hover:underline" :aria-label="`Ver venda ${tituloItem(row)}`">
         Ver <ArrowRight class="size-4" />
+      </RouterLink>
+      <RouterLink
+        v-if="row.origem === 'manual' && row.statusNormalizado !== 'cancelado'"
+        :to="{ name: 'sale', params: { id: row.id }, query: { editar: '1' } }"
+        class="ml-3 inline-flex items-center gap-1 text-sm font-medium text-muted hover:text-ink hover:underline"
+        :aria-label="`Editar venda ${tituloItem(row)}`"
+      >
+        <Pencil class="size-3.5" /> Editar
       </RouterLink>
     </template>
     <template #cell-lucro="{ row }"><span class="whitespace-nowrap tabular" :class="row.lucroBrl < 0 && 'text-danger'">{{ formatMoney(row.lucroBrl) }}</span></template>

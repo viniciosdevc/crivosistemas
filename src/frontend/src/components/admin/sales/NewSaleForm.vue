@@ -14,10 +14,14 @@ import { formatDecimal, formatFixed, formatInt, formatMoney, formatPercent, pars
 import { habboAvatarUrl } from '@/lib/habbo'
 import { calcularVendaManual, montarVendaManual, taxaFeiraBrl, vendaManualValida, type EntradaVendaManual } from '@/lib/sale'
 import { toast } from '@/lib/toast'
-import type { FormaPagamento, OrigemCusto, RegrasPrecificacao, ResumoEstoques, VendaLista } from '@/lib/types'
+import type { FormaPagamento, OrigemCusto, RegrasPrecificacao, ResumoEstoques, VendaDetalhe, VendaLista } from '@/lib/types'
 
 /** Formulário de venda manual. O servidor recalcula custo, lucro e margem; o resumo aqui é só uma estimativa. Carrega regras e estoque ao montar. */
-const emit = defineEmits<{ created: [venda: VendaLista]; cancel: [] }>()
+const props = defineProps<{ venda?: VendaDetalhe }>()
+const emit = defineEmits<{ created: [venda: VendaLista]; saved: [venda: VendaLista]; cancel: [] }>()
+const editando = computed(() => !!props.venda)
+/** Número em texto no formato que parseDecimal aceita (vírgula decimal pt-BR). */
+const txt = (n: number | null | undefined) => (n ? String(n).replace('.', ',') : '')
 
 const PixIcon = () => h(PaymentIcon, { kind: 'pix' })
 const CambiosIcon = () => h(PaymentIcon, { kind: 'cambios' })
@@ -93,8 +97,31 @@ onBeforeUnmount(() => clearTimeout(avatarTimer))
 const taxaCambios = computed(() => regras.value?.configuracao.taxaPrata ?? null)
 const taxaBrl = computed(() => (regras.value ? taxaFeiraBrl(regras.value.configuracao) : null))
 
+function preencher(d: VendaDetalhe) {
+  const origem = d.manual?.origemCusto ?? 'manual'
+  nomeItem.value = d.itens[0]?.descricao ?? ''
+  nickname.value = d.venda.cliente?.nickname ?? ''
+  avatarNick.value = nickname.value.trim()
+  observacao.value = d.manual?.observacao ?? ''
+  entregue.value = d.venda.statusNormalizado === 'concluido'
+  Object.assign(entrada, {
+    forma: d.venda.formaPagamento ?? 'pix',
+    origem,
+    custoUsd: origem === 'estoque_usd' || origem === 'manual' ? txt(d.valores.custoUsd) : '',
+    custoCambios: origem === 'cambios' ? txt(d.valores.custoCambios) : '',
+    quantidadeEsmeraldas: txt(d.manual?.quantidadeEsmeraldas),
+    usaTaxaPrata: d.manual?.usaTaxaPrata ?? true,
+    valorPix: txt(d.valores.valorPixBrl),
+    valorCambios: txt(d.valores.valorCambios),
+  })
+}
+
 onMounted(() => {
   reset()
+  if (props.venda) {
+    preencher(props.venda)
+    clearTimeout(avatarTimer)
+  }
   void loadData()
 })
 
@@ -121,22 +148,29 @@ async function submit() {
   Object.keys(fieldErrors).forEach((k) => delete fieldErrors[k])
   try {
     const body = montarVendaManual(entrada, {
-      dataHora: new Date().toISOString(),
+      dataHora: editando.value ? undefined : new Date().toISOString(),
       nickname: nickname.value,
       nomeItem: nomeItem.value,
       observacao: observacao.value,
       entregue: entregue.value,
     })
+    if (props.venda) {
+      const venda = await api.put<VendaLista>(`/api/vendas/${props.venda.venda.id}/manual`, body)
+      toast.success('Venda atualizada')
+      emit('saved', venda)
+      emit('created', venda)
+      return
+    }
     const venda = await api.post<VendaLista>('/api/vendas/manuais', body)
     toast.success('Venda registrada', entregue.value ? 'Entregue: já entra no faturamento.' : 'Pendente até ser marcada como entregue.')
     emit('created', venda)
   } catch (e) {
     if (e instanceof ApiError) {
       Object.assign(fieldErrors, e.fields)
-      if (Object.keys(e.fields).length === 0) toast.error('Não foi possível registrar a venda', e.message)
+      if (Object.keys(e.fields).length === 0) toast.error(editando.value ? 'Não foi possível salvar a venda' : 'Não foi possível registrar a venda', e.message)
       else formError.value = e.message
     } else {
-      toast.error('Não foi possível registrar a venda')
+      toast.error(editando.value ? 'Não foi possível salvar a venda' : 'Não foi possível registrar a venda')
     }
   } finally {
     submitting.value = false
@@ -148,6 +182,10 @@ async function submit() {
   <form class="sale-form flex flex-col gap-3" novalidate @submit.prevent="submit">
     <p v-if="loadError" class="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger" role="alert">
       {{ loadError }} <button type="button" class="font-medium underline" @click="loadData">Tentar de novo</button>
+    </p>
+
+    <p v-if="editando" class="rounded-xl bg-warning-soft px-3 py-2 text-[13px] text-warning" data-testid="aviso-edicao">
+      Ao salvar, estoque, câmbios e financeiro são recalculados com estes valores.
     </p>
 
     <section class="grid gap-3 sm:grid-cols-6" aria-label="Dados da venda">
@@ -248,7 +286,7 @@ async function submit() {
       <UiTextarea v-model="observacao" label="Observação" optional placeholder="Alguma anotação sobre esta venda" :error="fieldErrors.observacao" />
       <div class="flex items-center justify-end gap-2">
         <UiButton variant="subtle" @click="emit('cancel')">Voltar</UiButton>
-        <UiButton type="submit" :loading="submitting" :disabled="!valid">Confirmar venda</UiButton>
+        <UiButton type="submit" :loading="submitting" :disabled="!valid">{{ editando ? 'Salvar alterações' : 'Confirmar venda' }}</UiButton>
       </div>
     </div>
   </form>

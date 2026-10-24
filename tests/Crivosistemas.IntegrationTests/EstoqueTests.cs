@@ -107,11 +107,46 @@ public sealed class EstoqueTests(ApiFactory factory)
         await op.GetAsync("/api/vendas/imagens?nome=Trono%20Dourado");
         Assert.Equal(antes + 1, factory.Crivonft.ConsultasImagens);
 
+        // Editar refaz tudo: a venda entregue (custo 150 US$) vira 100 US$ e o estoque acompanha, sem vazar saldo.
+        var antesEdicao = D(await Resumo(op, "usd"), "saldo");
+        var re = await op.Put($"/api/vendas/{vid}/manual", new
+        {
+            nicknameComprador = nick, nomeItem = "Trono Prata", formaPagamento = "pix", origemCusto = "estoque_usd", custoUsd = 100, custoCambios = 0,
+            quantidadeEsmeraldas = 0, usaTaxaPrata = false, valorVendaPix = 900, valorVendaCambios = 0, entregue = true,
+        });
+        if (re.StatusCode != HttpStatusCode.OK) Assert.Fail(await re.Content.ReadAsStringAsync());
+        var editada = await re.Json();
+        Assert.Equal("Trono Prata", editada.GetProperty("item").GetString());
+        Assert.Equal(900m, D(editada, "totalBrl"));
+        Assert.Equal(antesEdicao + 50m, D(await Resumo(op, "usd"), "saldo")); // devolveu 150, tirou 100
+        Assert.Equal("concluido", editada.GetProperty("statusNormalizado").GetString());
+        // Volta para pendente: devolve o dólar.
+        await op.Put($"/api/vendas/{vid}/manual", new
+        {
+            nicknameComprador = nick, nomeItem = "Trono Prata", formaPagamento = "pix", origemCusto = "estoque_usd", custoUsd = 100, custoCambios = 0,
+            quantidadeEsmeraldas = 0, usaTaxaPrata = false, valorVendaPix = 900, valorVendaCambios = 0, entregue = false,
+        });
+        Assert.Equal(400m, D(await Resumo(op, "usd"), "saldo"));
+        // E entrega de novo com o custo original, para o resto do cenário continuar igual.
+        await op.Put($"/api/vendas/{vid}/manual", new
+        {
+            nicknameComprador = nick, nomeItem = "Trono Dourado", formaPagamento = "pix", origemCusto = "estoque_usd", custoUsd = 150, custoCambios = 0,
+            quantidadeEsmeraldas = 0, usaTaxaPrata = false, valorVendaPix = 1000, valorVendaCambios = 0, entregue = true,
+        });
+        Assert.Equal(250m, D(await Resumo(op, "usd"), "saldo"));
+        // Venda do crivonft não edita por aqui
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await op.Put($"/api/vendas/{Guid.NewGuid()}/manual", new { nomeItem = "x" })).StatusCode is HttpStatusCode.UnprocessableEntity or HttpStatusCode.BadRequest or HttpStatusCode.NotFound
+            ? HttpStatusCode.UnprocessableEntity : HttpStatusCode.OK);
+
         // Cancelar devolve aos mesmos lotes: custo médio volta a 5,375.
         (await op.Post($"/api/vendas/{vid}/cancelar", new { motivo = "desistiu" })).EnsureSuccessStatusCode();
         usd = await Resumo(op, "usd");
         Assert.Equal(400m, D(usd, "saldo"));
         Assert.Equal(5.375m, D(usd, "custoMedio"));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, (await op.Put($"/api/vendas/{vid}/manual", new
+        {
+            nomeItem = "x", formaPagamento = "pix", origemCusto = "manual", custoUsd = 1, custoCambios = 0, quantidadeEsmeraldas = 0, usaTaxaPrata = false, valorVendaPix = 10, valorVendaCambios = 0,
+        })).StatusCode); // cancelada não edita
 
         // Venda com esmeraldas: sai na criação; sem saldo, 422 e nada muda.
         var semSaldo = await op.Post("/api/vendas/manuais", new
