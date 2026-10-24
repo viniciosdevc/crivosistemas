@@ -144,6 +144,33 @@ async function importHistory() {
     importingHistory.value = false
   }
 }
+// Vendas manuais lançadas aqui → crivonft: fila de envio (o Worker manda; o botão recoloca todas na fila).
+type EnvioVendas = { porEstado: Record<string, number>; ultimosErros: { vendaId: string; ultimoErro: string | null }[] }
+const envioVendas = useAsync((signal) => api.get<EnvioVendas>('/api/integracoes/crivonft/vendas-manuais', undefined, signal))
+if (auth.isAdmin) void envioVendas.run()
+const sendingSales = ref(false)
+async function sendManualSales() {
+  if (!(await confirm({
+    title: 'Enviar as vendas manuais ao crivonft?',
+    description: 'Todas as vendas lançadas aqui entram na fila e o Worker as grava no crivonft. Não mexe em estoque nem caixa de lá, e repetir é seguro (nada é duplicado).',
+    confirmLabel: 'Enviar vendas',
+  }))) return
+  sendingSales.value = true
+  try {
+    const r = await api.post<{ enfileiradas: number }>('/api/integracoes/crivonft/vendas-manuais/reenviar')
+    toast.success('Vendas na fila', `${formatInt(r.enfileiradas)} ${pluralize(r.enfileiradas, 'venda', 'vendas')} para enviar ao crivonft.`)
+    await envioVendas.run()
+  } catch (e) {
+    toast.error('Não foi possível enviar', e instanceof ApiError ? e.message : undefined)
+  } finally {
+    sendingSales.value = false
+  }
+}
+const envioResumo = computed(() => {
+  const p = envioVendas.data.value?.porEstado
+  if (!p) return null
+  return `Enviadas: ${formatInt(p.enviado ?? 0)} · Na fila: ${formatInt(p.pendente ?? 0)} · Com falha: ${formatInt(p.falhou ?? 0)}`
+})
 const recColumns: Column[] = [
   { key: 'criadoEm', label: 'Pedida em' },
   { key: 'periodo', label: 'Período', hideBelow: 'sm' },
@@ -342,6 +369,16 @@ const s = computed(() => status.data.value)
               <UiButton type="submit" size="lg" variant="secondary" :loading="importingHistory" :disabled="!histSince"><CalendarSync class="size-4" /> Importar histórico</UiButton>
             </div>
           </form>
+        </section>
+
+        <section class="mb-5 rounded-2xl border border-line p-5" aria-labelledby="vendas-title">
+          <h2 id="vendas-title" class="text-lg font-semibold text-ink">Enviar vendas manuais ao crivonft</h2>
+          <p class="mt-1 mb-4 text-sm text-muted">Toda venda lançada aqui já vai sozinha para o crivonft. Use o botão para mandar as que já existiam ou reenviar depois de uma falha. O crivonft só registra a venda: estoque e caixa continuam acertados aqui.</p>
+          <div class="flex flex-wrap items-center gap-3">
+            <UiButton size="lg" variant="secondary" :loading="sendingSales" @click="sendManualSales"><CalendarSync class="size-4" /> Enviar vendas manuais</UiButton>
+            <p v-if="envioResumo" class="text-sm text-muted">{{ envioResumo }}</p>
+          </div>
+          <p v-if="envioVendas.data.value?.ultimosErros.length" class="mt-3 text-sm text-danger">Último erro: {{ envioVendas.data.value.ultimosErros[0]?.ultimoErro }}</p>
         </section>
 
         <UiEmptyState v-if="recs.error.value && !recs.data.value" :icon="TriangleAlert" title="Não foi possível carregar as reconciliações" :description="recs.error.value.message">
