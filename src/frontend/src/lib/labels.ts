@@ -123,3 +123,13 @@ export const origemLancamento: Record<string, { label: string; tone: Tone }> = {
   venda_cambios: { label: 'Venda de câmbios', tone: 'info' },
   compra_usd: { label: 'Compra de dólar', tone: 'warning' },
 }
+
+export const segmentoCliente: Record<string, { label: string; tone: Tone; hint: string }> = {
+  vip: { label: 'VIP', tone: 'brand', hint: '10% que mais gastaram, ativos' },
+  recorrente: { label: 'Recorrentes', tone: 'success', hint: '2 ou mais compras, ativos' },
+  novo: { label: 'Novos', tone: 'info', hint: 'primeira compra nos últimos 30 dias' },
+  ocasional: { label: 'Ocasionais', tone: 'neutral', hint: 'uma compra, ativos' },
+  emRisco: { label: 'Em risco', tone: 'warning', hint: 'sem comprar além do prazo' },
+  inativo: { label: 'Inativos', tone: 'danger', hint: 'sem comprar há mais do dobro do prazo' },
+  nuncaComprou: { label: 'Nunca compraram', tone: 'neutral', hint: 'cadastrados sem compra paga' },
+}
