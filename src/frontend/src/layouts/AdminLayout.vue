@@ -30,18 +30,51 @@ function openQuick(t: QuickTab) {
 }
 restoreTheme()
 
-const items: NavItem[] = [
-  { label: 'Painel', to: '/painel', icon: ChartColumn, exact: true },
-  { label: 'Vendas', to: '/painel/vendas', icon: ReceiptText },
-  { label: 'Clientes', to: '/painel/clientes', icon: Users },
-  { label: 'Estoque', to: '/painel/estoque', icon: Boxes },
-  { label: 'Venda de Câmbios', to: '/painel/cambios', icon: HandCoins },
-  { label: 'Financeiro', to: '/painel/financeiro', icon: Wallet, adminOnly: true },
-  { label: 'Preços e regras', to: '/painel/precos', icon: SlidersHorizontal, adminOnly: true },
-  { label: 'Integrações', to: '/painel/integracoes', icon: Plug, adminOnly: true },
-  { label: 'Usuários', to: '/painel/usuarios', icon: UserCog, adminOnly: true },
+interface NavGroup { key: string; label: string; icon: Component; items: NavItem[] }
+
+const top: NavItem = { label: 'Painel', to: '/painel', icon: ChartColumn, exact: true }
+const groups: NavGroup[] = [
+  {
+    key: 'operacoes', label: 'Operações', icon: ReceiptText, items: [
+      { label: 'Vendas', to: '/painel/vendas', icon: ReceiptText },
+      { label: 'Clientes', to: '/painel/clientes', icon: Users },
+      { label: 'Venda de Câmbios', to: '/painel/cambios', icon: HandCoins },
+    ],
+  },
+  {
+    key: 'ativos', label: 'Ativos', icon: Boxes, items: [
+      { label: 'Estoque', to: '/painel/estoque', icon: Boxes },
+    ],
+  },
+  {
+    key: 'gestao', label: 'Gestão', icon: Wallet, items: [
+      { label: 'Financeiro', to: '/painel/financeiro', icon: Wallet, adminOnly: true },
+      { label: 'Preços e regras', to: '/painel/precos', icon: SlidersHorizontal, adminOnly: true },
+    ],
+  },
+  {
+    key: 'sistema', label: 'Sistema', icon: UserCog, items: [
+      { label: 'Integrações', to: '/painel/integracoes', icon: Plug, adminOnly: true },
+      { label: 'Usuários', to: '/painel/usuarios', icon: UserCog, adminOnly: true },
+    ],
+  },
 ]
-const visibleItems = computed(() => items.filter((i) => !i.adminOnly || auth.isAdmin))
+const visibleGroups = computed(() =>
+  groups
+    .map((g) => ({ ...g, items: g.items.filter((i) => !i.adminOnly || auth.isAdmin) }))
+    .filter((g) => g.items.length > 0),
+)
+// Grupos fechados à mão; o grupo da rota atual fica sempre aberto.
+const closed = ref<Set<string>>(new Set())
+function isOpen(g: NavGroup) {
+  return !closed.value.has(g.key) || g.items.some(isActive)
+}
+function toggle(g: NavGroup) {
+  const next = new Set(closed.value)
+  if (next.has(g.key)) next.delete(g.key)
+  else next.add(g.key)
+  closed.value = next
+}
 
 function isActive(item: NavItem) {
   if (item.exact) return route.path === item.to
@@ -125,20 +158,48 @@ async function logout() {
 
       <nav class="scrollbar-thin mt-3 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 pb-4">
         <RouterLink
-          v-for="item in visibleItems"
-          :key="item.to"
-          :to="item.to"
-          :title="collapsed ? item.label : undefined"
-          :aria-current="isActive(item) ? 'page' : undefined"
+          :to="top.to"
+          :title="collapsed ? top.label : undefined"
+          :aria-current="isActive(top) ? 'page' : undefined"
           :class="[
             'flex h-11 items-center gap-3 rounded-xl text-[15px] transition-colors',
             collapsed ? 'justify-center' : 'px-3',
-            isActive(item) ? 'bg-brand font-medium text-brand-ink' : 'text-text hover:bg-surface-3 hover:text-ink',
+            isActive(top) ? 'bg-brand font-medium text-brand-ink' : 'text-text hover:bg-surface-3 hover:text-ink',
           ]"
         >
-          <component :is="item.icon" class="size-[18px] shrink-0" stroke-width="1.7" />
-          <span v-if="!collapsed" class="flex-1 truncate">{{ item.label }}</span>
+          <component :is="top.icon" class="size-[18px] shrink-0" stroke-width="1.7" />
+          <span v-if="!collapsed" class="flex-1 truncate">{{ top.label }}</span>
         </RouterLink>
+        <template v-for="g in visibleGroups" :key="g.key">
+          <button
+            v-if="!collapsed"
+            type="button"
+            class="mt-2 flex h-9 items-center justify-between rounded-xl px-3 text-xs font-medium uppercase tracking-wide text-muted hover:text-ink"
+            :aria-expanded="isOpen(g)"
+            @click="toggle(g)"
+          >
+            {{ g.label }}
+            <ChevronDown :class="['size-4 transition-transform', !isOpen(g) && '-rotate-90']" />
+          </button>
+          <div v-else class="mx-2 my-1 border-t border-line" />
+          <template v-if="collapsed || isOpen(g)">
+            <template v-for="item in g.items" :key="item.to">
+          <RouterLink
+            :to="item.to"
+            :title="collapsed ? item.label : undefined"
+            :aria-current="isActive(item) ? 'page' : undefined"
+            :class="[
+              'flex h-11 items-center gap-3 rounded-xl text-[15px] transition-colors',
+              collapsed ? 'justify-center' : 'pl-5 pr-3',
+              isActive(item) ? 'bg-brand font-medium text-brand-ink' : 'text-text hover:bg-surface-3 hover:text-ink',
+            ]"
+          >
+            <component :is="item.icon" class="size-[18px] shrink-0" stroke-width="1.7" />
+            <span v-if="!collapsed" class="flex-1 truncate">{{ item.label }}</span>
+          </RouterLink>
+            </template>
+          </template>
+        </template>
       </nav>
 
       <div class="mx-3 border-t border-line py-4">
