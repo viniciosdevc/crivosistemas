@@ -567,6 +567,10 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("AtualizadoEm")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("Carteira")
+                        .HasMaxLength(42)
+                        .HasColumnType("varchar(42)");
+
                     b.Property<string>("Chave")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -592,6 +596,8 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                         .HasColumnType("varchar(120)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Carteira");
 
                     b.HasIndex("Chave")
                         .IsUnique();

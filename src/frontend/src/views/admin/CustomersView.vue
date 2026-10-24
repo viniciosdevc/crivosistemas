@@ -2,6 +2,7 @@
 import { RefreshCw, TriangleAlert, Users } from 'lucide-vue-next'
 import { computed, watch } from 'vue'
 import DataTable, { type Column } from '@/components/ui/DataTable.vue'
+import WalletAddress from '@/components/admin/WalletAddress.vue'
 import PageCard from '@/components/ui/PageCard.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import { habboAvatarUrl } from '@/lib/habbo'
@@ -31,6 +32,7 @@ const sortKeys: Record<string, string> = { nickname: 'nome', totalGasto: 'totalG
 const sortColumn = computed(() => Object.entries(sortKeys).find(([, v]) => v === filters.value.ordem)?.[0])
 const columns: Column[] = [
   { key: 'nickname', label: 'Cliente', sortable: true },
+  { key: 'carteira', label: 'Carteira', hideBelow: 'md' },
   { key: 'totalGasto', label: 'Total gasto', align: 'right', sortable: true },
   { key: 'compras', label: 'Compras', align: 'right', sortable: true, hideBelow: 'sm' },
   { key: 'ultimaCompra', label: 'Última compra', sortable: true, hideBelow: 'md' },
@@ -43,7 +45,7 @@ function onSort(key: string, dir: 'asc' | 'desc') {
 <template>
   <PageCard title="Clientes" subtitle="Quem compra, quanto gastou e quando comprou pela última vez.">
     <template #actions>
-      <UiSearch :model-value="filters.busca" placeholder="Buscar por nome ou e-mail" @update:model-value="(v) => set({ busca: v })" />
+      <UiSearch :model-value="filters.busca" placeholder="Buscar por nome, e-mail ou carteira" @update:model-value="(v) => set({ busca: v })" />
     </template>
 
     <UiEmptyState v-if="error && !data" :icon="TriangleAlert" title="Não foi possível carregar os clientes" :description="error.message">
@@ -70,6 +72,7 @@ function onSort(key: string, dir: 'asc' | 'desc') {
           </div>
         </div>
       </template>
+      <template #cell-carteira="{ row }"><WalletAddress :address="row.carteira" /></template>
       <template #cell-totalGasto="{ row }"><span class="font-medium text-ink tabular">{{ formatMoney(row.totalGasto) }}</span></template>
       <template #cell-compras="{ row }"><span class="tabular">{{ formatInt(row.compras) }}</span></template>
       <template #cell-ultimaCompra="{ row }">{{ row.ultimaCompra ? formatDate(row.ultimaCompra) : 'Nunca comprou' }}</template>

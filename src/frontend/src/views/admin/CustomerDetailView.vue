@@ -3,6 +3,7 @@ import { ArrowLeft, RefreshCw, TriangleAlert } from 'lucide-vue-next'
 import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import SaleTable from '@/components/admin/sales/SaleTable.vue'
+import WalletAddress from '@/components/admin/WalletAddress.vue'
 import PageCard from '@/components/ui/PageCard.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import { habboAvatarUrl } from '@/lib/habbo'
@@ -31,6 +32,7 @@ const ticket = computed(() => (c.value && c.value.compras > 0 ? c.value.totalGas
         <div class="min-w-0">
           <h1 class="truncate text-2xl font-semibold tracking-tight text-ink lg:text-[28px]">{{ c?.nickname ?? 'Cliente' }}</h1>
           <p v-if="c?.email" class="truncate text-[15px] text-muted">{{ c.email }}</p>
+          <p v-if="c?.carteira" class="mt-1 text-[15px] text-muted">Carteira <WalletAddress :address="c.carteira" full /></p>
         </div>
       </div>
     </template>
