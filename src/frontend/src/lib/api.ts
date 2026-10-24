@@ -44,7 +44,16 @@ function camel(key: string) {
   return key.replace(/^[A-Z]/, (c) => c.toLowerCase()).replace(/\.([A-Z])/g, (_, c: string) => '.' + c.toLowerCase())
 }
 
-async function request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
+/** Status que a Cloudflare/nginx devolvem quando o servidor está reiniciando ou não respondeu direito (ex.: durante um deploy). */
+/** Só vale para respostas sem `code`: as do nosso próprio servidor (ex.: crivonft_indisponivel, updating) trazem mensagem própria. */
+function isGatewayError(status: number, data: { code?: unknown } | null) {
+  if (data?.code) return false
+  return status === 502 || status === 503 || status === 504 || (status >= 520 && status <= 530)
+}
+
+const GATEWAY_RETRY_DELAYS = [1500, 4000]
+
+async function request<T>(method: string, path: string, options: RequestOptions = {}, attempt = 0): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json', 'X-Requested-With': 'crivosistemas' }
   if (options.body !== undefined) headers['Content-Type'] = 'application/json'
   if (options.idempotencyKey) headers['Idempotency-Key'] = options.idempotencyKey
@@ -66,7 +75,17 @@ async function request<T>(method: string, path: string, options: RequestOptions 
   if (response.status === 204) return undefined as T
   const data = response.headers.get('content-type')?.includes('json') ? await response.json().catch(() => null) : null
 
+  if (!response.ok && method === 'GET' && isGatewayError(response.status, data) && attempt < GATEWAY_RETRY_DELAYS.length) {
+    // Leitura é segura de repetir: dá tempo do servidor voltar antes de mostrar erro.
+    await new Promise((resolve) => setTimeout(resolve, GATEWAY_RETRY_DELAYS[attempt]))
+    if (options.signal?.aborted) throw new DOMException('Aborted', 'AbortError')
+    return request<T>(method, path, options, attempt + 1)
+  }
+
   if (!response.ok) {
+    if (isGatewayError(response.status, data)) {
+      throw new ApiError(response.status, 'O servidor está reiniciando ou fora do ar neste momento (acontece durante uma publicação). Aguarde alguns segundos e tente de novo.', 'gateway')
+    }
     if (response.status === 401 && !path.startsWith('/api/auth/')) onUnauthorized?.()
     const fields: Record<string, string> = {}
     if (data?.errors && typeof data.errors === 'object') {

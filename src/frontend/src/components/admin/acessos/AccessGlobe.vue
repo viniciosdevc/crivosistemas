@@ -6,7 +6,7 @@ import { countryCentroids, numericToIso2 } from '@/lib/countryCentroids'
 import { countryName, heat, type CountryTotal, type MapPoint } from '@/lib/access'
 import { formatInt } from '@/lib/format'
 
-const props = defineProps<{ countries: CountryTotal[]; points: MapPoint[]; focus: string | null }>()
+const props = defineProps<{ countries: CountryTotal[]; points: MapPoint[]; online: MapPoint[]; focus: string | null }>()
 const emit = defineEmits<{ pick: [country: string] }>()
 
 const host = shallowRef<HTMLDivElement | null>(null)
@@ -46,6 +46,11 @@ function paint() {
       const n = code ? totals.get(code) : undefined
       return `<div style="padding:4px 8px"><b>${code ? countryName(code) : f.properties.name}</b><br/>${formatInt(n ?? 0)} acessos</div>`
     })
+    .ringsData(props.online)
+    .ringColor(() => (t: number) => `rgba(80,220,120,${1 - t})`)
+    .ringMaxRadius(4)
+    .ringPropagationSpeed(2)
+    .ringRepeatPeriod(1400)
     .pointsData(props.points)
     .pointAltitude((p: MapPoint) => 0.01 + heat(p.acessos, maxP) * 0.25)
     .pointRadius((p: MapPoint) => 0.25 + heat(p.acessos, maxP) * 0.5)
@@ -88,7 +93,7 @@ onMounted(async () => {
   observer.observe(el)
 })
 
-watch(() => [props.countries, props.points], paint)
+watch(() => [props.countries, props.points, props.online], paint)
 watch(() => props.focus, fly)
 
 onBeforeUnmount(() => {

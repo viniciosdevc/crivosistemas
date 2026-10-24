@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import RankedList, { type RankedRow } from '@/components/admin/reports/RankedList.vue'
 import PageCard from '@/components/ui/PageCard.vue'
 import StatBlocks, { type Stat } from '@/components/ui/StatBlocks.vue'
@@ -7,10 +7,10 @@ import UiChips from '@/components/ui/UiChips.vue'
 import UiEmptyState from '@/components/ui/UiEmptyState.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { api } from '@/lib/api'
-import { countryName, placeLabel, toMapPoints, totalsByCountry } from '@/lib/access'
+import { countryName, onlineToMapPoints, pageLabel, placeLabel, toMapPoints, totalsByCountry } from '@/lib/access'
 import { formatDateTime, formatInt, pluralize } from '@/lib/format'
 import { toast } from '@/lib/toast'
-import type { ResumoAcessos } from '@/lib/types'
+import type { OnlineAgora, ResumoAcessos } from '@/lib/types'
 import { useAsync } from '@/lib/useAsync'
 
 // O globo (three.js) é pesado: só baixa quando esta tela abre.
@@ -26,7 +26,16 @@ const diasOptions = [
 const country = ref<string | null>(null)
 
 const summary = useAsync((signal) => api.get<ResumoAcessos>('/api/acessos', { dias: dias.value, pais: country.value }, signal))
-onMounted(() => void summary.run())
+// "Online agora" atualiza sozinho enquanto a tela está aberta e visível.
+const online = useAsync((signal) => api.get<OnlineAgora>('/api/acessos/online', undefined, signal))
+let timer: number | undefined
+onMounted(() => {
+  void summary.run()
+  void online.run()
+  timer = window.setInterval(() => { if (document.visibilityState === 'visible') void online.run() }, 20_000)
+})
+onBeforeUnmount(() => window.clearInterval(timer))
+const onlinePoints = computed(() => onlineToMapPoints(online.data.value?.pontos ?? []))
 watch(dias, () => { country.value = null; void summary.run() })
 // páginas e itens acompanham o país escolhido no globo
 watch(country, () => void summary.run())
@@ -84,7 +93,7 @@ const clientes = computed(() => summary.data.value?.clientes ?? [])
       <StatBlocks :stats="stats" class="mb-8" />
 
       <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <AccessGlobe :countries="countries" :points="points" :focus="country" @pick="country = $event" />
+        <AccessGlobe :countries="countries" :points="points" :online="onlinePoints" :focus="country" @pick="country = $event" />
         <div>
           <div class="mb-3 flex items-center justify-between gap-2">
             <h3 class="text-lg font-semibold text-ink">{{ country ? countryName(country) : 'Países' }}</h3>
@@ -124,6 +133,36 @@ const clientes = computed(() => summary.data.value?.clientes ?? [])
           <h3 class="mb-3 text-lg font-semibold text-ink">Páginas mais acessadas</h3>
           <RankedList :rows="pageRows" label="Páginas" />
         </div>
+      </div>
+
+      <h3 class="mb-3 mt-10 text-lg font-semibold text-ink">
+        Online agora
+        <span v-if="online.data.value" class="ml-2 rounded-full bg-brand-soft px-2.5 py-0.5 text-sm font-medium text-sel-text tabular">{{ formatInt(online.data.value.total) }}</span>
+      </h3>
+      <p v-if="online.data.value" class="mb-3 text-sm text-muted">
+        {{ pluralize(online.data.value.clientes.length, 'cliente conectado', 'clientes conectados') }} e
+        {{ pluralize(online.data.value.anonimos, 'visitante sem conta', 'visitantes sem conta') }}. Atualiza a cada 20 segundos; vale quem esteve ativo nos últimos 3 minutos.
+      </p>
+      <p v-if="online.data.value && online.data.value.clientes.length === 0" class="text-sm text-muted">Nenhum cliente conectado agora.</p>
+      <div v-else-if="online.data.value" class="overflow-x-auto">
+        <table class="w-full min-w-[520px] text-left text-sm">
+          <thead class="bg-surface-2 text-muted">
+            <tr>
+              <th class="px-4 py-3 font-medium">Cliente</th>
+              <th class="px-4 py-3 font-medium">Página atual</th>
+              <th class="px-4 py-3 font-medium">Local</th>
+              <th class="px-4 py-3 font-medium">Último sinal</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-line">
+            <tr v-for="c in online.data.value.clientes" :key="c.nickname">
+              <td class="px-4 py-3 font-medium text-ink">{{ c.nickname }}</td>
+              <td class="px-4 py-3 text-muted">{{ pageLabel(c.pagina, categoryLabels) }}</td>
+              <td class="px-4 py-3 text-muted">{{ placeLabel(c) || '—' }}</td>
+              <td class="px-4 py-3 text-muted tabular">{{ formatDateTime(c.desde) }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       <h3 class="mb-3 mt-10 text-lg font-semibold text-ink">Clientes mais acessados</h3>
