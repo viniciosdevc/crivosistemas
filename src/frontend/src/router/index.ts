@@ -22,6 +22,7 @@ const admin: RouteRecordRaw[] = [
   { path: 'calculadora', name: 'calculator', component: () => import('@/views/admin/CalculatorView.vue'), meta: { section: 'Comercial', title: 'Calculadora' } },
   { path: 'estoque', name: 'stock', component: () => import('@/views/admin/StockView.vue'), meta: { section: 'Comercial', title: 'Estoque' } },
   { path: 'cambios', name: 'cambios', component: () => import('@/views/admin/CambiosView.vue'), meta: { section: 'Comercial', title: 'Venda de Câmbios' } },
+  { path: 'nfts', name: 'nfts', component: () => import('@/views/admin/NftsView.vue'), meta: { section: 'Ativos', title: 'NFTs', adminOnly: true } },
   { path: 'financeiro', name: 'finance', component: () => import('@/views/admin/FinanceView.vue'), meta: { section: 'Gestão', title: 'Financeiro', adminOnly: true } },
   { path: 'convites', name: 'invites', component: () => import('@/views/admin/ConvitesView.vue'), meta: { section: 'Gestão', title: 'Convites', adminOnly: true } },
   { path: 'precos', name: 'pricing', component: () => import('@/views/admin/PricingView.vue'), meta: { section: 'Gestão', title: 'Preços e regras', adminOnly: true } },
