@@ -140,3 +140,23 @@ public static class RegrasEstoque
             throw new DomainException("saldo_insuficiente", $"Saldo insuficiente de {unidade}. Disponível: {saldo:0.##}, pedido: {quantidade:0.##}.");
     }
 }
+
+/// <summary>Custo e lucro das vendas do site, calculados aqui com o estoque de dólar do Gestão (o crivonft usa um dólar fixo de configuração).</summary>
+public static class CustoVendaSite
+{
+    /// <summary>Vendas do site anteriores a este dia mantêm o custo e o lucro que vieram do crivonft (histórico preservado) e não baixam o estoque.</summary>
+    public static readonly DateTime Inicio = new(2026, 10, 26, 0, 0, 0, DateTimeKind.Utc);
+
+    public const string AvisoFalta = "Estoque de dólar insuficiente: ";
+
+    public static bool Vale(DateTime dataHora) => dataHora >= Inicio;
+
+    /// <summary>Custo = US$ dos itens × custo médio do dólar em estoque; lucro e margem sobre o total pago.</summary>
+    public static (decimal CustoBrl, decimal LucroBrl, decimal MargemPercent) Calcular(decimal totalBrl, decimal custoUsd, decimal custoMedioUsd)
+    {
+        var custo = Math.Round(custoUsd * custoMedioUsd, 2, MidpointRounding.AwayFromZero);
+        var lucro = totalBrl - custo;
+        var margem = totalBrl > 0 ? Math.Round(lucro / totalBrl * 100, 2, MidpointRounding.AwayFromZero) : 0;
+        return (custo, lucro, margem);
+    }
+}

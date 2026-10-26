@@ -1,7 +1,9 @@
 using System.Text.Json;
 using Crivosistemas.Domain.Audit;
+using Crivosistemas.Domain.Estoque;
 using Crivosistemas.Domain.Integracoes;
 using Crivosistemas.Domain.Vendas;
+using Crivosistemas.Infrastructure.Estoque;
 using Crivosistemas.Infrastructure.Financeiro;
 using Crivosistemas.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -27,7 +29,7 @@ public enum ResultadoVenda { Aplicada, IgnoradaMaisAntiga, IgnoradaRemovida }
 
 /// <summary>Recebe os eventos do crivonft: grava o corpo bruto (único por id) e aplica vendas e clientes. Também é usado pela
 /// reconciliação, que converte as linhas exportadas no mesmo payload e passa pela mesma regra de upsert.</summary>
-public sealed class IngestaoService(AppDbContext db, FinanceiroService financeiro, ILogger<IngestaoService> logger)
+public sealed class IngestaoService(AppDbContext db, FinanceiroService financeiro, EstoqueService estoque, ILogger<IngestaoService> logger)
 {
     private const int MaxCorpoTexto = 1_000_000;
 
@@ -219,6 +221,7 @@ public sealed class IngestaoService(AppDbContext db, FinanceiroService financeir
         var ordem = 0;
         foreach (var i in p.Itens)
             venda.Itens.Add(new VendaItem { Ordem = ordem++, Descricao = i.Descricao, Quantidade = i.Quantidade, PrecoUsd = i.PrecoUsd, PrecoBrl = i.PrecoBrl, Referencia = i.Referencia });
+        if (venda.Origem == OrigemVenda.Site && CustoVendaSite.Vale(venda.DataHora)) await ApurarCustoSiteAsync(venda, ct);
         // O PIX da venda entra (ou sai, se ela foi cancelada) direto no financeiro.
         await financeiro.SincronizarVendaAsync(venda, ct);
         return ResultadoVenda.Aplicada;
@@ -240,7 +243,42 @@ public sealed class IngestaoService(AppDbContext db, FinanceiroService financeir
         venda.RemovidaEm ??= ocorridoEm;
         if (ocorridoEm > venda.AtualizadoEmOrigem) venda.AtualizadoEmOrigem = ocorridoEm;
         venda.AtualizadoEm = DateTime.UtcNow;
+        if (venda.Origem == OrigemVenda.Site)
+        {
+            await estoque.TravarAsync(ct);
+            await estoque.EstornarVendaAsync(venda.Id, TipoEstoque.Usd, null, ct);
+        }
         await financeiro.SincronizarVendaAsync(venda, ct);
+    }
+
+    /// <summary>O Gestão é a fonte da verdade do custo: o dólar dos itens vem do crivonft, mas o custo em R$ é o custo médio do estoque daqui,
+    /// e a venda paga ou concluída baixa esse dólar (FIFO). Refazer a venda devolve a baixa anterior aos mesmos lotes antes de baixar de novo.
+    /// Sem custo médio (estoque vazio) mantém o custo que veio do crivonft. Falta de saldo não recusa a venda: baixa o que há e avisa na observação.</summary>
+    private async Task ApurarCustoSiteAsync(Venda venda, CancellationToken ct)
+    {
+        await estoque.TravarAsync(ct);
+        await estoque.EstornarVendaAsync(venda.Id, TipoEstoque.Usd, null, ct);
+        var temAviso = venda.Observacao?.StartsWith(CustoVendaSite.AvisoFalta, StringComparison.Ordinal) == true;
+        if (temAviso) venda.Observacao = null;
+        if (venda.CustoUsd <= 0) return;
+
+        var medio = (await estoque.ResumoAsync(TipoEstoque.Usd, ct)).CustoMedio;
+        if (medio <= 0)
+        {
+            logger.LogWarning("Venda do site {OrigemId} sem custo médio de dólar no estoque: mantido o custo do crivonft.", venda.OrigemId);
+            return;
+        }
+        (venda.CustoBrl, venda.LucroBrl, venda.MargemPercent) = CustoVendaSite.Calcular(venda.TotalBrl, venda.CustoUsd, medio);
+        venda.OrigemCusto = OrigemCusto.EstoqueUsd;
+        venda.DolarCompraUsado = medio;
+        if (!venda.Faturavel) return;
+
+        var faltou = await estoque.BaixarVendaSiteAsync(venda.CustoUsd, venda.Id, ct);
+        if (faltou > 0)
+        {
+            venda.Observacao = $"{CustoVendaSite.AvisoFalta}faltaram US$ {faltou:0.##} para baixar esta venda.";
+            logger.LogWarning("Venda do site {OrigemId}: faltaram US$ {Faltou} no estoque de dólar.", venda.OrigemId, faltou);
+        }
     }
 
     /// <summary>Cria ou atualiza o cliente pela chave. Com <paramref name="sobrescrever"/> falso (linhas exportadas) só cria: os eventos são mais completos.</summary>

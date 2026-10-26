@@ -110,3 +110,31 @@ public sealed class CalculoVendaTests
         Assert.Equal(13, s.LucroBrl);
     }
 }
+
+public sealed class CustoVendaSiteTests
+{
+    [Fact]
+    public void Custo_e_o_dolar_dos_itens_vezes_o_custo_medio_do_estoque()
+    {
+        // US$ 10 × R$ 5,30 = R$ 53,00; pago R$ 80,00 → lucro R$ 27,00 (33,75%)
+        var (custo, lucro, margem) = CustoVendaSite.Calcular(80m, 10m, 5.3m);
+        Assert.Equal(53m, custo);
+        Assert.Equal(27m, lucro);
+        Assert.Equal(33.75m, margem);
+    }
+
+    [Fact]
+    public void Venda_sem_valor_pago_tem_margem_zero()
+    {
+        var (_, lucro, margem) = CustoVendaSite.Calcular(0m, 10m, 5m);
+        Assert.Equal(-50m, lucro);
+        Assert.Equal(0m, margem);
+    }
+
+    [Fact]
+    public void Vendas_anteriores_ao_inicio_mantem_o_custo_do_crivonft()
+    {
+        Assert.False(CustoVendaSite.Vale(new DateTime(2026, 10, 25, 23, 59, 0, DateTimeKind.Utc)));
+        Assert.True(CustoVendaSite.Vale(new DateTime(2026, 10, 26, 0, 0, 0, DateTimeKind.Utc)));
+    }
+}
