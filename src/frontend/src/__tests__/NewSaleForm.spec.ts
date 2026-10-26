@@ -28,19 +28,19 @@ describe('NewSaleForm', () => {
   })
   afterEach(() => vi.useRealTimers())
 
-  it('vem como já entregue, com taxa da feira marcada em câmbios e o valor em R$', async () => {
+  it('vem como já entregue, com taxa da feira desmarcada (só entra na entrega via jogo) e o valor em R$', async () => {
     const w = await setup()
     expect(checkbox(w, 'Já entregue').attributes('aria-checked')).toBe('true')
-    expect(checkbox(w, 'Taxa da feira (pratas)').attributes('aria-checked')).toBe('true')
+    expect(checkbox(w, 'Taxa da feira (pratas)').attributes('aria-checked')).toBe('false')
     expect(w.get('[data-testid="taxa-feira"]').text()).toContain('6,50')
     expect(w.text()).not.toContain('Incluir taxa de pratas')
     w.unmount()
   })
 
-  it('a taxa vem marcada em qualquer forma, como na calculadora, e mostra as moedas e o preço', async () => {
+  it('a taxa vem desmarcada em qualquer forma e mostra as moedas e o preço quando marcada', async () => {
     const w = await setup()
     await w.findAll('[role="radio"]').find((r) => r.text() === 'PIX')!.trigger('click')
-    expect(checkbox(w, 'Taxa da feira').attributes('aria-checked')).toBe('true')
+    expect(checkbox(w, 'Taxa da feira').attributes('aria-checked')).toBe('false')
     expect(w.get('[data-testid="taxa-feira"]').text()).toContain('500 C')
     expect(w.text()).not.toContain('Hora')
     w.unmount()
