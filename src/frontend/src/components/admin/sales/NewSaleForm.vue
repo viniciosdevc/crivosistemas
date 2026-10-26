@@ -54,7 +54,7 @@ const entrada = reactive<EntradaVendaManual>({
   custoUsd: '',
   custoCambios: '',
   quantidadeEsmeraldas: '',
-  usaTaxaPrata: true,
+  usaTaxaPrata: false,
   valorPix: '',
   valorCambios: '',
 })
@@ -83,7 +83,7 @@ function reset() {
   observacao.value = ''
   entregue.value = true
   avatarNick.value = ''
-  Object.assign(entrada, { forma: 'cambios', origem: 'estoque_usd', custoUsd: '', custoCambios: '', quantidadeEsmeraldas: '', usaTaxaPrata: true, valorPix: '', valorCambios: '' })
+  Object.assign(entrada, { forma: 'cambios', origem: 'estoque_usd', custoUsd: '', custoCambios: '', quantidadeEsmeraldas: '', usaTaxaPrata: false, valorPix: '', valorCambios: '' })
   Object.keys(fieldErrors).forEach((k) => delete fieldErrors[k])
   formError.value = null
 }
