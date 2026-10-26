@@ -174,7 +174,7 @@ public sealed class EstoqueService(AppDbContext db, ICrivonftClient crivonft, Fi
     }
 
     /// <summary>Saída por FIFO para uma venda. Falta saldo → 422 e nada muda.</summary>
-    public async Task<List<Debito>> DebitarVendaAsync(TipoEstoque tipo, decimal quantidade, Guid vendaId, Guid userId, CancellationToken ct)
+    public async Task<List<Debito>> DebitarVendaAsync(TipoEstoque tipo, decimal quantidade, Guid vendaId, Guid? userId, CancellationToken ct)
     {
         var lotes = await LotesComSaldoAsync(tipo, ct);
         var plano = RegrasEstoque.PlanoFifo(lotes.Select(l => new SaldoLote(l.Id, l.Saldo, l.CustoUnitario)).ToList(), quantidade, Unidade(tipo));
@@ -183,8 +183,19 @@ public sealed class EstoqueService(AppDbContext db, ICrivonftClient crivonft, Fi
         return plano;
     }
 
+    /// <summary>Baixa de uma venda do site: tira o que houver de saldo (FIFO) até a quantidade pedida, sem recusar a venda por falta de estoque. Devolve o que faltou.
+    /// Chamar com o estoque travado.</summary>
+    public async Task<decimal> BaixarVendaSiteAsync(decimal quantidade, Guid vendaId, CancellationToken ct)
+    {
+        var lotes = await LotesComSaldoAsync(TipoEstoque.Usd, ct);
+        var saldo = lotes.Sum(l => l.Saldo);
+        var baixa = Math.Min(saldo, quantidade);
+        if (baixa > 0) await DebitarVendaAsync(TipoEstoque.Usd, baixa, vendaId, null, ct);
+        return quantidade - baixa;
+    }
+
     /// <summary>Devolve aos mesmos lotes tudo o que a venda tirou (do tipo informado, ou de todos), sem mexer no custo médio.</summary>
-    public async Task<decimal> EstornarVendaAsync(Guid vendaId, TipoEstoque? tipo, Guid userId, CancellationToken ct)
+    public async Task<decimal> EstornarVendaAsync(Guid vendaId, TipoEstoque? tipo, Guid? userId, CancellationToken ct)
     {
         var movs = await db.MovimentosEstoque
             .Where(m => m.VendaId == vendaId && m.Motivo == MotivoMovimento.Venda && m.EstornadoEm == null && (tipo == null || m.Tipo == tipo))
@@ -205,7 +216,7 @@ public sealed class EstoqueService(AppDbContext db, ICrivonftClient crivonft, Fi
         return total;
     }
 
-    private void Aplicar(TipoEstoque tipo, List<LoteEstoque> lotes, List<Debito> plano, MotivoMovimento motivo, Guid userId, Guid? vendaId, string? obs)
+    private void Aplicar(TipoEstoque tipo, List<LoteEstoque> lotes, List<Debito> plano, MotivoMovimento motivo, Guid? userId, Guid? vendaId, string? obs)
     {
         var porId = lotes.ToDictionary(l => l.Id);
         foreach (var d in plano)
