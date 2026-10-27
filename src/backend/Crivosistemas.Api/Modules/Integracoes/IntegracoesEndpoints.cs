@@ -1,7 +1,9 @@
 using System.ComponentModel.DataAnnotations;
 using Crivosistemas.Api.Common;
+using Crivosistemas.Domain.Estoque;
 using Crivosistemas.Domain.Integracoes;
 using Crivosistemas.Domain.Precificacao;
+using Crivosistemas.Infrastructure.Estoque;
 using Crivosistemas.Infrastructure.Integracoes;
 using Crivosistemas.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
@@ -26,6 +28,7 @@ public sealed record StatusIntegracaoDto(bool RecebeEventos, bool Envia, bool Ex
 public static class IntegracoesEndpoints
 {
     public const string RotaEventos = "/api/integracoes/crivonft/eventos";
+    public const string RotaEstoque = "/api/integracoes/crivonft/estoque";
     private const int MaxCorpo = 2 * 1024 * 1024;
 
     public static void MapIntegracoesEndpoints(this IEndpointRouteBuilder app)
@@ -33,6 +36,9 @@ public static class IntegracoesEndpoints
         // Sem cookie nem CSRF: a autenticação é Bearer + HMAC. Ver docs/integracao-crivonft.md.
         app.MapPost(RotaEventos, Receber).AllowAnonymous().WithTags("Integracoes")
             .WithSummary("Recebe um evento do crivonft (Bearer + HMAC, sem sessão).");
+
+        app.MapGet(RotaEstoque, EstoqueParaCrivonft).AllowAnonymous().WithTags("Integracoes")
+            .WithSummary("Estoque de dólar (saldo, custo médio e lotes em ordem FIFO) para o crivonft ler (Bearer + HMAC sobre corpo vazio, sem sessão).");
 
         var admin = app.MapGroup("/api/integracoes/crivonft").WithTags("Integracoes").RequireAuthorization(Session.AdminPolicy);
         admin.MapGet("/status", Status).WithSummary("Painel da tela Integrações: último evento, contagens por estado, últimos erros.");
@@ -92,6 +98,40 @@ public static class IntegracoesEndpoints
             DesfechoIngestao.Rejeitado => Results.Json(new { title = "Payload inválido.", code = "payload_invalido", erros = r.Erros }, statusCode: StatusCodes.Status400BadRequest),
             _ => Problema(StatusCodes.Status500InternalServerError, "Falha ao processar o evento; repita.", "falha_processamento"),
         };
+    }
+
+    /// <summary>O Gestão é a fonte do estoque: o crivonft lê saldo, custo médio e lotes por aqui, em vez de manter um estoque próprio.</summary>
+    private static async Task<IResult> EstoqueParaCrivonft(HttpContext http, EstoqueService estoque, AppDbContext db, IOptions<CrivonftOptions> opcoes, ILogger<IngestaoService> logger, CancellationToken ct)
+    {
+        var o = opcoes.Value;
+        if (!o.RecebeEventos) return Problema(StatusCodes.Status503ServiceUnavailable, "A integração com o crivonft não está configurada.", "integracao_nao_configurada");
+        var auth = CrivoAuth.Verificar(o.Token, o.HmacSecret, http.Request.Headers.Authorization.ToString(),
+            http.Request.Headers[CrivoAuth.CabecalhoTimestamp].ToString(), http.Request.Headers[CrivoAuth.CabecalhoAssinatura].ToString(),
+            ReadOnlySpan<byte>.Empty, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+        if (auth != ResultadoAuth.Ok)
+        {
+            logger.LogWarning("Leitura de estoque pelo crivonft recusada: {Motivo}", auth);
+            return Problema(StatusCodes.Status401Unauthorized, auth == ResultadoAuth.TimestampInvalido ? "Timestamp fora da janela de 5 minutos." : "Credenciais inválidas.",
+                auth == ResultadoAuth.TimestampInvalido ? "timestamp_invalido" : "nao_autorizado");
+        }
+
+        var resumo = await estoque.ResumoAsync(TipoEstoque.Usd, ct);
+        var lotes = await db.LotesEstoque.AsNoTracking()
+            .Where(l => l.Tipo == TipoEstoque.Usd && l.CanceladoEm == null && l.Saldo > 0)
+            .OrderBy(l => l.DataCompra).ThenBy(l => l.CriadoEm).ThenBy(l => l.Id)
+            .Select(l => new { id = l.Id, data_compra = l.DataCompra, saldo = l.Saldo, custo_unitario = l.CustoUnitario })
+            .ToListAsync(ct);
+        return Results.Json(new
+        {
+            usd = new
+            {
+                saldo = resumo.Saldo,
+                custo_medio = resumo.CustoMedio,
+                custo_medio_fixado = resumo.CustoMedioFixo is not null,
+                valor_em_estoque = resumo.ValorEmEstoque,
+                lotes,
+            },
+        });
     }
 
     private static async Task<byte[]?> LerCorpoAsync(HttpRequest req, CancellationToken ct)

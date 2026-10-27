@@ -60,6 +60,15 @@ Valores monetários: número decimal (não string), BRL com 2 casas, USD/câmbio
 
 **Editar carteira/favorito (Gestão → crivonft):** `PATCH /api/clientes/{id}` com `{ "carteira"?: string|null, "favorito"?: bool }` (admin ou operador). Com a integração configurada, o Gestão chama `PUT {BaseUrl}/api/integracoes/gestao/clientes` (mesmo Bearer + HMAC + timestamp) com `{ "nickname", "carteira"?, "favorito"? }` e só grava local a resposta `{ "ok": true, "cliente": { "nickname", "carteira", "favorito" } }`. Erro do crivonft vira `502` com `detail` claro (404 = rota ausente, publique a atualização; 401/403 = token ou segredo; 422 = a mensagem dele, ex.: cliente sem nickname; rede/tempo esgotado). Sem integração configurada grava só local. A edição é auditada (`clientes.atualizado`).
 
+## 1b. Estoque de dólar (crivonft lê do Gestão)
+O estoque e o custo do dólar vivem **só no Gestão**. O crivonft não tem estoque próprio: lê daqui e suas vendas baixam o dólar aqui (evento `venda.upsert`, ver decisão 10).
+`GET {Gestão}/api/integracoes/crivonft/estoque` (mesmo Bearer + HMAC; o corpo é vazio, então a assinatura é sobre `"{timestamp}."`). Resposta:
+```json
+{ "usd": { "saldo": 310.71, "custo_medio": 5.2124, "custo_medio_fixado": false, "valor_em_estoque": 1619.56,
+           "lotes": [ { "id": "uuid", "data_compra": "2026-10-25", "saldo": 4.94, "custo_unitario": 5.0347 } ] } }
+```
+`lotes` só traz lotes com saldo, do mais antigo para o mais novo (a ordem da baixa FIFO).
+
 ## 2. Carga inicial e reconciliação (crivosistemas puxa)
 Usa as rotas já existentes do crivonft com `Authorization: Bearer <IMPORT_SECRET>`:
 `GET /api/export/vendas?de=&ate=&limit=&offset=` e `GET /api/export/clientes` (formato em `crivonft/docs/API.md`).

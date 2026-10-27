@@ -248,4 +248,39 @@ public sealed class IntegracoesTests(ApiFactory factory)
         var v = Assert.Single(vendas.GetProperty("items").EnumerateArray());
         Assert.Equal(endereco, v.GetProperty("cliente").GetProperty("carteira").GetString());
     }
+
+    private static HttpRequestMessage LeituraEstoque(string? token = ApiFactory.CrivoToken, string segredo = ApiFactory.CrivoSegredo)
+    {
+        var ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+        var req = new HttpRequestMessage(HttpMethod.Get, "/api/integracoes/crivonft/estoque");
+        if (token is not null) req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        req.Headers.Add(CrivoAuth.CabecalhoTimestamp, ts);
+        req.Headers.Add(CrivoAuth.CabecalhoAssinatura, CrivoAuth.Assinar(segredo, ts, ""));
+        return req;
+    }
+
+    [Fact]
+    public async Task Crivonft_le_o_estoque_de_dolar_do_gestao_em_ordem_fifo()
+    {
+        var admin = await factory.SeedAndLoginAdminAsync();
+        var saldo = (await (await admin.GetAsync("/api/estoque/resumo")).Json()).GetProperty("usd").GetProperty("saldo").GetDecimal();
+        if (saldo > 0) (await admin.Post("/api/estoque/usd/saldo", new { saldo = 0, motivo = "teste" })).EnsureSuccessStatusCode();
+        (await admin.Put("/api/estoque/usd/custo-medio-fixo", new { valor = (decimal?)null })).EnsureSuccessStatusCode();
+        (await admin.Post("/api/estoque/usd/compras", new { data = "2026-10-01", quantidade = 100, custoTotal = 500 })).EnsureSuccessStatusCode();
+        (await admin.Post("/api/estoque/usd/compras", new { data = "2026-10-05", quantidade = 100, custoTotal = 600 })).EnsureSuccessStatusCode();
+
+        var maquina = factory.Maquina();
+        var resp = await maquina.SendAsync(LeituraEstoque());
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var usd = (await resp.Json()).GetProperty("usd");
+        Assert.Equal(200m, usd.GetProperty("saldo").GetDecimal());
+        Assert.Equal(5.5m, usd.GetProperty("custo_medio").GetDecimal());
+        var lotes = usd.GetProperty("lotes");
+        Assert.Equal(2, lotes.GetArrayLength());
+        Assert.Equal(5m, lotes[0].GetProperty("custo_unitario").GetDecimal());
+        Assert.Equal(6m, lotes[1].GetProperty("custo_unitario").GetDecimal());
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await maquina.SendAsync(LeituraEstoque(token: "errado"))).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await maquina.SendAsync(LeituraEstoque(segredo: "outro"))).StatusCode);
+    }
 }
