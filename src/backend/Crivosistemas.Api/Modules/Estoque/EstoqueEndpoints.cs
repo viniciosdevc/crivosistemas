@@ -50,8 +50,29 @@ public static class EstoqueEndpoints
         g.MapPost("/{tipo}/saldo", DefinirSaldo).WithSummary("Define o saldo pelo valor real e lança a diferença.");
         g.MapPut("/usd/custo-medio-fixo", FixarCustoMedio).RequireAuthorization(Session.AdminPolicy)
             .WithSummary("Fixa o custo médio do dólar (ou volta ao calculado com valor nulo).");
+        g.MapPost("/usd/recalculo/previa", PreviaRecalculo).RequireAuthorization(Session.AdminPolicy)
+            .WithSummary("Prévia: refaz o custo e a baixa de dólar das vendas desde uma data, por FIFO, sem gravar nada.");
+        g.MapPost("/usd/recalculo/aplicar", AplicarRecalculo).RequireAuthorization(Session.AdminPolicy)
+            .WithSummary("Aplica o recálculo: devolve aos lotes o que as vendas do período tiraram, baixa de novo na ordem e corrige custo e lucro (idempotente).");
         g.MapPost("/importar-crivonft", Importar).RequireAuthorization(Session.AdminPolicy)
             .WithSummary("Traz os lotes com saldo do crivonft (idempotente pelo id de origem).");
+    }
+
+    public sealed record RecalculoRequest([Required(ErrorMessage = "Informe a partir de que dia recalcular.")] DateOnly? Desde);
+
+    private static async Task<IResult> PreviaRecalculo([FromBody] RecalculoRequest req, RecalculoCustoService svc, CancellationToken ct) =>
+        Results.Ok(await svc.ExecutarAsync(req.Desde!.Value, aplicar: false, userId: null, ct));
+
+    private static async Task<IResult> AplicarRecalculo([FromBody] RecalculoRequest req, RecalculoCustoService svc, AppDbContext db, HttpContext http, CancellationToken ct)
+    {
+        var r = await db.InTransactionAsync(async () =>
+        {
+            var res = await svc.ExecutarAsync(req.Desde!.Value, aplicar: true, http.User.Id(), ct);
+            db.Audit(http, "estoque.recalculo_vendas", "LoteEstoque", null, new { desde = req.Desde, res.Vendas, res.LucroAntes, res.LucroDepois, res.FaltouUsd });
+            await db.SaveChangesAsync(ct);
+            return res;
+        }, ct);
+        return Results.Ok(r);
     }
 
     private static TipoEstoque Tipo(string tipo) =>

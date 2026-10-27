@@ -63,6 +63,15 @@ public class ConfiguracaoEstoque : Entity
 public sealed record SaldoLote(Guid Id, decimal Saldo, decimal CustoUnitario);
 public sealed record Debito(Guid LoteId, decimal Quantidade, decimal CustoUnitario);
 
+/// <summary>Lote em memória para simular baixas (prévia e recálculo): o saldo muda a cada baixa simulada.</summary>
+public sealed class LoteSimulado(Guid id, DateOnly dataCompra, decimal saldo, decimal custoUnitario)
+{
+    public Guid Id { get; } = id;
+    public DateOnly DataCompra { get; } = dataCompra;
+    public decimal Saldo { get; set; } = saldo;
+    public decimal CustoUnitario { get; } = custoUnitario;
+}
+
 /// <summary>Regras puras do estoque, iguais às do crivonft (src/lib/inventory.ts).</summary>
 public static class RegrasEstoque
 {
@@ -82,6 +91,24 @@ public static class RegrasEstoque
 
     public static decimal CustoUnitario(decimal custoTotal, decimal quantidade) =>
         quantidade > 0 ? Math.Round(custoTotal / quantidade, CasasQuantidade, MidpointRounding.AwayFromZero) : 0;
+
+    /// <summary>Baixa FIFO como se fosse feita no <paramref name="dia"/>: usa primeiro os lotes comprados até esse dia (do mais antigo) e, só se não bastarem,
+    /// os comprados depois. Tira do saldo dos lotes simulados e devolve o plano e o que faltou (falta saldo não é erro aqui).
+    /// Usado para refazer vendas passadas na ordem em que aconteceram.</summary>
+    public static (List<Debito> Plano, decimal Faltou) PlanoFifoAteData(IReadOnlyList<LoteSimulado> lotesMaisAntigosPrimeiro, decimal quantidade, DateOnly dia)
+    {
+        var plano = new List<Debito>();
+        var resta = quantidade;
+        foreach (var l in lotesMaisAntigosPrimeiro.Where(l => l.Saldo > 0 && l.DataCompra <= dia).Concat(lotesMaisAntigosPrimeiro.Where(l => l.Saldo > 0 && l.DataCompra > dia)))
+        {
+            if (resta <= 0) break;
+            var d = Math.Min(l.Saldo, resta);
+            plano.Add(new Debito(l.Id, d, l.CustoUnitario));
+            l.Saldo -= d;
+            resta -= d;
+        }
+        return (plano, resta);
+    }
 
     /// <summary>Saída por FIFO (lotes na ordem recebida, do mais antigo). Falta saldo → 422.</summary>
     public static List<Debito> PlanoFifo(IReadOnlyList<SaldoLote> lotesMaisAntigosPrimeiro, decimal quantidade, string unidade)

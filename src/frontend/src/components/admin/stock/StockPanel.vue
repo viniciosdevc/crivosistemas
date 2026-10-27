@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { Download, Pencil, Pin, Plus, Scale, TriangleAlert, XCircle } from 'lucide-vue-next'
+import { Download, Pencil, Pin, Plus, RefreshCw, Scale, TriangleAlert, XCircle } from 'lucide-vue-next'
 import { computed, ref, watch } from 'vue'
 import AdjustModal from '@/components/admin/stock/AdjustModal.vue'
 import FixedCostModal from '@/components/admin/stock/FixedCostModal.vue'
+import RecalcModal from '@/components/admin/stock/RecalcModal.vue'
 import PurchaseModal from '@/components/admin/stock/PurchaseModal.vue'
 import DataTable, { type Column } from '@/components/ui/DataTable.vue'
 import StatusBadge from '@/components/ui/StatusBadge.vue'
@@ -95,6 +96,7 @@ const purchaseOpen = ref(false)
 const editing = ref<LoteEstoque | null>(null)
 const adjustOpen = ref(false)
 const fixedOpen = ref(false)
+const recalcOpen = ref(false)
 
 function newPurchase() { editing.value = null; purchaseOpen.value = true }
 function editPurchase(l: LoteEstoque) { editing.value = l; purchaseOpen.value = true }
@@ -141,6 +143,7 @@ async function importFromCrivonft() {
       <UiButton @click="newPurchase"><Plus class="size-4" /> Registrar compra</UiButton>
       <UiButton variant="secondary" @click="adjustOpen = true"><Scale class="size-4" /> Ajustar saldo</UiButton>
       <UiButton v-if="usd && auth.isAdmin" variant="secondary" @click="fixedOpen = true"><Pin class="size-4" /> Fixar custo médio</UiButton>
+      <UiButton v-if="usd && auth.isAdmin" variant="secondary" @click="recalcOpen = true"><RefreshCw class="size-4" /> Recalcular vendas</UiButton>
       <UiButton v-if="auth.isAdmin" variant="secondary" :loading="importing" @click="importFromCrivonft"><Download class="size-4" /> Importar do crivonft</UiButton>
     </div>
 
@@ -212,6 +215,7 @@ async function importFromCrivonft() {
 
     <PurchaseModal v-model:open="purchaseOpen" :tipo="tipo" :lote="editing" @saved="refresh" />
     <AdjustModal v-model:open="adjustOpen" :tipo="tipo" :resumo="current" @saved="refresh" />
+    <RecalcModal v-if="usd" v-model:open="recalcOpen" @saved="refresh" />
     <FixedCostModal v-if="usd" v-model:open="fixedOpen" :resumo="current" @saved="refresh" />
   </div>
 </template>

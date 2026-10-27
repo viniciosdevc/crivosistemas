@@ -283,4 +283,65 @@ public sealed class IntegracoesTests(ApiFactory factory)
         Assert.Equal(HttpStatusCode.Unauthorized, (await maquina.SendAsync(LeituraEstoque(token: "errado"))).StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, (await maquina.SendAsync(LeituraEstoque(segredo: "outro"))).StatusCode);
     }
+
+    [Fact]
+    public async Task Recalculo_refaz_custo_e_baixa_das_vendas_por_FIFO_sem_baixar_em_dobro()
+    {
+        var admin = await factory.SeedAndLoginAdminAsync();
+        var saldo = (await (await admin.GetAsync("/api/estoque/resumo")).Json()).GetProperty("usd").GetProperty("saldo").GetDecimal();
+        if (saldo > 0) (await admin.Post("/api/estoque/usd/saldo", new { saldo = 0, motivo = "teste" })).EnsureSuccessStatusCode();
+        (await admin.Put("/api/estoque/usd/custo-medio-fixo", new { valor = (decimal?)null })).EnsureSuccessStatusCode();
+        (await admin.Post("/api/estoque/usd/compras", new { data = "2026-12-14", quantidade = 100, custoTotal = 500 })).EnsureSuccessStatusCode();
+        (await admin.Post("/api/estoque/usd/compras", new { data = "2026-12-15", quantidade = 100, custoTotal = 600 })).EnsureSuccessStatusCode();
+
+        // Venda nft de US$ 150 paga por R$ 1.000: FIFO = 100 × 5 + 50 × 6 = R$ 800 → lucro R$ 200.
+        var oid = Id();
+        var corpo = CrivoHelpers.Evento("venda.upsert", CrivoHelpers.Venda(oid, new DateTime(2026, 12, 15, 15, 0, 0, DateTimeKind.Utc), 1000m, lucro: 0, custoUsd: 150m));
+        Assert.Equal(HttpStatusCode.OK, (await factory.Maquina().Enviar(corpo)).Status);
+
+        // Simula o custo errado de antes (dólar fixo): R$ 700.
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var v = await db.Vendas.FirstAsync(x => x.OrigemId == oid);
+            v.CustoBrl = 700m; v.LucroBrl = 300m;
+            await db.SaveChangesAsync();
+        }
+
+        var previa = await (await admin.Post("/api/estoque/usd/recalculo/previa", new { desde = "2026-12-15" })).Json();
+        Assert.False(previa.GetProperty("aplicado").GetBoolean());
+        Assert.Equal(1, previa.GetProperty("vendas").GetInt32());
+        var linha = previa.GetProperty("linhas")[0];
+        Assert.Equal(700m, linha.GetProperty("custoAntes").GetDecimal());
+        Assert.Equal(800m, linha.GetProperty("custoDepois").GetDecimal());
+        Assert.Equal(200m, linha.GetProperty("lucroDepois").GetDecimal());
+        // A prévia não grava nada: o custo continua 700.
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            Assert.Equal(700m, (await db.Vendas.AsNoTracking().FirstAsync(x => x.OrigemId == oid)).CustoBrl);
+        }
+
+        // Aplicar duas vezes dá o mesmo resultado e o saldo cai uma vez só (200 - 150 = 50).
+        for (var i = 0; i < 2; i++)
+        {
+            var r = await admin.Post("/api/estoque/usd/recalculo/aplicar", new { desde = "2026-12-15" });
+            if (r.StatusCode != HttpStatusCode.OK) Assert.Fail(await r.Content.ReadAsStringAsync());
+            Assert.True((await r.Json()).GetProperty("aplicado").GetBoolean());
+        }
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var v = await db.Vendas.AsNoTracking().FirstAsync(x => x.OrigemId == oid);
+            Assert.Equal(800m, v.CustoBrl);
+            Assert.Equal(200m, v.LucroBrl);
+        }
+        var usd = (await (await admin.GetAsync("/api/estoque/resumo")).Json()).GetProperty("usd");
+        Assert.Equal(50m, usd.GetProperty("saldo").GetDecimal());
+        Assert.Equal(6m, usd.GetProperty("custoMedio").GetDecimal());
+
+        // Só administrador recalcula.
+        var op = await factory.CreateAndLoginAsync(admin, "operator");
+        Assert.Equal(HttpStatusCode.Forbidden, (await op.Post("/api/estoque/usd/recalculo/aplicar", new { desde = "2026-12-15" })).StatusCode);
+    }
 }
