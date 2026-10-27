@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
   Boxes, Calculator, Search, HandCoins, ChartColumn, ChevronDown, Coins, Fingerprint, KeyRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Plug, Plus, ReceiptText, SlidersHorizontal, Sun, UserCog, Users, X,
-  Building2, CalendarDays, ClipboardCheck, Globe2, Layers, Mail, TrendingUp, Wallet, ChartPie,
+  Building2, CalendarDays, Target, ClipboardCheck, Globe2, Layers, Mail, TrendingUp, Wallet, ChartPie,
 } from 'lucide-vue-next'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, ref, watch, type Component } from 'vue'
@@ -52,6 +52,7 @@ const groups: NavGroup[] = [
   {
     key: 'gestao', label: 'Gestão', icon: Wallet, items: [
       { label: 'Financeiro', to: '/painel/financeiro', icon: Wallet, adminOnly: true },
+      { label: 'Meta semanal', to: '/painel/metas', icon: Target },
       { label: 'Posição e saldos', to: '/painel/posicao', icon: ClipboardCheck, adminOnly: true },
       { label: 'Convites da loja', to: '/painel/convites', icon: Mail, adminOnly: true },
       { label: 'Preços e regras', to: '/painel/precos', icon: SlidersHorizontal, adminOnly: true },

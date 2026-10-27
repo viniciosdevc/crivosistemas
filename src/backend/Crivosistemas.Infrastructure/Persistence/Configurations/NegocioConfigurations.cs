@@ -333,3 +333,12 @@ internal sealed class CenarioProjecaoConfig : IEntityTypeConfiguration<Domain.Pr
         b.HasIndex(x => x.CriadoEm);
     }
 }
+
+internal sealed class MetaSemanalConfig : IEntityTypeConfiguration<Domain.Metas.MetaSemanal>
+{
+    public void Configure(EntityTypeBuilder<Domain.Metas.MetaSemanal> b)
+    {
+        b.Property(x => x.MetaLucroBrl).HasPrecision(14, 2);
+        b.HasIndex(x => x.SemanaInicio).IsUnique();
+    }
+}
