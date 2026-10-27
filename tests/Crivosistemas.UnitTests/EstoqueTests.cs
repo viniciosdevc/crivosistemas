@@ -148,3 +148,28 @@ public sealed class CustoVendaSiteTests
         Assert.True(CustoVendaSite.Vale(new DateTime(2026, 10, 26, 0, 0, 0, DateTimeKind.Utc)));
     }
 }
+
+public sealed class PlanoFifoAteDataTests
+{
+    [Fact]
+    public void Usa_primeiro_os_lotes_ja_comprados_no_dia_da_venda_e_so_depois_os_futuros()
+    {
+        var a = new LoteSimulado(Guid.NewGuid(), new DateOnly(2026, 10, 1), 10m, 5m);
+        var b = new LoteSimulado(Guid.NewGuid(), new DateOnly(2026, 10, 10), 10m, 6m);
+        var (plano, faltou) = RegrasEstoque.PlanoFifoAteData([a, b], 15m, new DateOnly(2026, 10, 5));
+        Assert.Equal(0m, plano.Single(d => d.LoteId == a.Id).Quantidade - 10m);
+        Assert.Equal(5m, plano.Single(d => d.LoteId == b.Id).Quantidade); // o lote A não bastou: completa com o futuro
+        Assert.Equal(0m, faltou);
+        Assert.Equal(0m, a.Saldo);
+        Assert.Equal(5m, b.Saldo);
+    }
+
+    [Fact]
+    public void Falta_de_saldo_devolve_o_que_faltou_sem_erro()
+    {
+        var a = new LoteSimulado(Guid.NewGuid(), new DateOnly(2026, 10, 1), 4m, 5m);
+        var (plano, faltou) = RegrasEstoque.PlanoFifoAteData([a], 10m, new DateOnly(2026, 10, 2));
+        Assert.Single(plano);
+        Assert.Equal(6m, faltou);
+    }
+}

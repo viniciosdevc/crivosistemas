@@ -13,7 +13,7 @@ public static class CrivoHelpers
         JsonSerializer.Serialize(new { id = id ?? Guid.NewGuid(), tipo, ocorrido_em = (ocorridoEm ?? DateTime.UtcNow).ToString("O"), dados });
 
     public static object Venda(string origemId, DateTime dataHora, decimal total, string statusNormalizado = "concluido", string origem = "nft", string? nick = "cliente-a",
-        string? forma = "pix", DateTime? atualizadoEm = null, decimal lucro = 10, string? cupom = null, string descricao = "NFT raro") => new
+        string? forma = "pix", DateTime? atualizadoEm = null, decimal lucro = 10, string? cupom = null, string descricao = "NFT raro", decimal custoUsd = 0) => new
         {
             origem,
             origem_id = origemId,
@@ -27,7 +27,7 @@ public static class CrivoHelpers
             itens = new[] { new { descricao, quantidade = 1, preco_usd = 10, preco_brl = total, referencia = (string?)null } },
             valores = new
             {
-                total_brl = total, desconto_brl = 0, taxa_brl = 0, valor_pix_brl = total, valor_cambios = 0, custo_brl = total - lucro, custo_usd = 0, custo_cambios = 0,
+                total_brl = total, desconto_brl = 0, taxa_brl = 0, valor_pix_brl = total, valor_cambios = 0, custo_brl = total - lucro, custo_usd = custoUsd, custo_cambios = 0,
                 lucro_brl = lucro, margem_percent = 12.5,
             },
             cupom = cupom is null ? null : new { codigo = cupom, tipo = "percentual" },

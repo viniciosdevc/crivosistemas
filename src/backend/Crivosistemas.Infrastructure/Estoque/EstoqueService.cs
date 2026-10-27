@@ -199,6 +199,16 @@ public sealed class EstoqueService(AppDbContext db, ICrivonftClient crivonft, Fi
         return (quantidade - baixa, custo);
     }
 
+    /// <summary>Aplica um plano de baixa já calculado (recálculo de vendas passadas). Chamar com o estoque travado.</summary>
+    public async Task AplicarPlanoVendaAsync(IReadOnlyList<Debito> plano, Guid vendaId, Guid? userId, CancellationToken ct)
+    {
+        if (plano.Count == 0) return;
+        var ids = plano.Select(d => d.LoteId).Distinct().ToList();
+        var lotes = await db.LotesEstoque.Where(l => ids.Contains(l.Id)).ToListAsync(ct);
+        Aplicar(TipoEstoque.Usd, lotes, plano.ToList(), MotivoMovimento.Venda, userId, vendaId, null);
+        await db.SaveChangesAsync(ct);
+    }
+
     /// <summary>Devolve aos mesmos lotes tudo o que a venda tirou (do tipo informado, ou de todos), sem mexer no custo médio.</summary>
     public async Task<decimal> EstornarVendaAsync(Guid vendaId, TipoEstoque? tipo, Guid? userId, CancellationToken ct)
     {

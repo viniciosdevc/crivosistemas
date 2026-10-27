@@ -837,3 +837,28 @@ export interface ResumoDiario {
     conhecidoSaidas: number
   }
 }
+
+export interface LinhaRecalculoEstoque {
+  vendaId: string
+  origem: string
+  dataHora: string
+  item: string
+  totalBrl: number
+  custoUsd: number
+  custoAntes: number
+  lucroAntes: number
+  custoDepois: number
+  lucroDepois: number
+  faltouUsd: number
+  jaBaixada: boolean
+}
+
+export interface ResultadoRecalculoEstoque {
+  desde: string
+  aplicado: boolean
+  vendas: number
+  lucroAntes: number
+  lucroDepois: number
+  faltouUsd: number
+  linhas: LinhaRecalculoEstoque[]
+}
