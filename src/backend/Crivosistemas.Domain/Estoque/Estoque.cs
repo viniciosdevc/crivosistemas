@@ -151,10 +151,14 @@ public static class CustoVendaSite
 
     public static bool Vale(DateTime dataHora) => dataHora >= Inicio;
 
-    /// <summary>Custo = US$ dos itens × custo médio do dólar em estoque; lucro e margem sobre o total pago.</summary>
-    public static (decimal CustoBrl, decimal LucroBrl, decimal MargemPercent) Calcular(decimal totalBrl, decimal custoUsd, decimal custoMedioUsd)
+    /// <summary>Custo estimado = US$ dos itens × custo médio do dólar em estoque; lucro e margem sobre o total pago.</summary>
+    public static (decimal CustoBrl, decimal LucroBrl, decimal MargemPercent) Calcular(decimal totalBrl, decimal custoUsd, decimal custoMedioUsd) =>
+        ComCusto(totalBrl, Math.Round(custoUsd * custoMedioUsd, 2, MidpointRounding.AwayFromZero));
+
+    /// <summary>Lucro e margem para um custo em R$ já conhecido (o dos lotes que realmente saíram do estoque, por FIFO).</summary>
+    public static (decimal CustoBrl, decimal LucroBrl, decimal MargemPercent) ComCusto(decimal totalBrl, decimal custoBrl)
     {
-        var custo = Math.Round(custoUsd * custoMedioUsd, 2, MidpointRounding.AwayFromZero);
+        var custo = Math.Round(custoBrl, 2, MidpointRounding.AwayFromZero);
         var lucro = totalBrl - custo;
         var margem = totalBrl > 0 ? Math.Round(lucro / totalBrl * 100, 2, MidpointRounding.AwayFromZero) : 0;
         return (custo, lucro, margem);

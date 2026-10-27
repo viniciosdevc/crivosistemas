@@ -124,6 +124,16 @@ public sealed class CustoVendaSiteTests
     }
 
     [Fact]
+    public void Custo_conhecido_dos_lotes_define_lucro_e_margem()
+    {
+        // lotes que saíram custaram R$ 1.081,34; pago R$ 1.190,00 → lucro R$ 108,66 (9,13%)
+        var (custo, lucro, margem) = CustoVendaSite.ComCusto(1190m, 1081.34m);
+        Assert.Equal(1081.34m, custo);
+        Assert.Equal(108.66m, lucro);
+        Assert.Equal(9.13m, margem);
+    }
+
+    [Fact]
     public void Venda_sem_valor_pago_tem_margem_zero()
     {
         var (_, lucro, margem) = CustoVendaSite.Calcular(0m, 10m, 5m);
