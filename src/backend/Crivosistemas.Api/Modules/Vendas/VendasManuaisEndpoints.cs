@@ -221,7 +221,18 @@ public static class VendasManuaisEndpoints
         // Venda paga em câmbios gera saldo (só as lançadas aqui; as importadas do crivonft não entram).
         await cambios.CreditarVendaManualAsync(v.Id, v.ValorCambios, v.ClienteId, userId, ct);
         if (v.OrigemCusto == OrigemCusto.EstoqueUsd && v.CustoUsd > 0)
-            await estoque.DebitarVendaAsync(TipoEstoque.Usd, v.CustoUsd, v.Id, userId, ct);
+        {
+            var plano = await estoque.DebitarVendaAsync(TipoEstoque.Usd, v.CustoUsd, v.Id, userId, ct);
+            // Custo real = o dos lotes que saíram (FIFO); troca a parte estimada pela média e refaz lucro e margem.
+            if (v.DolarCompraUsado is > 0)
+            {
+                var delta = Math.Round(plano.Sum(d => d.Quantidade * d.CustoUnitario) - v.CustoUsd * v.DolarCompraUsado.Value, 2, MidpointRounding.AwayFromZero);
+                v.CustoBrl += delta;
+                v.LucroBrl -= delta;
+                v.MargemPercent = v.CustoBrl > 0 ? Math.Round(v.LucroBrl / v.CustoBrl * 100, 2, MidpointRounding.AwayFromZero) : 0;
+                v.DolarCompraUsado = Math.Round(plano.Sum(d => d.Quantidade * d.CustoUnitario) / v.CustoUsd, 4, MidpointRounding.AwayFromZero);
+            }
+        }
         v.Status = StatusEntregue;
         v.StatusNormalizado = StatusVenda.Concluido;
         v.AtualizadoEm = v.AtualizadoEmOrigem = DateTime.UtcNow;

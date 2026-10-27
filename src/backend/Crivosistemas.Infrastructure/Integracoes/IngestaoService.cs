@@ -268,16 +268,24 @@ public sealed class IngestaoService(AppDbContext db, FinanceiroService financeir
             logger.LogWarning("Venda do site {OrigemId} sem custo médio de dólar no estoque: mantido o custo do crivonft.", venda.OrigemId);
             return;
         }
-        (venda.CustoBrl, venda.LucroBrl, venda.MargemPercent) = CustoVendaSite.Calcular(venda.TotalBrl, venda.CustoUsd, medio);
         venda.OrigemCusto = OrigemCusto.EstoqueUsd;
-        venda.DolarCompraUsado = medio;
-        if (!venda.Faturavel) return;
+        if (!venda.Faturavel)
+        {
+            // Ainda não baixou: custo estimado pela média; o custo real (dos lotes) sai quando a venda for paga.
+            (venda.CustoBrl, venda.LucroBrl, venda.MargemPercent) = CustoVendaSite.Calcular(venda.TotalBrl, venda.CustoUsd, medio);
+            venda.DolarCompraUsado = medio;
+            return;
+        }
 
-        var faltou = await estoque.BaixarVendaSiteAsync(venda.CustoUsd, venda.Id, ct);
+        // Custo real = o dos lotes que saem (FIFO), o mesmo critério da baixa; o que faltar no estoque entra pela média.
+        var (faltou, custoLotes) = await estoque.BaixarVendaSiteAsync(venda.CustoUsd, venda.Id, ct);
+        var custoTotal = custoLotes + faltou * medio;
+        (venda.CustoBrl, venda.LucroBrl, venda.MargemPercent) = CustoVendaSite.ComCusto(venda.TotalBrl, custoTotal);
+        venda.DolarCompraUsado = Math.Round(custoTotal / venda.CustoUsd, 4, MidpointRounding.AwayFromZero);
         if (faltou > 0)
         {
             venda.Observacao = $"{CustoVendaSite.AvisoFalta}faltaram US$ {faltou:0.##} para baixar esta venda.";
-            logger.LogWarning("Venda do site {OrigemId}: faltaram US$ {Faltou} no estoque de dólar.", venda.OrigemId, faltou);
+            logger.LogWarning("Venda {Origem} {OrigemId}: faltaram US$ {Faltou} no estoque de dólar.", venda.Origem, venda.OrigemId, faltou);
         }
     }
 

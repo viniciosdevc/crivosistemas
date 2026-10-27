@@ -183,15 +183,20 @@ public sealed class EstoqueService(AppDbContext db, ICrivonftClient crivonft, Fi
         return plano;
     }
 
-    /// <summary>Baixa de uma venda do site: tira o que houver de saldo (FIFO) até a quantidade pedida, sem recusar a venda por falta de estoque. Devolve o que faltou.
-    /// Chamar com o estoque travado.</summary>
-    public async Task<decimal> BaixarVendaSiteAsync(decimal quantidade, Guid vendaId, CancellationToken ct)
+    /// <summary>Baixa de uma venda do site/nft: tira o que houver de saldo (FIFO) até a quantidade pedida, sem recusar a venda por falta de estoque.
+    /// Devolve o que faltou e o custo em R$ dos lotes que saíram. Chamar com o estoque travado.</summary>
+    public async Task<(decimal Faltou, decimal CustoBrl)> BaixarVendaSiteAsync(decimal quantidade, Guid vendaId, CancellationToken ct)
     {
         var lotes = await LotesComSaldoAsync(TipoEstoque.Usd, ct);
         var saldo = lotes.Sum(l => l.Saldo);
         var baixa = Math.Min(saldo, quantidade);
-        if (baixa > 0) await DebitarVendaAsync(TipoEstoque.Usd, baixa, vendaId, null, ct);
-        return quantidade - baixa;
+        var custo = 0m;
+        if (baixa > 0)
+        {
+            var plano = await DebitarVendaAsync(TipoEstoque.Usd, baixa, vendaId, null, ct);
+            custo = plano.Sum(d => d.Quantidade * d.CustoUnitario);
+        }
+        return (quantidade - baixa, custo);
     }
 
     /// <summary>Devolve aos mesmos lotes tudo o que a venda tirou (do tipo informado, ou de todos), sem mexer no custo médio.</summary>
