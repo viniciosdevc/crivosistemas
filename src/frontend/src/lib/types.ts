@@ -741,6 +741,39 @@ export interface Projecao { cenario: CenarioProjecao; resumo: ResumoProjecao; di
 export interface ProjecaoResumida { cenario: CenarioProjecao; resumo: ResumoProjecao }
 export interface NovoCenario { nome: string; baseDe: string; baseAte: string; dataFinal: string; crescimentoPercent: number }
 
+// ── Meta semanal ────────────────────────────────────────────────────────────
+
+export type StatusMeta = 'batida' | 'ultimoDia' | 'emAndamento'
+export interface ResumoMeta {
+  metaBrl: number
+  lucroBrl: number
+  faltaBrl: number
+  progressoPercent: number
+  ritmoIdealPercent: number
+  mediaDiariaBrl: number
+  projecaoFechamentoBrl: number
+  diasUteisRestantes: number
+  necessarioPorDiaUtilBrl: number
+  status: StatusMeta
+}
+export interface DiaMeta { dia: string; lucroBrl: number; receitaBrl: number; vendas: number }
+export interface SemanaMeta { semanaInicio: string; metaBrl: number; definida: boolean; lucroBrl: number; receitaBrl: number; vendas: number; bateu: boolean; atual: boolean }
+export interface PainelMetas {
+  hoje: string
+  semanaInicio: string
+  semanaFim: string
+  padraoBrl: number
+  resumo: ResumoMeta
+  lucroSemanaAnteriorBrl: number | null
+  sequencia: number
+  /** 16 semanas de dias, da segunda mais antiga ao domingo da semana atual. */
+  dias: DiaMeta[]
+  /** Da semana atual para trás: só semanas com vendas ou meta definida. */
+  historico: SemanaMeta[]
+  /** A semana atual e as 11 seguintes. */
+  planejamento: SemanaMeta[]
+}
+
 // ── CRM de clientes ─────────────────────────────────────────────────────────
 
 export type SegmentoCliente = 'vip' | 'recorrente' | 'novo' | 'ocasional' | 'emRisco' | 'inativo' | 'nuncaComprou'

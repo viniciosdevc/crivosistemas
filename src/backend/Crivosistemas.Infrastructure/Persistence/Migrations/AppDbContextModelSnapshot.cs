@@ -683,6 +683,35 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                     b.ToTable("Reconciliacoes");
                 });
 
+            modelBuilder.Entity("Crivosistemas.Domain.Metas.MetaSemanal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("AtualizadoEm")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid?>("AtualizadoPor")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<decimal>("MetaLucroBrl")
+                        .HasPrecision(14, 2)
+                        .HasColumnType("decimal(14,2)");
+
+                    b.Property<DateTime>("SemanaInicio")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SemanaInicio")
+                        .IsUnique();
+
+                    b.ToTable("MetasSemanais");
+                });
+
             modelBuilder.Entity("Crivosistemas.Domain.Posicao.PosicaoDiaria", b =>
                 {
                     b.Property<Guid>("Id")

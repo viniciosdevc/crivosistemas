@@ -31,6 +31,7 @@ const admin: RouteRecordRaw[] = [
   { path: 'relatorios/diario', name: 'report-daily', component: () => import('@/views/admin/reports/DailySummaryView.vue'), meta: { section: 'Relatórios', title: 'Resumo diário', adminOnly: true } },
   { path: 'relatorios/projecao', name: 'report-projection', component: () => import('@/views/admin/reports/ProjectionView.vue'), meta: { section: 'Relatórios', title: 'Projeção', adminOnly: true } },
   { path: 'posicao', name: 'position', component: () => import('@/views/admin/PositionView.vue'), meta: { section: 'Gestão', title: 'Posição e saldos', adminOnly: true } },
+  { path: 'metas', name: 'goals', component: () => import('@/views/admin/GoalsView.vue'), meta: { section: 'Gestão', title: 'Meta semanal' } },
   { path: 'convites', name: 'invites', component: () => import('@/views/admin/ConvitesView.vue'), meta: { section: 'Gestão', title: 'Convites', adminOnly: true } },
   { path: 'precos', name: 'pricing', component: () => import('@/views/admin/PricingView.vue'), meta: { section: 'Gestão', title: 'Preços e regras', adminOnly: true } },
   { path: 'integracoes', name: 'integrations', component: () => import('@/views/admin/IntegrationsView.vue'), meta: { section: 'Configurações', title: 'Integrações', adminOnly: true } },

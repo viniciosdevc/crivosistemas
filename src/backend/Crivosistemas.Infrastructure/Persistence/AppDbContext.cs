@@ -40,6 +40,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<MovimentoCambios> MovimentosCambios => Set<MovimentoCambios>();
     public DbSet<PosicaoDiaria> PosicoesDiarias => Set<PosicaoDiaria>();
     public DbSet<Domain.Projecao.CenarioProjecao> CenariosProjecao => Set<Domain.Projecao.CenarioProjecao>();
+    public DbSet<Domain.Metas.MetaSemanal> MetasSemanais => Set<Domain.Metas.MetaSemanal>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {

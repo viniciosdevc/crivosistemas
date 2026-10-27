@@ -55,6 +55,14 @@ Porta do livro-razão `financeiro_lancamentos` do crivonft, só para administrad
 - **Nada é editado ou apagado.** Lançamento manual errado é cancelado com motivo (fica no histórico, fora do saldo) e lançado de novo. Pendente só entra no saldo ao confirmar.
 - **Diferença do crivonft:** lá o PIX só entra na entrega e pode nascer pendente pela data prevista; aqui, vendas importadas já chegam concluídas e entram confirmadas. `POST /api/financeiro/sincronizar` (chamado ao abrir a tela) gera o que existia antes do financeiro.
 
+## 12. Meta semanal de lucro
+Porta da tela Meta semanal do /adm do crivonft, calculada sobre as vendas do próprio Gestão.
+
+- **Semana de segunda a domingo**, em dia de São Paulo. A meta é por semana (`MetasSemanais.SemanaInicio`, única); semana sem meta vale R$ 1.000 (constante em `RegrasMetas.PadraoBrl`, sem variável de ambiente), inclusive as passadas.
+- **Lucro = vendas faturáveis** (pagas ou concluídas, não removidas), a mesma regra do faturamento.
+- **O servidor calcula** progresso, falta, ritmo ideal, projeção e o necessário por dia útil (`RegrasMetas.Resumir`); o painel (`GET /api/metas-semanais`) devolve também histórico, 16 semanas de lucro por dia (mapa de calor) e as 12 semanas a planejar.
+- **Permissões.** Todos veem o painel; só administradores cadastram (`PUT /api/metas-semanais`, várias semanas por vez, auditado). "Repetir em todas as semanas" é do formulário: o servidor só recebe a lista final.
+
 ## Chaves de acesso (passkeys)
 Login sem senha com WebAuthn (Fido2NetLib), como alternativa à senha, que continua valendo (inclusive `--seed-admin`).
 
