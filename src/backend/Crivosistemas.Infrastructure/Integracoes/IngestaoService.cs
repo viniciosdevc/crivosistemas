@@ -221,7 +221,7 @@ public sealed class IngestaoService(AppDbContext db, FinanceiroService financeir
         var ordem = 0;
         foreach (var i in p.Itens)
             venda.Itens.Add(new VendaItem { Ordem = ordem++, Descricao = i.Descricao, Quantidade = i.Quantidade, PrecoUsd = i.PrecoUsd, PrecoBrl = i.PrecoBrl, Referencia = i.Referencia });
-        if (venda.Origem is OrigemVenda.Site or OrigemVenda.Nft && CustoVendaSite.Vale(venda.DataHora)) await ApurarCustoSiteAsync(venda, ct);
+        if ((venda.Origem is OrigemVenda.Site or OrigemVenda.Nft) && CustoVendaSite.Vale(venda.DataHora)) await ApurarCustoSiteAsync(venda, ct);
         // O PIX da venda entra (ou sai, se ela foi cancelada) direto no financeiro.
         await financeiro.SincronizarVendaAsync(venda, ct);
         return ResultadoVenda.Aplicada;
