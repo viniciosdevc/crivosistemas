@@ -7,7 +7,7 @@ public sealed class VendaEnvioJob(IServiceScopeFactory scopes, ICrivonftClient c
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var segundos = int.TryParse(config["Worker:VendaEnvioSegundos"], out var s) && s > 0 ? s : 5;
+        var segundos = int.TryParse(config["Worker:VendaEnvioSegundos"], out var s) && s > 0 ? s : 30;
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(segundos));
         do
         {

@@ -8,7 +8,7 @@ public sealed class PrecificacaoEnvioJob(IServiceScopeFactory scopes, ICrivonftC
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var segundos = int.TryParse(config["Worker:PrecificacaoEnvioSegundos"], out var s) && s > 0 ? s : 5;
+        var segundos = int.TryParse(config["Worker:PrecificacaoEnvioSegundos"], out var s) && s > 0 ? s : 30;
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(segundos));
         do
         {
