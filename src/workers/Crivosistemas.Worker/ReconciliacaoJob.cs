@@ -8,7 +8,7 @@ public sealed class ReconciliacaoJob(IServiceScopeFactory scopes, ICrivonftClien
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var segundos = int.TryParse(config["Worker:ReconciliacaoSegundos"], out var s) && s > 0 ? s : 30;
+        var segundos = int.TryParse(config["Worker:ReconciliacaoSegundos"], out var s) && s > 0 ? s : 60;
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(segundos));
         do
         {
