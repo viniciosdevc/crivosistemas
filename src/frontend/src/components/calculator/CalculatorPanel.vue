@@ -47,7 +47,7 @@ const custoUsd = computed(() => (modo.value === 'dolar' ? custoUsdDolar.value : 
 <template>
   <div>
     <p v-if="showHelp" class="mb-3 rounded-xl bg-info-soft px-3 py-2 text-[13px] leading-relaxed text-info">
-      O custo usa sempre o dólar de compra fixo de Preços e regras ({{ formatMoney(dolarCompraParaCalculo(props.regras.configuracao)) }}), não a cotação ao vivo nem o custo médio do estoque.
+      O custo vem dos lotes do estoque de USD (mais antigo primeiro, FIFO); o dólar de Preços e regras ({{ formatMoney(dolarCompraParaCalculo(props.regras.configuracao)) }}) só cobre o que passar do saldo. O PIX é sempre o preço da faixa.
     </p>
     <p v-if="regras.versao === 0" class="mb-3 rounded-xl bg-warning-soft px-3 py-2 text-[13px] text-warning">
       As regras ainda não foram salvas: os valores abaixo são os padrões.

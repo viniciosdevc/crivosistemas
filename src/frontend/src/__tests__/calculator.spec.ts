@@ -33,18 +33,18 @@ describe('calculateFromUsd', () => {
     expect(r.pixMultiplicador).toBe(5.9)
     // faixa daria 30 × 5,9 = 177, abaixo do piso (13849,15 × 13 / 1000 = 180,04)
     expect(r.precoVendaPixFaixa).toBe(177)
-    expect(r.precoVendaPix).toBe(180.04)
-    expect(r.pixAjustadoPeloPiso).toBe(true)
+    expect(r.precoVendaPix).toBe(177)
+    expect(r.pixAjustadoPeloPiso).toBe(false)
     // 180 × 1000 / 13 = 13846,15 + 3 = 13849,15 × 1,2 = 16618,98 → 16619
     expect(r.precoVendaCambios).toBe(16619)
   })
 
-  it('o piso prevalece quando a faixa daria menos que o custo total', () => {
+  it('PIX é sempre a faixa, mesmo abaixo do custo total', () => {
     const baixa: FaixaPix[] = [{ valorMinUsd: 0, valorMaxUsd: null, multiplicador: 1, ordem: 0, ativo: true }]
     const r = calculateFromUsd(10, config, baixa)
     expect(r.precoVendaPixFaixa).toBe(10)
-    expect(r.precoVendaPix).toBe(60.04)
-    expect(r.pixAjustadoPeloPiso).toBe(true)
+    expect(r.precoVendaPix).toBe(10)
+    expect(r.pixAjustadoPeloPiso).toBe(false)
   })
 
   it('faixas inativas são ignoradas; sem nenhuma ativa valem as padrão', () => {

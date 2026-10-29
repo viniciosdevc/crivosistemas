@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { calculateFromUsd } from '@/lib/calculator'
+import { calculateFromUsd, dolarCompraParaCalculo, dolarFifo } from '@/lib/calculator'
+import { useLotesUsd } from '@/lib/useLotesUsd'
 import { formatDecimal, formatInt, formatMoney, formatPercent, parseDecimal } from '@/lib/format'
 import type { ConfigCalculo, FaixaPix } from '@/lib/types'
 import PaymentIcon from '@/components/ui/PaymentIcon.vue'
@@ -8,7 +9,8 @@ import EditableValue from './EditableValue.vue'
 
 const props = defineProps<{ custoUsd: number; config: ConfigCalculo; faixas: FaixaPix[] }>()
 
-const r = computed(() => calculateFromUsd(props.custoUsd, props.config, props.faixas))
+const lotes = useLotesUsd()
+const r = computed(() => calculateFromUsd(props.custoUsd, props.config, props.faixas, dolarFifo(lotes.value, props.custoUsd, dolarCompraParaCalculo(props.config))))
 
 // A simulação manual de preço volta ao sugerido quando o custo muda.
 const rawPix = ref('')
@@ -68,6 +70,5 @@ function tone(margem: number, ideal: number) {
       </span>
     </div>
     <div class="flex items-center justify-between gap-2"><span class="text-muted">Multiplicador PIX</span><span class="font-medium text-ink tabular">× {{ formatDecimal(r.pixMultiplicador) }}</span></div>
-    <p v-if="r.pixAjustadoPeloPiso && !rawPix" class="rounded-xl bg-warning-soft px-3 py-2 text-[13px] text-warning">PIX ajustado pelo piso: a faixa daria menos que o custo mínimo.</p>
   </div>
 </template>

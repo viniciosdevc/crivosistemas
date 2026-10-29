@@ -27,7 +27,7 @@ public static class CalculoVenda
         var precoVendaCambios = Math.Ceiling(custoTotalCambios * (1 + cfg.MargemVendaCambiosPercent / 100));
         var piso = custoTotalCambios * cfg.ValorKFeira / Math.Max(cfg.MoedasPorK, 0.0001);
         var faixa = CalculoPreco.EncontrarFaixa(custoUsd, faixas);
-        var pix = Math.Max(custoUsd * faixa.Multiplicador, piso);
+        var pix = custoUsd * faixa.Multiplicador;
 
         return new CustoCalculado(RoundMoney(custoUsd), RoundMoney(custoBrl), RoundCambios(custoCambios), RoundCambios(custoCambiosBase), RoundMoney(compra),
             precoVendaCambios, RoundMoney(pix), faixa.Multiplicador);
