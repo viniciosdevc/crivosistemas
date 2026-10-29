@@ -53,7 +53,7 @@ public sealed class RecalculoCustoService(AppDbContext db, EstoqueService estoqu
         var linhas = new List<LinhaRecalculo>();
         foreach (var v in vendas)
         {
-            var (plano, faltou) = RegrasEstoque.PlanoFifoAteData(sim, v.CustoUsd, FusoSp.Dia(v.DataHora));
+            var (plano, faltou) = RegrasEstoque.PlanoMedioAteData(sim, v.CustoUsd, FusoSp.Dia(v.DataHora));
             var custoLotes = plano.Sum(d => d.Quantidade * d.CustoUnitario);
             var custoFifo = custoLotes + faltou * medio;
             var custoAntes = v.CustoBrl;

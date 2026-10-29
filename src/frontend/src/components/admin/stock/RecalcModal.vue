@@ -8,7 +8,7 @@ import { formatDateTime, formatMoney, formatUsd } from '@/lib/format'
 import { toast } from '@/lib/toast'
 import type { ResultadoRecalculoEstoque } from '@/lib/types'
 
-/** Administrador: refaz custo e baixa de dólar das vendas desde uma data (FIFO pelos lotes do Gestão). Primeiro mostra a prévia, depois aplica. */
+/** Administrador: refaz custo e baixa de dólar das vendas desde uma data (custo médio dos lotes do Gestão). Primeiro mostra a prévia, depois aplica. */
 const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{ saved: [] }>()
 

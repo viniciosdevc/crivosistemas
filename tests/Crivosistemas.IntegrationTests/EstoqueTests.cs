@@ -73,13 +73,13 @@ public sealed class EstoqueTests(ApiFactory factory)
         Assert.Equal(1000m - 150m * 5.375m, D(venda, "lucroBrl")); // custo = 150 × 5,375 = 806,25 (sem taxa de prata)
         Assert.Equal(400m, D(await Resumo(op, "usd"), "saldo"));
 
-        // Entregar debita por FIFO: 100 do lote de 01/10 e 50 do de 05/10.
+        // Entregar debita pelo custo médio (proporcional ao saldo de cada lote): o médio não se move.
         (await op.Post($"/api/vendas/{vid}/entregar", new { })).EnsureSuccessStatusCode();
         Assert.Equal(250m, D(await Resumo(op, "usd"), "saldo"));
         var lotes = (await (await op.GetAsync("/api/estoque/usd/lotes?comSaldo=true")).Json()).GetProperty("items");
-        Assert.Equal(1, lotes.GetArrayLength());
-        Assert.Equal(250m, D(lotes[0], "saldo"));
-        Assert.Equal(5.5m, D(await Resumo(op, "usd"), "custoMedio"));
+        Assert.Equal(2, lotes.GetArrayLength());
+        Assert.Equal(250m, D(lotes[0], "saldo") + D(lotes[1], "saldo"));
+        Assert.Equal(5.375m, D(await Resumo(op, "usd"), "custoMedio"));
         Assert.Equal(HttpStatusCode.UnprocessableEntity, (await op.Post($"/api/vendas/{vid}/entregar", new { })).StatusCode);
 
         // Lote consumido não pode ser editado nem cancelado

@@ -173,17 +173,18 @@ public sealed class EstoqueService(AppDbContext db, ICrivonftClient crivonft, Fi
         return delta;
     }
 
-    /// <summary>Saída por FIFO para uma venda. Falta saldo → 422 e nada muda.</summary>
+    /// <summary>Saída para uma venda. O dólar sai pelo CUSTO MÉDIO (proporcional ao saldo de cada lote, o médio não se move); esmeraldas seguem FIFO. Falta saldo → 422 e nada muda.</summary>
     public async Task<List<Debito>> DebitarVendaAsync(TipoEstoque tipo, decimal quantidade, Guid vendaId, Guid? userId, CancellationToken ct)
     {
         var lotes = await LotesComSaldoAsync(tipo, ct);
-        var plano = RegrasEstoque.PlanoFifo(lotes.Select(l => new SaldoLote(l.Id, l.Saldo, l.CustoUnitario)).ToList(), quantidade, Unidade(tipo));
+        var saldos = lotes.Select(l => new SaldoLote(l.Id, l.Saldo, l.CustoUnitario)).ToList();
+        var plano = tipo == TipoEstoque.Usd ? RegrasEstoque.PlanoProporcional(saldos, quantidade, Unidade(tipo)) : RegrasEstoque.PlanoFifo(saldos, quantidade, Unidade(tipo));
         Aplicar(tipo, lotes, plano, MotivoMovimento.Venda, userId, vendaId, null);
         await db.SaveChangesAsync(ct);
         return plano;
     }
 
-    /// <summary>Baixa de uma venda do site/nft: tira o que houver de saldo (FIFO) até a quantidade pedida, sem recusar a venda por falta de estoque.
+    /// <summary>Baixa de uma venda do site/nft: tira o que houver de saldo (custo médio) até a quantidade pedida, sem recusar a venda por falta de estoque.
     /// Devolve o que faltou e o custo em R$ dos lotes que saíram. Chamar com o estoque travado.</summary>
     public async Task<(decimal Faltou, decimal CustoBrl)> BaixarVendaSiteAsync(decimal quantidade, Guid vendaId, CancellationToken ct)
     {

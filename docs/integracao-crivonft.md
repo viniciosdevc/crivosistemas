@@ -52,7 +52,7 @@ Respostas: `200/201` processado; `200` com `{"duplicado":true}` se o id do event
 ```
 Chave de upsert no crivosistemas: `(origem, origem_id)`. Ignorar evento cujo `atualizado_em` seja mais antigo que o já gravado.
 Valores monetários: número decimal (não string), BRL com 2 casas, USD/câmbios até 4.
-`valores.taxa_prata_brl` (opcional, padrão 0): taxa de prata paga na entrega pelo jogo (uma por lote). O Gestão soma ao custo FIFO da venda; o dólar usado no custo não a inclui.
+`valores.taxa_prata_brl` (opcional, padrão 0): taxa de prata paga na entrega pelo jogo (uma por lote). O Gestão soma ao custo (médio) da venda; o dólar usado no custo não a inclui.
 
 ### `venda.removida` → `dados`: `{ "origem": "...", "origem_id": "..." }` (venda excluída na origem: marcar como removida, não apagar).
 
@@ -69,7 +69,7 @@ O estoque e o custo do dólar vivem **só no Gestão**. O crivonft não tem esto
 { "usd": { "saldo": 310.71, "custo_medio": 5.2124, "custo_medio_fixado": false, "valor_em_estoque": 1619.56,
            "lotes": [ { "id": "uuid", "data_compra": "2026-10-25", "saldo": 4.94, "custo_unitario": 5.0347 } ] } }
 ```
-`lotes` só traz lotes com saldo, do mais antigo para o mais novo (a ordem da baixa FIFO).
+`lotes` só traz lotes com saldo, do mais antigo para o mais novo (a baixa é pelo custo médio, proporcional).
 
 ## 2. Carga inicial e reconciliação (crivosistemas puxa)
 Usa as rotas já existentes do crivonft com `Authorization: Bearer <IMPORT_SECRET>`:
@@ -150,6 +150,6 @@ Rotas assinadas que o crivonft expõe em `/api/integracoes/gestao/`: `GET nfts`,
 Vendas lançadas em **Vendas → Nova venda** (origem `manual`) também aparecem no crivonft, como linha de `vendas_nft`.
 
 - **Rota:** `PUT {BaseUrl}/api/integracoes/gestao/vendas` (Bearer + HMAC). Idempotente pelo `external_id` = `dash:{id da venda}`; criar, editar, entregar e cancelar reenviam a venda inteira com o estado atual (`status`: `pendente|entregue|cancelado`). `atualizado_em` mais antigo que o gravado é ignorado.
-- **Sem contabilidade em dobro:** estoque (dólar FIFO, esmeraldas), saldo de câmbios e financeiro são acertados **aqui**. O crivonft só grava a linha: não debita estoque, não lança caixa, não mexe no cofre nem no Pulse.
+- **Sem contabilidade em dobro:** estoque (dólar a custo médio, esmeraldas), saldo de câmbios e financeiro são acertados **aqui**. O crivonft só grava a linha: não debita estoque, não lança caixa, não mexe no cofre nem no Pulse.
 - **Sem loop:** o crivonft não enfileira linhas `dash:*` na outbox, nem no `/reenviar`, nem em `/api/export/vendas`; e o mapper da importação daqui também ignora `external_id` com esse prefixo.
 - **Fila:** tabela `VendaEnvios` (uma linha por venda, gravada na mesma transação da venda). O Worker (`VendaEnvioJob`, a cada 5 s) envia com o mesmo backoff da precificação; 404 (crivonft ainda sem a rota) repete em vez de falhar. Admin: `GET /api/integracoes/crivonft/vendas-manuais` (contagem por estado e últimos erros) e `POST /api/integracoes/crivonft/vendas-manuais/reenviar` (recoloca todas as vendas manuais na fila; use uma vez para as que já existiam).

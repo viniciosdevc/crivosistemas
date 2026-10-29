@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { calculateFromUsd, dolarCompraParaCalculo, dolarFifo } from '@/lib/calculator'
+import { calculateFromUsd, dolarCompraParaCalculo, dolarMedio } from '@/lib/calculator'
 import { useLotesUsd } from '@/lib/useLotesUsd'
 import { formatDecimal, formatInt, formatMoney, formatPercent, parseDecimal } from '@/lib/format'
 import type { ConfigCalculo, FaixaPix } from '@/lib/types'
@@ -10,7 +10,7 @@ import EditableValue from './EditableValue.vue'
 const props = defineProps<{ custoUsd: number; config: ConfigCalculo; faixas: FaixaPix[] }>()
 
 const lotes = useLotesUsd()
-const r = computed(() => calculateFromUsd(props.custoUsd, props.config, props.faixas, dolarFifo(lotes.value, props.custoUsd, dolarCompraParaCalculo(props.config))))
+const r = computed(() => calculateFromUsd(props.custoUsd, props.config, props.faixas, dolarMedio(lotes.value, dolarCompraParaCalculo(props.config))))
 
 // A simulação manual de preço volta ao sugerido quando o custo muda.
 const rawPix = ref('')

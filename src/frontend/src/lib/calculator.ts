@@ -146,17 +146,14 @@ export function calculateSale(input: EntradaVenda) {
   }
 }
 
-/** Dólar de compra pelo estoque (FIFO): consome o lote mais antigo primeiro. `lotes` vem do mais antigo ao mais novo. O que passar do saldo usa o `reserva`. */
-export function dolarFifo(lotes: { saldo: number; custoUnitario: number }[], qtdUsd: number, reserva: number) {
-  if (qtdUsd <= 0) return reserva
-  let resta = qtdUsd
+/** Dólar de compra pelo estoque: o custo MÉDIO ponderado dos lotes com saldo (o mesmo da tela de Estoque). Sem estoque, usa a `reserva`. */
+export function dolarMedio(lotes: { saldo: number; custoUnitario: number }[], reserva: number) {
+  let saldo = 0
   let brl = 0
   for (const l of lotes) {
-    if (resta <= 0) break
-    const d = Math.min(l.saldo, resta)
-    brl += d * l.custoUnitario
-    resta -= d
+    if (!(l.saldo > 0)) continue
+    saldo += l.saldo
+    brl += l.saldo * l.custoUnitario
   }
-  brl += Math.max(resta, 0) * reserva
-  return brl / qtdUsd
+  return saldo > 0 ? brl / saldo : reserva
 }
