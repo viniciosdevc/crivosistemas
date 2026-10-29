@@ -48,6 +48,7 @@ internal sealed class VendaConfig : IEntityTypeConfiguration<Venda>
         b.Property(x => x.CustoUsd).HasPrecision(18, 8);
         b.Property(x => x.ValorCambios).HasPrecision(18, 4);
         b.Property(x => x.CustoCambios).HasPrecision(18, 4);
+        b.Property(x => x.TaxaPrataBrl).HasPrecision(18, 2);
         b.Property(x => x.OrigemCusto).HasConversion<string>().HasMaxLength(20);
         b.Property(x => x.QuantidadeEsmeraldas).HasPrecision(18, 4);
         b.Property(x => x.DolarCompraUsado).HasPrecision(18, 8);

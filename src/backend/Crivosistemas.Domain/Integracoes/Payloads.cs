@@ -9,7 +9,7 @@ public sealed record ClientePayload(string Chave, string Nickname, string? Email
 public sealed record ItemPayload(string Descricao, decimal Quantidade, decimal PrecoUsd, decimal PrecoBrl, string? Referencia);
 
 public sealed record ValoresPayload(decimal TotalBrl, decimal DescontoBrl, decimal TaxaBrl, decimal ValorPixBrl, decimal ValorCambios,
-    decimal CustoBrl, decimal CustoUsd, decimal CustoCambios, decimal LucroBrl, decimal MargemPercent)
+    decimal CustoBrl, decimal CustoUsd, decimal CustoCambios, decimal LucroBrl, decimal MargemPercent, decimal TaxaPrataBrl = 0)
 {
     public static readonly ValoresPayload Zerado = new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 }
@@ -122,7 +122,8 @@ public static class PayloadParser
         {
             decimal N(string n) => Numero(v, n, e, "valores." + n) ?? 0;
             valores = new ValoresPayload(Dinheiro(N("total_brl")), Dinheiro(N("desconto_brl")), Dinheiro(N("taxa_brl")), Dinheiro(N("valor_pix_brl")),
-                N("valor_cambios"), Dinheiro(N("custo_brl")), N("custo_usd"), N("custo_cambios"), Dinheiro(N("lucro_brl")), Dinheiro(N("margem_percent")));
+                N("valor_cambios"), Dinheiro(N("custo_brl")), N("custo_usd"), N("custo_cambios"), Dinheiro(N("lucro_brl")), Dinheiro(N("margem_percent")),
+                v.TryGetProperty("taxa_prata_brl", out var tp) && tp.ValueKind == JsonValueKind.Number ? Dinheiro(Math.Max(N("taxa_prata_brl"), 0)) : 0);
         }
 
         CupomPayload? cupom = null;

@@ -209,7 +209,7 @@ public sealed class IngestaoService(AppDbContext db, FinanceiroService financeir
         venda.ClienteId = cliente?.Id;
         var v = p.Valores;
         venda.TotalBrl = v.TotalBrl; venda.DescontoBrl = v.DescontoBrl; venda.TaxaBrl = v.TaxaBrl; venda.ValorPixBrl = v.ValorPixBrl;
-        venda.ValorCambios = v.ValorCambios; venda.CustoBrl = v.CustoBrl; venda.CustoUsd = v.CustoUsd; venda.CustoCambios = v.CustoCambios;
+        venda.ValorCambios = v.ValorCambios; venda.CustoBrl = v.CustoBrl; venda.CustoUsd = v.CustoUsd; venda.CustoCambios = v.CustoCambios; venda.TaxaPrataBrl = v.TaxaPrataBrl;
         venda.LucroBrl = v.LucroBrl; venda.MargemPercent = v.MargemPercent;
         venda.CupomCodigo = p.Cupom?.Codigo;
         venda.CupomTipo = p.Cupom?.Tipo;
@@ -272,16 +272,16 @@ public sealed class IngestaoService(AppDbContext db, FinanceiroService financeir
         if (!venda.Faturavel)
         {
             // Ainda não baixou: custo estimado pela média; o custo real (dos lotes) sai quando a venda for paga.
-            (venda.CustoBrl, venda.LucroBrl, venda.MargemPercent) = CustoVendaSite.Calcular(venda.TotalBrl, venda.CustoUsd, medio);
+            (venda.CustoBrl, venda.LucroBrl, venda.MargemPercent) = CustoVendaSite.ComCusto(venda.TotalBrl, venda.CustoUsd * medio + venda.TaxaPrataBrl);
             venda.DolarCompraUsado = medio;
             return;
         }
 
         // Custo real = o dos lotes que saem (FIFO), o mesmo critério da baixa; o que faltar no estoque entra pela média.
         var (faltou, custoLotes) = await estoque.BaixarVendaSiteAsync(venda.CustoUsd, venda.Id, ct);
-        var custoTotal = custoLotes + faltou * medio;
+        var custoTotal = custoLotes + faltou * medio + venda.TaxaPrataBrl; // prata da entrega via jogo é custo real, não vem dos lotes
         (venda.CustoBrl, venda.LucroBrl, venda.MargemPercent) = CustoVendaSite.ComCusto(venda.TotalBrl, custoTotal);
-        venda.DolarCompraUsado = Math.Round(custoTotal / venda.CustoUsd, 4, MidpointRounding.AwayFromZero);
+        venda.DolarCompraUsado = Math.Round((custoTotal - venda.TaxaPrataBrl) / venda.CustoUsd, 4, MidpointRounding.AwayFromZero);
         if (faltou > 0)
         {
             venda.Observacao = $"{CustoVendaSite.AvisoFalta}faltaram US$ {faltou:0.##} para baixar esta venda.";

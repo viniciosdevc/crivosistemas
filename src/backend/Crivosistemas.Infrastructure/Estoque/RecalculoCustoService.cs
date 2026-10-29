@@ -68,7 +68,7 @@ public sealed class RecalculoCustoService(AppDbContext db, EstoqueService estoqu
             }
             else
             {
-                (custoDepois, lucroDepois, _) = CustoVendaSite.ComCusto(v.TotalBrl, custoFifo);
+                (custoDepois, lucroDepois, _) = CustoVendaSite.ComCusto(v.TotalBrl, custoFifo + v.TaxaPrataBrl);
             }
 
             if (aplicar)
@@ -76,7 +76,7 @@ public sealed class RecalculoCustoService(AppDbContext db, EstoqueService estoqu
                 await estoque.AplicarPlanoVendaAsync(plano, v.Id, userId, ct);
                 var margem = v.Origem == OrigemVenda.Manual
                     ? (custoDepois > 0 ? Math.Round(lucroDepois / custoDepois * 100, 2, MidpointRounding.AwayFromZero) : 0)
-                    : CustoVendaSite.ComCusto(v.TotalBrl, custoFifo).MargemPercent;
+                    : CustoVendaSite.ComCusto(v.TotalBrl, custoFifo + v.TaxaPrataBrl).MargemPercent;
                 v.CustoBrl = custoDepois;
                 v.LucroBrl = lucroDepois;
                 v.MargemPercent = margem;

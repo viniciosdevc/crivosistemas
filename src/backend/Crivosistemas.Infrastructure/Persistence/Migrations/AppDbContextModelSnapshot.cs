@@ -1199,6 +1199,10 @@ namespace Crivosistemas.Infrastructure.Persistence.Migrations
                         .HasPrecision(14, 2)
                         .HasColumnType("decimal(14,2)");
 
+                    b.Property<decimal>("TaxaPrataBrl")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<decimal>("TotalBrl")
                         .HasPrecision(14, 2)
                         .HasColumnType("decimal(14,2)");
