@@ -103,8 +103,8 @@ public static class CalculoPreco
 
         var faixa = EncontrarFaixa(precoUsd, faixas);
         var pelaFaixa = precoUsd * faixa.Multiplicador;
-        var final = Math.Max(pelaFaixa, piso);
-        return new CalculoPixResultado(Arredondar(precoUsd), faixa.Multiplicador, Arredondar(pelaFaixa), Arredondar(piso), Arredondar(final), final > pelaFaixa);
+        var final = pelaFaixa; // PIX é sempre o preço da faixa; custo nunca altera o preço
+        return new CalculoPixResultado(Arredondar(precoUsd), faixa.Multiplicador, Arredondar(pelaFaixa), Arredondar(piso), Arredondar(final), false);
     }
 }
 

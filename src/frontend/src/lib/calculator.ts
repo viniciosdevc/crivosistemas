@@ -42,7 +42,7 @@ export function findPixRange(custoUsd: number, ranges: FaixaPix[]): FaixaPix {
 /**
  * Fonte única de precificação. Custo USD → dólar de VENDA → custo base em câmbios →
  * + taxa de prata (custo obrigatório) → margem → preço em câmbios / PIX.
- * O PIX nunca fica abaixo do custo total com a taxa de prata (piso).
+ * O PIX é SEMPRE o preço da faixa: custo nunca altera o preço de venda.
  */
 export function calculateFromUsd(custoUsd: number, settings: ConfigCalculo, ranges: FaixaPix[], dolarCompra = dolarCompraParaCalculo(settings)) {
   const custoBrl = custoUsd * dolarCompra
@@ -59,7 +59,7 @@ export function calculateFromUsd(custoUsd: number, settings: ConfigCalculo, rang
 
   const pixRange = findPixRange(custoUsd, ranges)
   const precoVendaPixFaixa = custoUsd * pixRange.multiplicador
-  const precoVendaPix = Math.max(precoVendaPixFaixa, custoTotalComPrataBrl)
+  const precoVendaPix = precoVendaPixFaixa
 
   return {
     custoUsd: roundMoney(custoUsd),
@@ -75,7 +75,7 @@ export function calculateFromUsd(custoUsd: number, settings: ConfigCalculo, rang
     precoVendaCambios,
     precoVendaPix: roundMoney(precoVendaPix),
     precoVendaPixFaixa: roundMoney(precoVendaPixFaixa),
-    pixAjustadoPeloPiso: precoVendaPix > precoVendaPixFaixa,
+    pixAjustadoPeloPiso: false,
     pixMultiplicador: pixRange.multiplicador,
   }
 }
@@ -144,4 +144,19 @@ export function calculateSale(input: EntradaVenda) {
     lucroCambios: roundCambios(lucroCambios),
     margemPercent: roundMoney(margemPercent),
   }
+}
+
+/** Dólar de compra pelo estoque (FIFO): consome o lote mais antigo primeiro. `lotes` vem do mais antigo ao mais novo. O que passar do saldo usa o `reserva`. */
+export function dolarFifo(lotes: { saldo: number; custoUnitario: number }[], qtdUsd: number, reserva: number) {
+  if (qtdUsd <= 0) return reserva
+  let resta = qtdUsd
+  let brl = 0
+  for (const l of lotes) {
+    if (resta <= 0) break
+    const d = Math.min(l.saldo, resta)
+    brl += d * l.custoUnitario
+    resta -= d
+  }
+  brl += Math.max(resta, 0) * reserva
+  return brl / qtdUsd
 }

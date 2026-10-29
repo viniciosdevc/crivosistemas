@@ -72,11 +72,11 @@ public sealed class CalculoVendaTests
     }
 
     [Fact]
-    public void Custo_de_30_dolares_usa_o_piso()
+    public void Custo_de_30_dolares_usa_a_faixa()
     {
         var r = CalculoVenda.DeUsd(30, Cfg, Faixas);
         Assert.Equal(171, r.CustoBrl);
-        Assert.Equal(180.04, r.PrecoVendaPix);
+        Assert.Equal(177, r.PrecoVendaPix);
         Assert.Equal(16619, r.PrecoVendaCambios);
     }
 

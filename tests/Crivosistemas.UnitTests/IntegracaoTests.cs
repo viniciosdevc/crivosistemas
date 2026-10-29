@@ -271,11 +271,11 @@ public sealed class CalculoPrecoTests
     private static CalculoPixResultado Calc(double usd) => CalculoPreco.PrecoPix(usd, ConfigCalculo.Padrao, CalculoPreco.FaixasPadrao);
 
     [Theory]
-    [InlineData(5, 31.00, 30.04, false)]   // faixa 0-10 x6,2 = 31; piso 30,04
+    [InlineData(5, 31.00, 30.04, false)]   // faixa 0-10 x6,2 = 31
     [InlineData(10, 62.00, 60.04, false)]
-    [InlineData(12, 72.04, 72.04, true)]   // faixa x6 = 72, piso 72,039 -> 72,04: o piso vence por 4 centavos
-    [InlineData(20, 120.04, 120.04, true)]
-    [InlineData(30, 180.04, 180.04, true)] // faixa x5,9 = 177 abaixo do piso 180,04
+    [InlineData(12, 72.00, 72.04, false)]  // faixa x6 = 72: o custo nunca altera o PIX
+    [InlineData(20, 120.00, 120.04, false)]
+    [InlineData(30, 177.00, 180.04, false)] // faixa x5,9 = 177, mesmo abaixo do "piso" antigo
     public void Preco_pix_replica_o_crivonft(double usd, double final, double piso, bool ajustado)
     {
         var r = Calc(usd);
@@ -304,12 +304,12 @@ public sealed class CalculoPrecoTests
     }
 
     [Fact]
-    public void Configuracao_propria_muda_o_piso_e_o_preco()
+    public void Dolar_de_venda_nao_muda_o_pix_que_e_sempre_a_faixa()
     {
         var cfg = ConfigCalculo.Padrao with { DolarPadraoVenda = 7 }; // piso = 7*usd + 0,039
         var r = CalculoPreco.PrecoPix(10, cfg, CalculoPreco.FaixasPadrao);
-        Assert.Equal(70.04, r.PrecoPixBrl);
-        Assert.True(r.AjustadoPeloPiso);
+        Assert.Equal(62, r.PrecoPixBrl);
+        Assert.False(r.AjustadoPeloPiso);
     }
 
     [Theory]

@@ -208,7 +208,7 @@ const envio = computed(() => data.value?.ultimoEnvio)
           <section class="rounded-2xl border border-line p-5" aria-labelledby="tiers-title">
             <h2 id="tiers-title" class="text-lg font-semibold text-ink">Faixas PIX</h2>
             <p class="mt-1 mb-4 text-sm text-muted">
-              O multiplicador é aplicado ao preço em dólar conforme a faixa em que ele cai. A ordem é a da lista; o preço nunca fica abaixo do piso.
+              O multiplicador é aplicado ao preço em dólar conforme a faixa em que ele cai. A ordem é a da lista;
             </p>
             <TiersEditor v-model="rows" />
           </section>
@@ -228,11 +228,9 @@ const envio = computed(() => data.value?.ultimoEnvio)
               <div>
                 <dt class="text-sm text-muted">Preço PIX final</dt>
                 <dd class="text-2xl font-semibold text-ink tabular" data-testid="calc-final">{{ formatMoney(calc.precoPixBrl) }}</dd>
-                <dd v-if="calc.ajustadoPeloPiso" class="mt-1 text-[13px] text-warning">Ajustado pelo piso: a faixa daria menos que o custo mínimo.</dd>
               </div>
               <div class="flex justify-between gap-3 text-[15px]"><dt class="text-muted">Multiplicador da faixa</dt><dd class="tabular text-ink">{{ calc.multiplicadorFaixa }}×</dd></div>
               <div class="flex justify-between gap-3 text-[15px]"><dt class="text-muted">Preço pela faixa</dt><dd class="tabular text-ink">{{ formatMoney(calc.precoPelaFaixaBrl) }}</dd></div>
-              <div class="flex justify-between gap-3 text-[15px]"><dt class="text-muted">Piso</dt><dd class="tabular text-ink">{{ formatMoney(calc.pisoBrl) }}</dd></div>
             </dl>
           </section>
 
