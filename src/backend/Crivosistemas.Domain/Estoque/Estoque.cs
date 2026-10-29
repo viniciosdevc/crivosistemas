@@ -110,6 +110,25 @@ public static class RegrasEstoque
         return (plano, resta);
     }
 
+    /// <summary>Baixa pelo CUSTO MÉDIO como se fosse feita no <paramref name="dia"/>: tira proporcionalmente do saldo dos lotes comprados até esse dia (o custo médio não se move);
+    /// se esses não bastarem, esvazia-os e completa, também proporcionalmente, com os comprados depois. Tira do saldo dos lotes simulados e devolve o plano e o que faltou.</summary>
+    public static (List<Debito> Plano, decimal Faltou) PlanoMedioAteData(IReadOnlyList<LoteSimulado> lotes, decimal quantidade, DateOnly dia)
+    {
+        var plano = new List<Debito>();
+        var resta = quantidade;
+        foreach (var grupo in new[] { lotes.Where(l => l.Saldo > 0 && l.DataCompra <= dia).ToList(), lotes.Where(l => l.Saldo > 0 && l.DataCompra > dia).ToList() })
+        {
+            if (resta <= 0 || grupo.Count == 0) continue;
+            var disponivel = grupo.Sum(l => l.Saldo);
+            var tira = Math.Min(disponivel, resta);
+            var parcial = PlanoProporcional(grupo.Select(l => new SaldoLote(l.Id, l.Saldo, l.CustoUnitario)).ToList(), tira, "US$");
+            foreach (var p in parcial) grupo.First(l => l.Id == p.LoteId).Saldo -= p.Quantidade;
+            plano.AddRange(parcial);
+            resta -= tira;
+        }
+        return (plano, resta);
+    }
+
     /// <summary>Saída por FIFO (lotes na ordem recebida, do mais antigo). Falta saldo → 422.</summary>
     public static List<Debito> PlanoFifo(IReadOnlyList<SaldoLote> lotesMaisAntigosPrimeiro, decimal quantidade, string unidade)
     {

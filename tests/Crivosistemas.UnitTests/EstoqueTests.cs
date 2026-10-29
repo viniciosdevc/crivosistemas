@@ -173,3 +173,31 @@ public sealed class PlanoFifoAteDataTests
         Assert.Equal(6m, faltou);
     }
 }
+
+public sealed class PlanoMedioAteDataTests
+{
+    [Fact]
+    public void Baixa_tira_proporcional_dos_lotes_ate_o_dia_e_o_custo_e_o_medio()
+    {
+        var a = new LoteSimulado(Guid.NewGuid(), new DateOnly(2026, 10, 1), 10m, 5.20m);
+        var b = new LoteSimulado(Guid.NewGuid(), new DateOnly(2026, 10, 2), 10m, 5.60m);
+        var (plano, faltou) = RegrasEstoque.PlanoMedioAteData([a, b], 10m, new DateOnly(2026, 10, 5));
+        Assert.Equal(0m, faltou);
+        Assert.Equal(10m, plano.Sum(d => d.Quantidade));
+        Assert.Equal(54m, plano.Sum(d => d.Quantidade * d.CustoUnitario)); // média (5,20+5,60)/2 = 5,40
+        Assert.Equal(5m, a.Saldo);
+        Assert.Equal(5m, b.Saldo);
+    }
+
+    [Fact]
+    public void Lote_comprado_depois_so_entra_quando_os_do_dia_nao_bastam()
+    {
+        var a = new LoteSimulado(Guid.NewGuid(), new DateOnly(2026, 10, 1), 4m, 5m);
+        var b = new LoteSimulado(Guid.NewGuid(), new DateOnly(2026, 10, 9), 10m, 6m);
+        var (plano, faltou) = RegrasEstoque.PlanoMedioAteData([a, b], 6m, new DateOnly(2026, 10, 2));
+        Assert.Equal(0m, faltou);
+        Assert.Equal(0m, a.Saldo);
+        Assert.Equal(8m, b.Saldo);
+        Assert.Equal(4 * 5m + 2 * 6m, plano.Sum(d => d.Quantidade * d.CustoUnitario));
+    }
+}

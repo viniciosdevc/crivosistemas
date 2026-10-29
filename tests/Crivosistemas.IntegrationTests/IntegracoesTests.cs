@@ -285,7 +285,7 @@ public sealed class IntegracoesTests(ApiFactory factory)
     }
 
     [Fact]
-    public async Task Recalculo_refaz_custo_e_baixa_das_vendas_por_FIFO_sem_baixar_em_dobro()
+    public async Task Recalculo_refaz_custo_e_baixa_das_vendas_pelo_custo_medio_sem_baixar_em_dobro()
     {
         var admin = await factory.SeedAndLoginAdminAsync();
         var saldo = (await (await admin.GetAsync("/api/estoque/resumo")).Json()).GetProperty("usd").GetProperty("saldo").GetDecimal();
@@ -294,7 +294,7 @@ public sealed class IntegracoesTests(ApiFactory factory)
         (await admin.Post("/api/estoque/usd/compras", new { data = "2026-12-14", quantidade = 100, custoTotal = 500 })).EnsureSuccessStatusCode();
         (await admin.Post("/api/estoque/usd/compras", new { data = "2026-12-15", quantidade = 100, custoTotal = 600 })).EnsureSuccessStatusCode();
 
-        // Venda nft de US$ 150 paga por R$ 1.000: FIFO = 100 × 5 + 50 × 6 = R$ 800 → lucro R$ 200.
+        // Venda nft de US$ 150 paga por R$ 1.000: custo médio (5 + 6) / 2 = 5,50 × 150 = R$ 825 → lucro R$ 175.
         var oid = Id();
         var corpo = CrivoHelpers.Evento("venda.upsert", CrivoHelpers.Venda(oid, new DateTime(2026, 12, 15, 15, 0, 0, DateTimeKind.Utc), 1000m, lucro: 0, custoUsd: 150m));
         Assert.Equal(HttpStatusCode.OK, (await factory.Maquina().Enviar(corpo)).Status);
@@ -313,8 +313,8 @@ public sealed class IntegracoesTests(ApiFactory factory)
         Assert.Equal(1, previa.GetProperty("vendas").GetInt32());
         var linha = previa.GetProperty("linhas")[0];
         Assert.Equal(700m, linha.GetProperty("custoAntes").GetDecimal());
-        Assert.Equal(800m, linha.GetProperty("custoDepois").GetDecimal());
-        Assert.Equal(200m, linha.GetProperty("lucroDepois").GetDecimal());
+        Assert.Equal(825m, linha.GetProperty("custoDepois").GetDecimal());
+        Assert.Equal(175m, linha.GetProperty("lucroDepois").GetDecimal());
         // A prévia não grava nada: o custo continua 700.
         await using (var scope = factory.Services.CreateAsyncScope())
         {
@@ -333,12 +333,12 @@ public sealed class IntegracoesTests(ApiFactory factory)
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var v = await db.Vendas.AsNoTracking().FirstAsync(x => x.OrigemId == oid);
-            Assert.Equal(800m, v.CustoBrl);
-            Assert.Equal(200m, v.LucroBrl);
+            Assert.Equal(825m, v.CustoBrl);
+            Assert.Equal(175m, v.LucroBrl);
         }
         var usd = (await (await admin.GetAsync("/api/estoque/resumo")).Json()).GetProperty("usd");
         Assert.Equal(50m, usd.GetProperty("saldo").GetDecimal());
-        Assert.Equal(6m, usd.GetProperty("custoMedio").GetDecimal());
+        Assert.Equal(5.5m, usd.GetProperty("custoMedio").GetDecimal()); // a baixa proporcional não move o médio
 
         // Só administrador recalcula.
         var op = await factory.CreateAndLoginAsync(admin, "operator");

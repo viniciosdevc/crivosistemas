@@ -5,7 +5,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import PaymentIcon from '@/components/ui/PaymentIcon.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import { api } from '@/lib/api'
-import { calculateFromUsd, dolarCompraParaCalculo, dolarFifo } from '@/lib/calculator'
+import { calculateFromUsd, dolarCompraParaCalculo, dolarMedio } from '@/lib/calculator'
 import { useLotesUsd } from '@/lib/useLotesUsd'
 import { formatInt, formatMoney, formatPercent } from '@/lib/format'
 import type { NftCatalogo, NftItem, RegrasPrecificacao } from '@/lib/types'
@@ -61,7 +61,7 @@ const calc = computed(() => {
   const cfg = props.regras.configuracao
   const item = escolhido.value
   if (!item) return null
-  const r = calculateFromUsd(item.custoUsd, cfg, props.regras.faixasPix, dolarFifo(lotes.value, item.custoUsd, dolarCompraParaCalculo(cfg)))
+  const r = calculateFromUsd(item.custoUsd, cfg, props.regras.faixasPix, dolarMedio(lotes.value, dolarCompraParaCalculo(cfg)))
   const k = Math.max(cfg.moedasPorK, 0.0001)
   const cambiosBrl = (r.precoVendaCambios * cfg.valorKFeira) / k
   const pct = (lucro: number) => (r.custoBrl > 0 ? (lucro / r.custoBrl) * 100 : 0)
