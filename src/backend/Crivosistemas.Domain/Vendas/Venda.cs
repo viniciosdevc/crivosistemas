@@ -125,6 +125,8 @@ public class Venda : Entity
     public decimal CustoBrl { get; set; }
     public decimal CustoUsd { get; set; }
     public decimal CustoCambios { get; set; }
+    /// <summary>Prata da entrega via jogo em R$, já dentro do custo que veio da origem; o custo real apurado pelos lotes soma isto.</summary>
+    public decimal TaxaPrataBrl { get; set; }
     public decimal LucroBrl { get; set; }
     public decimal MargemPercent { get; set; }
 

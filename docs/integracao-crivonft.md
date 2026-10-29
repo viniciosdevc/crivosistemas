@@ -43,7 +43,8 @@ Respostas: `200/201` processado; `200` com `{"duplicado":true}` se o id do event
     "total_brl": 0, "desconto_brl": 0, "taxa_brl": 0,
     "valor_pix_brl": 0, "valor_cambios": 0,
     "custo_brl": 0, "custo_usd": 0, "custo_cambios": 0,
-    "lucro_brl": 0, "margem_percent": 0
+    "lucro_brl": 0, "margem_percent": 0,
+    "taxa_prata_brl": 0
   },
   "cupom": { "codigo": "...", "tipo": "percentual|valor_fixo|taxa_gratis" } ,
   "atualizado_em": "ISO-8601 UTC"
@@ -51,6 +52,7 @@ Respostas: `200/201` processado; `200` com `{"duplicado":true}` se o id do event
 ```
 Chave de upsert no crivosistemas: `(origem, origem_id)`. Ignorar evento cujo `atualizado_em` seja mais antigo que o já gravado.
 Valores monetários: número decimal (não string), BRL com 2 casas, USD/câmbios até 4.
+`valores.taxa_prata_brl` (opcional, padrão 0): taxa de prata paga na entrega pelo jogo (uma por lote). O Gestão soma ao custo FIFO da venda; o dólar usado no custo não a inclui.
 
 ### `venda.removida` → `dados`: `{ "origem": "...", "origem_id": "..." }` (venda excluída na origem: marcar como removida, não apagar).
 
