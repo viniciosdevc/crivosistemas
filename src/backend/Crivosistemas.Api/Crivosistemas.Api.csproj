@@ -6,6 +6,8 @@
 
   <ItemGroup>
     <PackageReference Include="AspNetCore.HealthChecks.MySql" Version="9.0.0" />
+    <!-- Versão acima da transitiva (2.3.1) por causa de GHSA-473q-m89c-ghf8; corrigido a partir da 2.6.1. -->
+    <PackageReference Include="MySqlConnector" Version="2.6.2" />
     <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="9.0.0" />
     <PackageReference Include="Fido2.AspNet" Version="4.3.1" />
     <PackageReference Include="Microsoft.AspNetCore.DataProtection.StackExchangeRedis" Version="10.0.13" />
