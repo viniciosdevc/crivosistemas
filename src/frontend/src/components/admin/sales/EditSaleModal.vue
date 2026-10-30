@@ -14,7 +14,7 @@ function onSaved(venda: VendaLista) {
 </script>
 
 <template>
-  <UiModal v-model:open="open" title="Editar venda" description="Os valores abaixo substituem os da venda; o servidor recalcula custo, lucro e margem." size="xl" compact>
+  <UiModal v-model:open="open" title="Editar venda" description="Os valores abaixo substituem os da venda; o servidor recalcula custo, lucro e margem." size="md" compact>
     <NewSaleForm v-if="open" :venda="venda" @saved="onSaved" @cancel="open = false" />
   </UiModal>
 </template>

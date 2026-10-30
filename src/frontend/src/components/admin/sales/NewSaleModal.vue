@@ -13,7 +13,7 @@ function onCreated(venda: VendaLista) {
 </script>
 
 <template>
-  <UiModal v-model:open="open" title="Nova venda" description="Lance uma venda feita fora do site. O custo, o lucro e a margem são recalculados pelo servidor." size="xl" compact>
+  <UiModal v-model:open="open" title="Nova venda" description="Lance uma venda feita fora do site. O custo, o lucro e a margem são recalculados pelo servidor." size="md" compact>
     <NewSaleForm v-if="open" @created="onCreated" @cancel="open = false" />
   </UiModal>
 </template>

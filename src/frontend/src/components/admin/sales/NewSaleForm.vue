@@ -4,7 +4,7 @@ import PaymentIcon from '@/components/ui/PaymentIcon.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCheckbox from '@/components/ui/UiCheckbox.vue'
-import UiChips from '@/components/ui/UiChips.vue'
+import UiSegmented from '@/components/ui/UiSegmented.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
@@ -188,22 +188,23 @@ async function submit() {
       Ao salvar, estoque, câmbios e financeiro são recalculados com estes valores.
     </p>
 
-    <section class="grid gap-3 sm:grid-cols-6" aria-label="Dados da venda">
-      <div class="sm:col-span-3">
-        <UiInput v-model="nomeItem" label="Nome do item" placeholder="Nome do item vendido" autocomplete="off" :error="fieldErrors.nomeItem" />
-      </div>
-      <div class="flex items-end gap-2 sm:col-span-3">
+    <section class="grid gap-3 sm:grid-cols-2" aria-label="Dados da venda">
+      <h3 class="text-sm font-semibold text-ink sm:col-span-2">Dados da venda</h3>
+      <UiInput v-model="nomeItem" label="Nome do item" placeholder="Nome do item vendido" autocomplete="off" :error="fieldErrors.nomeItem" />
+      <div class="flex items-end gap-2">
         <div class="min-w-0 flex-1">
           <UiInput v-model="nickname" label="Nickname do comprador" placeholder="Ex: ana" autocomplete="off" optional :error="fieldErrors.nicknameComprador" />
         </div>
         <UiAvatar v-if="avatarNick" :name="avatarNick" :src="habboAvatarUrl(avatarNick)" class="mb-0.5" data-testid="nick-avatar" />
       </div>
+
+      <h3 class="mt-1 text-sm font-semibold text-ink sm:col-span-2">Pagamento e valores</h3>
       <div class="sm:col-span-2">
-        <UiChips v-model="entrada.forma" :options="formaOptions" label="Como pagou?" compact />
+        <UiSegmented v-model="entrada.forma" :options="formaOptions" label="Como pagou?" variant="full" />
         <p v-if="fieldErrors.formaPagamento" class="mt-1 text-[13px] text-danger" role="alert">{{ fieldErrors.formaPagamento }}</p>
       </div>
-      <div class="sm:col-span-2"><UiSelect v-model="entrada.origem" label="De onde saiu o item?" :options="origemOptions" :error="fieldErrors.origemCusto" /></div>
-      <div class="sm:col-span-2">
+      <UiSelect v-model="entrada.origem" label="De onde saiu o item?" :options="origemOptions" :error="fieldErrors.origemCusto" />
+      <div>
         <div v-if="usaEsmeralda" class="flex flex-col gap-1">
           <UiInput
             v-model="entrada.quantidadeEsmeraldas"
@@ -226,17 +227,17 @@ async function submit() {
         </div>
       </div>
 
-      <div v-if="showPix" :class="showCambios ? 'sm:col-span-2' : 'sm:col-span-3'">
+      <div v-if="showPix" :class="showCambios ? '' : 'sm:col-span-2'">
         <UiInput v-model="entrada.valorPix" label="Valor recebido em PIX" prefix="R$" inputmode="decimal" placeholder="0,00" :error="fieldErrors.valorVendaPix">
           <template #prefix><PaymentIcon kind="pix" /></template>
         </UiInput>
       </div>
-      <div v-if="showCambios" :class="showPix ? 'sm:col-span-2' : 'sm:col-span-3'">
+      <div v-if="showCambios" :class="showPix ? '' : 'sm:col-span-2'">
         <UiInput v-model="entrada.valorCambios" label="Valor recebido em Câmbios" suffix="C" inputmode="numeric" placeholder="0" :error="fieldErrors.valorVendaCambios">
           <template #prefix><PaymentIcon kind="cambios" /></template>
         </UiInput>
       </div>
-      <div :class="['flex items-center self-end rounded-xl bg-surface-2 px-3 py-2', showPix && showCambios ? 'sm:col-span-2' : 'sm:col-span-3']">
+      <div class="flex items-center rounded-xl bg-surface-2 px-3 py-2 sm:col-span-2">
         <UiCheckbox v-model="entrada.usaTaxaPrata" label="Taxa da feira (pratas)" />
         <span v-if="taxaBrl !== null" class="ml-auto pl-2 text-right text-xs leading-tight whitespace-nowrap text-muted tabular" data-testid="taxa-feira">
           {{ formatInt(taxaCambios ?? 0) }} C<br />{{ formatMoney(taxaBrl) }}
@@ -281,10 +282,10 @@ async function submit() {
 
     <p v-if="formError" class="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger" role="alert">{{ formError }}</p>
 
-    <div class="grid items-end gap-3 sm:grid-cols-[auto_1fr_auto]">
+    <UiTextarea v-model="observacao" label="Observação" optional placeholder="Alguma anotação sobre esta venda" :error="fieldErrors.observacao" />
+    <div class="flex flex-wrap items-center justify-between gap-3">
       <UiCheckbox v-model="entregue" label="Já entregue" />
-      <UiTextarea v-model="observacao" label="Observação" optional placeholder="Alguma anotação sobre esta venda" :error="fieldErrors.observacao" />
-      <div class="flex items-center justify-end gap-2">
+      <div class="flex items-center gap-2">
         <UiButton variant="subtle" @click="emit('cancel')">Voltar</UiButton>
         <UiButton type="submit" :loading="submitting" :disabled="!valid">{{ editando ? 'Salvar alterações' : 'Confirmar venda' }}</UiButton>
       </div>
