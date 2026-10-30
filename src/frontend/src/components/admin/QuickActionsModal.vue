@@ -61,7 +61,7 @@ function onCreated(venda: VendaLista) {
 </script>
 
 <template>
-  <UiModal v-model:open="open" :title="head.title" :description="head.description" :size="tab === 'venda' ? 'xl' : 'lg'" compact>
+  <UiModal v-model:open="open" :title="head.title" :description="head.description" :size="tab === 'venda' ? 'xl' : tab === 'busca' ? 'md' : 'sm'" compact>
     <template #actions>
       <PopoverRoot v-if="data && tab === 'nft'">
         <PopoverTrigger class="rounded-full p-2 text-muted hover:bg-surface-3 hover:text-ink" aria-label="Sobre o custo usado no cálculo">
