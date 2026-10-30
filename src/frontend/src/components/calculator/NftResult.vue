@@ -36,7 +36,7 @@ function tone(margem: number, ideal: number) {
 </script>
 
 <template>
-  <div class="grid gap-2 rounded-xl border border-line px-4 py-3 text-sm" aria-live="polite">
+  <div class="grid gap-3 rounded-2xl border border-line bg-surface-2 px-5 py-4 text-[15px]" aria-live="polite">
     <div class="flex items-center justify-between gap-2"><span class="text-muted">Custo BRL</span><span class="font-medium text-ink tabular">{{ formatMoney(r.custoBrl) }}</span></div>
     <div class="flex items-center justify-between gap-2"><span class="text-muted">Custo em Câmbios</span><span class="font-medium text-ink tabular">{{ formatInt(r.custoCambios) }} C</span></div>
 
