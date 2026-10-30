@@ -62,9 +62,9 @@ public sealed class FinanceiroTests(ApiFactory factory)
         var antes = await Saldo(admin);
         var hoje = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(-3)).ToString("yyyy-MM-dd");
 
-        // Venda de dias antes do início do controle não gera lançamento (o saldo parte de hoje).
+        // Venda anterior ao início do controle (24/10/2026, fixo na migration) não gera lançamento.
         var antiga = "fin-old-" + Guid.NewGuid().ToString("N")[..8];
-        await factory.Maquina().Enviar(CrivoHelpers.Evento("venda.upsert", CrivoHelpers.Venda(antiga, DateTime.UtcNow.AddDays(-5), 999m)));
+        await factory.Maquina().Enviar(CrivoHelpers.Evento("venda.upsert", CrivoHelpers.Venda(antiga, new DateTime(2020, 1, 15, 15, 0, 0, DateTimeKind.Utc), 999m)));
         Assert.Equal(antes, await Saldo(admin));
 
 
