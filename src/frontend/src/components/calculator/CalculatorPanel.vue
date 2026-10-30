@@ -3,7 +3,7 @@
 import { computed, ref, watch } from 'vue'
 import CoinCalc from '@/components/calculator/CoinCalc.vue'
 import NftResult from '@/components/calculator/NftResult.vue'
-import UiChips from '@/components/ui/UiChips.vue'
+import UiSegmented from '@/components/ui/UiSegmented.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import { ESMERALDAS_POR_K, dolarCompraParaCalculo, esmeraldasParaUsd } from '@/lib/calculator'
 import { formatDecimal, formatInt, formatMoney, parseDecimal } from '@/lib/format'
@@ -53,9 +53,9 @@ const custoUsd = computed(() => (modo.value === 'dolar' ? custoUsdDolar.value : 
       As regras ainda não foram salvas: os valores abaixo são os padrões.
     </p>
 
-    <div v-if="mode === 'nft'" class="grid items-start gap-3 md:grid-cols-2 md:gap-5">
+    <div v-if="mode === 'nft'" class="grid gap-5">
+      <UiSegmented v-model="modo" :options="modos" label="Modo de cálculo" variant="full" />
       <div class="grid gap-3">
-      <UiChips v-model="modo" :options="modos" label="Modo de cálculo" compact />
 
       <UiInput v-if="modo === 'dolar'" v-model="rawUsd" label="Custo USD" prefix="$" inputmode="decimal" placeholder="0,00" />
       <template v-else>

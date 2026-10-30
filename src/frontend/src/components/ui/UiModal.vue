@@ -23,10 +23,14 @@ const open = defineModel<boolean>('open', { default: false })
             <DialogTitle :class="['text-2xl font-semibold tracking-tight text-ink', compact ? 'sm:text-2xl' : 'sm:text-[28px]']">{{ title }}</DialogTitle>
             <DialogDescription v-if="description" class="text-[15px] text-muted">{{ description }}</DialogDescription>
           </div>
-          <DialogClose class="-mt-1 -mr-2 rounded-full p-2 text-muted hover:bg-surface-3 hover:text-ink" aria-label="Fechar">
-            <X class="size-5" />
-          </DialogClose>
+          <div class="-mt-1 -mr-2 flex items-center gap-1">
+            <slot name="actions" />
+            <DialogClose class="rounded-full p-2 text-muted hover:bg-surface-3 hover:text-ink" aria-label="Fechar">
+              <X class="size-5" />
+            </DialogClose>
+          </div>
         </div>
+        <div v-if="$slots.tabs" :class="['shrink-0 border-b border-line px-6 pt-4 pb-4', compact ? 'sm:px-6' : 'sm:px-10']"><slot name="tabs" /></div>
         <div :class="['min-h-0 flex-1 overflow-y-auto px-6', compact ? 'py-4 sm:px-6' : 'py-6 sm:px-10']"><slot /></div>
         <div v-if="$slots.footer" class="flex flex-wrap items-center justify-end gap-3 px-6 pb-6 sm:px-10 sm:pb-9">
           <slot name="footer" />
